@@ -1,0 +1,86 @@
+:root {
+  --navy: #0b1f3a;
+  --red: #b3392c;
+  --blue: #1d6fa5;
+  --text: #1f2530;
+  --muted: #6d7783;
+  --bg: #f4f6f9;
+  --card-bg: #ffffff;
+  --border: #dfe4ea;
+  --success-bg: #eef7f1;
+
+  font: 15px/1.5 system-ui, 'Segoe UI', Roboto, Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+h1, h2, h3, h4 {
+  color: var(--navy);
+  margin: 0 0 8px;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  font-size: 13px;
+  margin: 12px 0 4px;
+  color: var(--text);
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  background: #fff;
+  color: var(--text);
+}
+
+input:disabled, select:disabled {
+  background: #f1f2f4;
+  color: var(--muted);
+}
+
+textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+button {
+  font: inherit;
+  padding: 10px 18px;
+  border-radius: 6px;
+  border: none;
+  background: var(--red);
+  color: #fff;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #c9ccd2;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--navy);
+  border: 1px solid var(--border);
+}
+
+small.hint, small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+}

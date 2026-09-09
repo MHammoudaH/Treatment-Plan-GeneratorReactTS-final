@@ -1,0 +1,278 @@
+/**
+ * Shared TypeScript types for the DutyAI quotation PDF generators.
+ *
+ * These types are a faithful, typed superset of the object produced by the legacy
+ * `buildQuotationData()` (quotation-data.js) — itself built from DOM values plus the
+ * return value of the legacy `calculateOption(card)` pricing function — as further
+ * enriched at runtime by `coordinator-updates.js` (display currency, price-visibility
+ * flags, manual final price overrides).
+ *
+ * Nothing in this file does DOM scraping or price calculation. The rest of the app is
+ * expected to compute pricing and assemble a `QuotationPdfData` object matching these
+ * shapes; the `src/lib/pdf/simple` and `src/lib/pdf/premium` modules only render it.
+ */
+
+/** Language the quotation is written in. Drives label dictionaries, date formatting and
+ *  layout direction (Arabic renders RTL via a dedicated template). Legacy source:
+ *  `quotation.patient.language`, read from the `#language` select. */
+export type QuotationLanguage = 'English' | 'Russian' | 'French' | 'Spanish' | 'Arabic';
+
+/** Currency the PDF displays money in. Legacy source: `coordinator-updates.js`'s
+ *  `selectedCurrency` (`#quoteCurrency`), propagated onto `buildQuotationData()`'s
+ *  return value as `data.display.currency`. */
+export type DisplayCurrencyCode = 'USD' | 'EUR' | 'AUD';
+
+/**
+ * A single priced line item for implants or crowns.
+ * Legacy source: `option.treatment.implants` / `option.treatment.crowns` in
+ * `getQuotationOptionData()` (quotation-data.js), derived from `calculateOption(card)`'s
+ * `implantUnitPrice`/`crownUnitPrice`/`totalImplants`/`totalCrowns`.
+ */
+export interface TreatmentLineItem {
+  /** Catalog id of the selected implant/crown brand (`DUTY_PRICING.implants|crowns` id), or null if none selected. */
+  id: string | null;
+  /** Display name of the brand/product, e.g. "Straumann" or "Zirconium Crowns Emax". Localized at render time via product-name dictionaries. */
+  name: string | null;
+  /** Total units across the whole option (both visits combined). */
+  quantity: number;
+  /** Catalog base unit price in USD, before markup. */
+  baseUnitPrice: number;
+  /** Coordinator markup percentage applied on top of `baseUnitPrice`. */
+  markupPercent: number;
+  /** Final per-unit price actually billed (base + markup, or manual override), in USD. This is what the PDF prints. */
+  finalUnitPrice: number;
+  /** Manual per-unit price override typed by the coordinator, or null if the calculated price is used. Informational only — `finalUnitPrice` already reflects it. */
+  manualUnitPrice: number | null;
+  /** `quantity * finalUnitPrice`, in USD. */
+  total: number;
+}
+
+/**
+ * An additional procedure line (bone grafting, sedation, etc).
+ * Legacy source: `getQuotationProcedureDetails()` (quotation-data.js), one entry per
+ * checked `.procedure-choice`.
+ */
+export interface ProcedureLineItem {
+  /** Catalog id from `DUTY_PRICING.procedures`. */
+  id: string;
+  /** English procedure name as stored in the catalog; localized at render time via `PROCEDURE_LABELS`. */
+  name: string;
+  /** Unit of measure when the procedure is quantity-based (e.g. "tooth", "arch"), or null for a flat one-off procedure. */
+  unit: string | null;
+  /** Quantity billed. Always 1 for procedures without a `unit`. */
+  quantity: number;
+  /** Per-unit price actually billed, in USD (manual override or catalog price). */
+  unitPrice: number;
+  /** Catalog base unit price in USD, before any manual override. */
+  baseUnitPrice: number;
+  /** Manual per-unit price override, or null. Informational — `unitPrice` already reflects it. */
+  manualUnitPrice: number | null;
+  /** `quantity * unitPrice`, in USD. */
+  total: number;
+}
+
+/** The treatment breakdown for one quotation option. Legacy source: `option.treatment`. */
+export interface QuotationTreatment {
+  implants: TreatmentLineItem;
+  crowns: TreatmentLineItem;
+  procedures: ProcedureLineItem[];
+}
+
+/**
+ * Hotel stay details for one visit.
+ * Legacy source: `getQuotationHotelDetails()` (quotation-data.js).
+ */
+export interface QuotationHotelDetails {
+  /** Catalog id from `DUTY_PRICING.hotels`. */
+  id: string;
+  /** Hotel display name. */
+  name: string;
+  /** Raw room-type key selected by the coordinator (e.g. "single", "double"). */
+  roomType: string;
+  /** Human-readable room label as resolved from the hotel's `roomOptions` (falls back to `roomType` when the hotel has no room-option list). */
+  roomLabel: string;
+  /** Number of nights booked. */
+  nights: number;
+  /** Price per night billed, in USD — always the standard catalog rate for the room type. */
+  nightlyPrice: number;
+  /** `nightlyPrice * nights`, in USD. */
+  total: number;
+  /** Currency the hotel's catalog price is denominated in (informational; the PDF always renders in `display.currency`). */
+  currency: string;
+}
+
+/** A single add-on service line (VIP transfer, temporary prosthesis, translator).
+ *  Legacy source: `visit.services.transfer` / `.prosthesis` / `.translator`. */
+export interface QuotationServiceItem {
+  /** Service name; the renderer maps this to a localized label by matching "vip"/"prosthesis"/"translator" substrings (legacy `pdfServiceLabel`/`arPdfHotelRows`), so pass the legacy English names ("VIP transfer", "Dental prosthesis", "Translator") for correct localization. */
+  name: string;
+  /** Price billed for this service in this visit, in USD. 0 (or omitted) prints as "Included". */
+  total: number;
+  /** True when the service is bundled at no extra cost (legacy always sets this for `translator`; optional for the others). */
+  included?: boolean;
+}
+
+export interface QuotationVisitServices {
+  transfer: QuotationServiceItem;
+  /** Omitted on a second visit — the prosthesis is delivered once, on Visit 1. */
+  prosthesis?: QuotationServiceItem;
+  translator: QuotationServiceItem;
+}
+
+/**
+ * Everything billed during a single clinic visit within one option.
+ * Legacy source: `option.visits.visit1` / `option.visits.visit2`, combining
+ * `calculateOption()`'s per-visit totals with `getQuotationHotelDetails()`.
+ */
+export interface QuotationVisit {
+  /** Number of crowns fitted during this specific visit (legacy `calculateOption()`'s `visit1Crowns`/`visit2Crowns`). */
+  crowns: number;
+  /** Hotel booked for this visit, or null when no accommodation is included. */
+  hotel: QuotationHotelDetails | null;
+  services: QuotationVisitServices;
+  /** Dental/treatment cost attributed to this visit, in USD (legacy `visit1Dental`/`visit2Dental`). */
+  dentalTotal: number;
+  /** Hotel + services cost attributed to this visit, in USD (legacy `visit1Services`/`visit2Services`). */
+  servicesTotal: number;
+  /** `dentalTotal + servicesTotal` for this visit, in USD (legacy `visit1Total`/`visit2Total`). */
+  total: number;
+}
+
+/** Visit structure for one option: either a single combined visit or two separate visits. */
+export interface QuotationVisits {
+  count: 1 | 2;
+  visit1: QuotationVisit;
+  /** Present only when `count === 2`. */
+  visit2: QuotationVisit | null;
+}
+
+/** Aggregate totals for one option, in USD. Legacy source: `option.totals`. */
+export interface QuotationOptionTotals {
+  /** Same value as `total` in the legacy data (both mirror `calculateOption()`'s `subtotal`) — kept for shape fidelity. */
+  treatmentAndServices: number;
+  visit1: number;
+  /** 0 when the option has only one visit. */
+  visit2: number;
+  /** Grand total for the option, in USD. This is the number the PDF prints as the option's price. */
+  total: number;
+}
+
+/**
+ * One priced treatment option ("Option 1", "Option 2", ...) as offered to the patient.
+ * Legacy source: `getQuotationOptionData()`'s return value, one per `.quotation-option` card.
+ */
+export interface QuotationOption {
+  /** Stable id for the option (legacy `card.dataset.optionId` or `option-{n}`). */
+  id: string;
+  /** Option display name, e.g. "German Implant System" or a coordinator-typed custom name. Some translations are applied at render time (see `OPTION_NAME_TRANSLATIONS`). */
+  name: string;
+  treatment: QuotationTreatment;
+  visits: QuotationVisits;
+  totals: QuotationOptionTotals;
+  /** Coordinator's manual final-price override for the whole option, in the *display* currency, when set (legacy `coordinator-updates.js` `data.options[i].manualFinalPrice`). Informational only — `totals.total` already reflects any override upstream. */
+  manualFinalPrice?: number;
+  /** Currency the coordinator was viewing when this option was priced (legacy `option.displayCurrency`). Informational only — use `QuotationPdfData.display.currency` to control what the PDF renders. */
+  displayCurrency?: DisplayCurrencyCode;
+}
+
+/** US/Canada installment financing terms. Legacy source: `DUTY_PRICING.financing`, surfaced via `quotation.payment.financing`. */
+export interface FinancingDetails {
+  /** Percentage markup applied to the option total to get the financed "package" price. */
+  markupPercent: number;
+  /** Fixed installment amount collected up front, in USD. */
+  installmentAmount: number;
+  /** Maximum financing term offered, in months (informational — not printed by either generator today). */
+  maximumTermMonths: number;
+}
+
+/** Payment method + installment-financing eligibility for the whole quotation. Legacy source: `quotation.payment`. */
+export interface QuotationPayment {
+  /** Raw payment method id, e.g. "visit-payments" or "installments" (legacy `#paymentMethod` value). */
+  method: string;
+  /** True when the patient's country and chosen payment method qualify for the US/Canada installment plan. */
+  installmentEligible: boolean;
+  /** Present only when `installmentEligible` is true. */
+  financing: FinancingDetails | null;
+}
+
+/**
+ * Clinically-confirmed treatment quantities used to auto-generate the plain-language
+ * treatment-plan summary (legacy `confirmedTreatmentData`, read by `pdfTranslateTreatmentPlan`
+ * / `arPdfTreatmentPlan` / `premiumTreatmentSummary`). All fields are optional/falsy-skippable —
+ * each renderer only prints a line for a field that is truthy.
+ */
+export interface PatientTreatmentData {
+  /** Number of implants planned for the upper jaw. */
+  upperImplants?: number;
+  /** Minimum number of implants planned for the lower jaw. */
+  lowerImplantsMin?: number;
+  /** Maximum number of implants planned for the lower jaw; renders as a "{min}–{max}" range when different from `lowerImplantsMin`. */
+  lowerImplantsMax?: number;
+  /** Number of crowns planned. */
+  crowns?: number;
+  /** Crown material, e.g. "zirconia" (only affects the English/Premium wording today). */
+  crownMaterial?: string;
+}
+
+/** Patient identity and clinical summary. Legacy source: `quotation.patient`. */
+export interface QuotationPatient {
+  /** Patient's name in Latin script, used by every generator except when Arabic-script name is supplied. */
+  name: string;
+  /** Patient's name in Arabic script, preferred by the Arabic generator when present (falls back to `name`). */
+  arabicName: string;
+  /** Patient's country of residence (drives installment-financing eligibility upstream; not printed directly). */
+  country: string;
+  language: QuotationLanguage;
+  /** Free-text clinical diagnosis, used as a fallback when `treatmentData` is absent. */
+  diagnosis: string;
+  treatmentData: PatientTreatmentData | null;
+}
+
+/**
+ * Coordinator-controlled display settings for the generated PDF.
+ * Legacy source: `coordinator-updates.js`'s in-memory state, attached to
+ * `buildQuotationData()`'s return value as `data.display`. Not present in the original
+ * (pre-coordinator-layer) `buildQuotationData()` output — callers that don't need
+ * currency conversion or price hiding can omit `display` entirely and the renderers
+ * default to USD / rate 1 / all prices shown.
+ */
+export interface QuotationDisplayOptions {
+  /** Currency every money amount is rendered in. */
+  currency: DisplayCurrencyCode;
+  /** Multiplier applied to a USD amount to get the displayed amount (1 for USD; the coordinator-edited USD→EUR reference rate for EUR). */
+  usdToCurrencyRate: number;
+  /** When false, hides the printed price for treatment line items (implants/crowns/procedures) — Premium proposal only, see README. */
+  showProductPrices: boolean;
+  /** When false, hides the printed price for hotel line items — Premium proposal only, see README. */
+  showHotelPrices: boolean;
+  /** When true and `currency` is not USD, every rendered amount is followed by its USD equivalent in parentheses. */
+  showUsdEquivalent?: boolean;
+}
+
+/**
+ * Full input contract for the Simple Quotation PDF (`generateSimpleQuotationPdf`) and the
+ * Premium Proposal PDF (`generatePremiumQuotationHtml`/`generatePremiumQuotationPdf`).
+ * Legacy source: the object returned by `buildQuotationData()` (quotation-data.js), as
+ * further enriched by `coordinator-updates.js` (the `display` block).
+ */
+/** Rendered implant-map image for the Premium Proposal (PNG data URL) plus its tooth counts. */
+export interface ImplantMapData {
+  /** `data:image/png;base64,...` snapshot of the 3D implant map. */
+  image: string;
+  implants: number;
+  crowns: number;
+}
+
+export interface QuotationPdfData {
+  /** ISO 8601 timestamp of when the quotation was generated (legacy `new Date().toISOString()`). */
+  generatedAt: string;
+  patient: QuotationPatient;
+  payment: QuotationPayment;
+  options: QuotationOption[];
+  /** Currency/visibility controls. Omit to default to USD at rate 1 with all prices shown. */
+  display?: QuotationDisplayOptions;
+  /** Optional 3D implant-map snapshot; when present the Premium Proposal adds an "Implant Map" page. */
+  implantMap?: ImplantMapData;
+  /** Legacy schema marker, carried through for forward compatibility. Not used by the renderers. */
+  schemaVersion?: number;
+}

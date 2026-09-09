@@ -1,0 +1,325 @@
+.app-shell {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.app-logo {
+  height: 48px;
+  width: auto;
+}
+
+.app-header p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.stepper {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 28px;
+  gap: 8px;
+}
+
+.stepper li {
+  flex: 1;
+  text-align: center;
+  padding: 10px 6px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stepper li.active {
+  background: var(--navy);
+  color: #fff;
+  border-color: var(--navy);
+}
+
+.stepper li.done {
+  background: var(--success-bg);
+  color: var(--navy);
+  border-color: #bfe0cc;
+}
+
+.step-number {
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.wizard-step {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+}
+
+.step-intro {
+  color: var(--muted);
+  margin-top: -4px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 640px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.wizard-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.inline-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  margin: 8px 0;
+}
+
+.inline-check input {
+  width: auto;
+}
+
+.parsed-summary {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.parsed-summary ul {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+
+/* Quotation options */
+
+.option-toolbar {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  background: #f8f9fb;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.coordinator-control label,
+.coordinator-visibility label {
+  margin-top: 6px;
+}
+
+.eur-rate-wrap {
+  margin-top: 6px;
+}
+
+.coordinator-visibility {
+  background: #fffaf0;
+  border: 1px dashed #e6cf9e;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+}
+
+.quotation-option {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 18px;
+  background: #fff;
+}
+
+.option-header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.option-header .option-name {
+  font-weight: 700;
+  font-size: 16px;
+  margin: 0;
+}
+
+.remove-option {
+  white-space: nowrap;
+}
+
+.procedure-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.procedure-item {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.check-item input {
+  width: auto;
+}
+
+.procedure-quantity {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+
+.visit-template {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin: 10px 0 16px;
+  background: #fbfcfe;
+}
+
+.visit-services {
+  margin-top: 8px;
+}
+
+.manual-final-price {
+  margin: 16px 0;
+  padding: 12px 14px;
+  border: 1px dashed #cfd7e1;
+  border-radius: 6px;
+  background: #fafbfd;
+}
+
+.option-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--navy);
+  color: #fff;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.option-total strong {
+  font-size: 18px;
+}
+
+.payment-breakdown,
+.financing-box,
+.confirmation-summary,
+.quotation-summary-option {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  background: #f8f9fb;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.rule-note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #fff4e5;
+  color: #7a4b00;
+  font-size: 13px;
+}
+
+.doctor-picker {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+/* --- Implant map step --- */
+.tooth-chart {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid #d9dfe5;
+  border-radius: 8px;
+  background: #fafbfc;
+  overflow-x: auto;
+}
+.tooth-row {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(30px, 1fr));
+  gap: 4px;
+}
+.tooth-row + .tooth-row {
+  border-top: 1px dashed #cfd6dd;
+  padding-top: 6px;
+}
+.tooth {
+  padding: 8px 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #56616d;
+  background: #fff;
+  border: 1px solid #cdd5de;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.tooth:hover { border-color: #1f5eff; }
+.tooth-implant { background: #2f6bff; border-color: #2f6bff; color: #fff; }
+.tooth-crown { background: #e8a13a; border-color: #e8a13a; color: #fff; }
+.tooth:nth-child(9) { margin-left: 14px; }
+
+.implant-map-counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 14px;
+}
+.tag {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+}
+.tag-implant { background: #2f6bff; }
+.tag-crown { background: #e8a13a; }
+
+.implant-map-3d {
+  width: 100%;
+  height: 440px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0d1526;
+}
