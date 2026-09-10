@@ -16,7 +16,6 @@ type Action =
   | { type: 'PREFILL_OPTIONS_FROM_DIAGNOSIS' }
   | { type: 'REMOVE_OPTION'; id: string }
   | { type: 'UPDATE_OPTION'; id: string; option: OptionInput }
-  | { type: 'TOGGLE_DOCTOR'; id: number }
   | { type: 'RESET' };
 
 function reducer(state: WizardState, action: Action): WizardState {
@@ -82,12 +81,6 @@ function reducer(state: WizardState, action: Action): WizardState {
     }
     case 'UPDATE_OPTION':
       return { ...state, options: state.options.map((option) => (option.id === action.id ? action.option : option)) };
-    case 'TOGGLE_DOCTOR': {
-      const selected = state.selectedDoctorIds.includes(action.id)
-        ? state.selectedDoctorIds.filter((id) => id !== action.id)
-        : [...state.selectedDoctorIds, action.id];
-      return { ...state, selectedDoctorIds: selected };
-    }
     case 'RESET':
       return createInitialState();
     default:

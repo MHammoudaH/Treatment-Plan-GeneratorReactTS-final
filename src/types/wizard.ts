@@ -48,7 +48,6 @@ export interface WizardState {
   paymentMethod: PaymentMethod;
   options: OptionInput[];
   display: DisplaySettings;
-  selectedDoctorIds: number[];
 }
 
 export function createInitialState(): WizardState {
@@ -60,6 +59,5 @@ export function createInitialState(): WizardState {
     paymentMethod: 'visit-payments',
     options: [],
     display: { currency: 'USD', fxRate: 1, showProductPrices: true, showHotelPrices: true, showUsdEquivalent: false },
-    selectedDoctorIds: [],
   };
 }

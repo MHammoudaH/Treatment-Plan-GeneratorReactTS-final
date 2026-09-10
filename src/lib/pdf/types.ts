@@ -93,7 +93,7 @@ export interface QuotationHotelDetails {
   roomLabel: string;
   /** Number of nights booked. */
   nights: number;
-  /** Price per night billed, in USD — always the standard catalog rate for the room type. */
+  /** Price per night billed, in USD — the standard catalog rate for the room type, or the coordinator's override. */
   nightlyPrice: number;
   /** `nightlyPrice * nights`, in USD. */
   total: number;

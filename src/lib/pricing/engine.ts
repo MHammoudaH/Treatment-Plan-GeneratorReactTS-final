@@ -75,6 +75,8 @@ export interface HotelSelection {
   /** 'single' | 'double' | 'triple', or a room-option name for hotels with `roomOptions`. */
   roomType: string;
   nights: number;
+  /** Coordinator's negotiated nightly rate in USD. When set, replaces the catalog rate. */
+  nightlyPriceOverride: number | null;
 }
 
 export interface ServiceSelection {
@@ -112,7 +114,7 @@ export function emptyServiceSelection(): ServiceSelection {
 }
 
 export function emptyHotelSelection(): HotelSelection {
-  return { hotelId: null, roomType: 'single', nights: 0 };
+  return { hotelId: null, roomType: 'single', nights: 0, nightlyPriceOverride: null };
 }
 
 export function emptyVisitInput(): VisitInput {
@@ -229,8 +231,10 @@ function calculateProcedureLine(selection: ProcedureSelection): ProcedureLineIte
 function calculateHotel(selection: HotelSelection): QuotationHotelDetails | null {
   const catalog = findHotel(selection.hotelId);
   if (!catalog || selection.nights <= 0) return null;
-  // Hotel nights are always billed at the standard catalog rate — no per-night override.
-  const nightlyPrice = hotelNightlyRate(catalog, selection.roomType);
+  // Standard catalog rate for the room type, unless the coordinator entered a negotiated one.
+  const nightlyPrice = hasOverride(selection.nightlyPriceOverride)
+    ? selection.nightlyPriceOverride
+    : hotelNightlyRate(catalog, selection.roomType);
   return {
     id: catalog.id,
     name: catalog.name,

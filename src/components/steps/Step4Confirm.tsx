@@ -12,8 +12,7 @@ export function Step4Confirm() {
   const { state, dispatch } = useQuotation();
   const { display } = state;
   const [buildingPremium, setBuildingPremium] = useState(false);
-
-  const selectedDoctors = DOCTORS.filter((d) => state.selectedDoctorIds.includes(d.id));
+  const [selectedDoctorIds, setSelectedDoctorIds] = useState<number[]>([]);
   const marks = countMarks(state.toothPlan);
 
   function handleSimplePdf() {
@@ -21,7 +20,8 @@ export function Step4Confirm() {
   }
 
   async function handlePremiumPdf() {
-    const doctors = (selectedDoctors.length > 0 ? selectedDoctors : DOCTORS).map(toPdfDoctor);
+    const chosen = DOCTORS.filter((doctor) => selectedDoctorIds.includes(doctor.id));
+    const doctors = (chosen.length > 0 ? chosen : DOCTORS).map(toPdfDoctor);
     const pdfData = buildQuotationPdfData(state);
 
     if (marks.implants || marks.crowns) {
@@ -43,7 +43,7 @@ export function Step4Confirm() {
   return (
     <section className="wizard-step">
       <h2>Confirmation</h2>
-      <p className="step-intro">Review the quotation, choose which doctors appear on the Premium Proposal team page, then generate the patient-facing PDFs.</p>
+      <p className="step-intro">Review the quotation, choose the doctors for the Premium Proposal team page, then generate the patient-facing PDFs.</p>
 
       <div className="confirmation-summary">
         <div className="summary-row">
@@ -74,15 +74,21 @@ export function Step4Confirm() {
       </div>
 
       <h3>Doctor team (Premium Proposal)</h3>
-      <p className="hint">Leave none selected to include the full team.</p>
-      <div className="doctor-picker">
+      <p className="hint">Pick the doctor(s) to feature on the team page — each option shows the name and specialty. Hold Ctrl (Cmd on Mac) to select more than one; leave none selected to include the full team.</p>
+      <label htmlFor="doctor-select">Doctors</label>
+      <select
+        id="doctor-select"
+        multiple
+        size={DOCTORS.length}
+        value={selectedDoctorIds.map(String)}
+        onChange={(e) => setSelectedDoctorIds(Array.from(e.target.selectedOptions, (option) => Number(option.value)))}
+      >
         {DOCTORS.map((doctor) => (
-          <label className="inline-check" key={doctor.id}>
-            <input type="checkbox" checked={state.selectedDoctorIds.includes(doctor.id)} onChange={() => dispatch({ type: 'TOGGLE_DOCTOR', id: doctor.id })} />
+          <option key={doctor.id} value={doctor.id}>
             {doctor.name} — {doctor.specialty}
-          </label>
+          </option>
         ))}
-      </div>
+      </select>
 
       <h3>Implant map</h3>
       <p className="hint">

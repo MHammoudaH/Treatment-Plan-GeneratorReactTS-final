@@ -3,6 +3,7 @@ import { PRICING, markupPresetsForPrice } from '../../data/pricing';
 import { formatMoney } from '../../lib/formatMoney';
 import { calculateOption, emptyVisitInput, type HotelSelection, type OptionInput, type ProcedureSelection, type ServiceSelection, type VisitInput } from '../../lib/pricing/engine';
 import type { DisplaySettings } from '../../types/wizard';
+import { NumberField } from '../NumberField';
 
 interface Props {
   option: OptionInput;
@@ -10,11 +11,6 @@ interface Props {
   onRemove: () => void;
   display: DisplaySettings;
   removable: boolean;
-}
-
-function numberOrZero(value: string): number {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
 }
 
 function overrideFromInput(value: string): number | null {
@@ -72,7 +68,7 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
         <div>
           <h4>Implants</h4>
           <label>Total implants</label>
-          <input type="number" min={0} value={option.implant.count} onChange={(e) => patch({ implant: { ...option.implant, count: numberOrZero(e.target.value) } })} />
+          <NumberField min={0} value={option.implant.count} onChange={(n) => patch({ implant: { ...option.implant, count: Math.max(0, n) } })} />
 
           <label>Implant system</label>
           <select value={option.implant.itemId ?? ''} onChange={(e) => patch({ implant: { ...option.implant, itemId: e.target.value || null } })}>
@@ -114,7 +110,7 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
         <div>
           <h4>Crowns</h4>
           <label>Total crowns</label>
-          <input type="number" min={0} value={option.crown.count} onChange={(e) => patch({ crown: { ...option.crown, count: numberOrZero(e.target.value) } })} />
+          <NumberField min={0} value={option.crown.count} onChange={(n) => patch({ crown: { ...option.crown, count: Math.max(0, n) } })} />
 
           <label>Crown system / material</label>
           <select value={option.crown.itemId ?? ''} onChange={(e) => patch({ crown: { ...option.crown, itemId: e.target.value || null } })}>
@@ -170,12 +166,11 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
                   {proc.unit && (
                     <>
                       <label>Quantity ({proc.unit})</label>
-                      <input
-                        type="number"
+                      <NumberField
                         min={0}
                         step={0.5}
                         value={selection.quantity}
-                        onChange={(e) => updateProcedure(proc.id, { quantity: numberOrZero(e.target.value) })}
+                        onChange={(n) => updateProcedure(proc.id, { quantity: Math.max(0, n) })}
                       />
                     </>
                   )}
@@ -212,7 +207,7 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
         <label>Crowns completed in visit 1 (remainder assigned to visit 2)</label>
       )}
       {option.visits === 2 && (
-        <input type="number" min={0} max={option.crown.count} value={option.visit1CrownCount} onChange={(e) => patch({ visit1CrownCount: numberOrZero(e.target.value) })} />
+        <NumberField min={0} max={option.crown.count} value={option.visit1CrownCount} onChange={(n) => patch({ visit1CrownCount: Math.max(0, n) })} />
       )}
 
       <VisitFields
@@ -311,7 +306,17 @@ function VisitFields({
       </select>
 
       <label>Number of nights</label>
-      <input type="number" min={0} value={visit.hotel.nights} onChange={(e) => patchHotel({ nights: numberOrZero(e.target.value) })} />
+      <NumberField min={0} value={visit.hotel.nights} onChange={(n) => patchHotel({ nights: Math.max(0, n) })} />
+
+      <label>Nightly rate override (USD) — optional</label>
+      <input
+        type="number"
+        min={0}
+        step={0.01}
+        placeholder="Standard catalog rate"
+        value={visit.hotel.nightlyPriceOverride ?? ''}
+        onChange={(e) => patchHotel({ nightlyPriceOverride: overrideFromInput(e.target.value) })}
+      />
 
       <div className="visit-services">
         <label>VIP transfer</label>

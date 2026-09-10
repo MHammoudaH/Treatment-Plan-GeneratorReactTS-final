@@ -3,6 +3,7 @@ import { calculateFinancing, calculateOption } from '../../lib/pricing/engine';
 import { formatMoney } from '../../lib/formatMoney';
 import { CURRENCY_META, type DisplayCurrency } from '../../types/wizard';
 import { OptionCard } from './OptionCard';
+import { NumberField } from '../NumberField';
 
 const CURRENCY_CODES = Object.keys(CURRENCY_META) as DisplayCurrency[];
 
@@ -39,7 +40,7 @@ export function Step3Options() {
           {display.currency !== 'USD' && (
             <div className="eur-rate-wrap">
               <label>1 USD = {display.currency}</label>
-              <input type="number" min={0.0001} step={0.0001} value={display.fxRate} onChange={(e) => dispatch({ type: 'SET_DISPLAY', display: { fxRate: Number(e.target.value) || 0 } })} />
+              <NumberField min={0.0001} step={0.0001} value={display.fxRate} onChange={(rate) => dispatch({ type: 'SET_DISPLAY', display: { fxRate: rate } })} />
               <small>Reference rate; adjust before issuing the quotation.</small>
               <label className="inline-check">
                 <input
