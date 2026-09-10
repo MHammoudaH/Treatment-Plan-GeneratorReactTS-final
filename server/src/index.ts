@@ -36,8 +36,8 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 });
 
 warnOnStartup();
-app.listen(config.port, () => {
-  console.log(`[server] API listening on http://localhost:${config.port}`);
+app.listen(config.port, '0.0.0.0', () => {
+  console.log(`[server] API listening on port ${config.port}`);
   console.log(`[server] CORS origin: ${config.appOrigin}`);
   console.log(`[server] Zoho callback: ${config.zoho.redirectUri}`);
 });
