@@ -66,13 +66,34 @@ function safeJson(text: string): unknown {
   }
 }
 
+// ---- roles ---------------------------------------------------------------
+// Mirror of server/src/auth/roles.ts — keep the two in sync.
+
+export const ROLES = {
+  COORDINATOR: 'coordinator',
+  TEAM_LEADER: 'team_leader',
+  PLANNING_MANAGER: 'planning_manager',
+} as const;
+
+export type Role = (typeof ROLES)[keyof typeof ROLES];
+
+export const ROLE_LABELS: Record<Role, string> = {
+  coordinator: 'Coordinator',
+  team_leader: 'Team Leader',
+  planning_manager: 'Planning Manager',
+};
+
+export function isRole(value: unknown): value is Role {
+  return value === ROLES.COORDINATOR || value === ROLES.TEAM_LEADER || value === ROLES.PLANNING_MANAGER;
+}
+
 // ---- typed endpoints -------------------------------------------------------
 
 export interface AuthUser {
   id: number;
   email: string;
   name: string;
-  role: string;
+  role: Role;
   createdAt: string;
 }
 
@@ -161,4 +182,67 @@ export interface DealsResponse {
 
 export function fetchDeals(): Promise<DealsResponse> {
   return apiFetch<DealsResponse>('/deals');
+}
+
+// ---- team leader (foundation) -------------------------------------------
+
+export interface Team {
+  id: number;
+  name: string;
+  kind: 'coordinator' | 'planning' | string;
+  leaderUserId: number | null;
+  createdAt: string;
+}
+
+export interface TeamMember {
+  id: number;
+  email: string;
+  name: string;
+  role: Role;
+  joinedAt: string;
+}
+
+export function fetchMyTeams(): Promise<{ teams: Team[] }> {
+  return apiFetch<{ teams: Team[] }>('/team');
+}
+
+export function fetchTeamMembers(teamId?: number): Promise<{ teamId?: number; members: TeamMember[] }> {
+  return apiFetch(`/team/members${teamId ? `?teamId=${teamId}` : ''}`);
+}
+
+export interface TeamActivityResponse {
+  implemented: boolean;
+  note: string;
+  teamSize: number;
+  items: unknown[];
+}
+
+export function fetchTeamActivity(): Promise<TeamActivityResponse> {
+  return apiFetch<TeamActivityResponse>('/team/activity');
+}
+
+// ---- planning manager (foundation) -----------------------------------------
+
+export interface PlanningOverview {
+  planningTeams: Team[];
+  alsoMemberOf: Team[];
+  teamSize: number;
+}
+
+export function fetchPlanningOverview(): Promise<PlanningOverview> {
+  return apiFetch<PlanningOverview>('/planning');
+}
+
+export interface PlanningListResponse {
+  implemented: boolean;
+  note: string;
+  items: unknown[];
+}
+
+export function fetchPlanningConfirmed(): Promise<PlanningListResponse> {
+  return apiFetch<PlanningListResponse>('/planning/confirmed');
+}
+
+export function fetchPlanningPatients(): Promise<PlanningListResponse> {
+  return apiFetch<PlanningListResponse>('/planning/patients');
 }

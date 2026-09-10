@@ -25,7 +25,7 @@ export class ZohoApiError extends Error {
 let inflightRefresh: Promise<string> | null = null;
 
 async function getAccessToken(forceRefresh = false): Promise<{ token: string; apiDomain: string }> {
-  const conn = getConnection();
+  const conn = await getConnection();
   if (!conn) throw new ZohoNotConnectedError();
 
   const apiDomain = conn.apiDomain || config.zoho.apiBase;
@@ -47,7 +47,7 @@ async function getAccessToken(forceRefresh = false): Promise<{ token: string; ap
       const newApiDomain = data.api_domain ?? conn.apiDomain ?? config.zoho.apiBase;
       // Persist. If the connection only existed in env so far, this writes the first DB row.
       if (conn.updatedAt === 'env') {
-        saveConnection({
+        await saveConnection({
           refreshToken: conn.refreshToken,
           accessToken: data.access_token,
           expiresAt,
@@ -56,7 +56,7 @@ async function getAccessToken(forceRefresh = false): Promise<{ token: string; ap
           connectedBy: conn.connectedBy,
         });
       } else {
-        updateAccessToken(data.access_token, expiresAt, newApiDomain);
+        await updateAccessToken(data.access_token, expiresAt, newApiDomain);
       }
       return data.access_token;
     })().finally(() => {
@@ -65,7 +65,7 @@ async function getAccessToken(forceRefresh = false): Promise<{ token: string; ap
   }
 
   const token = await inflightRefresh;
-  return { token, apiDomain: getConnection()?.apiDomain || config.zoho.apiBase };
+  return { token, apiDomain: (await getConnection())?.apiDomain || config.zoho.apiBase };
 }
 
 /**

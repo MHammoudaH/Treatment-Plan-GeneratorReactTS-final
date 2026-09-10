@@ -6,11 +6,16 @@ import {
   logout as apiLogout,
   signup as apiSignup,
   type AuthUser,
+  type Role,
 } from '../lib/api';
 
 interface AuthContextValue {
   user: AuthUser | null;
   status: 'loading' | 'authenticated' | 'anonymous';
+  /** Current role, or null when not authenticated. */
+  role: Role | null;
+  /** True when the signed-in user holds one of the given roles. */
+  hasRole: (...roles: Role[]) => boolean;
   login: (input: { email: string; password: string }) => Promise<void>;
   signup: (input: { email: string; password: string; name?: string }) => Promise<void>;
   logout: () => void;
@@ -63,9 +68,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('anonymous');
   }, []);
 
+  const role = user?.role ?? null;
+  const hasRole = useCallback(
+    (...roles: Role[]) => (role ? roles.includes(role) : false),
+    [role],
+  );
+
   const value = useMemo<AuthContextValue>(
-    () => ({ user, status, login, signup, logout }),
-    [user, status, login, signup, logout],
+    () => ({ user, status, role, hasRole, login, signup, logout }),
+    [user, status, role, hasRole, login, signup, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

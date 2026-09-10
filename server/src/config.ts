@@ -17,6 +17,12 @@ function int(name: string, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function bool(name: string, fallback = false): boolean {
+  const v = process.env[name];
+  if (v === undefined || v === '') return fallback;
+  return /^(1|true|yes|on)$/i.test(v.trim());
+}
+
 function list(name: string): string[] {
   return str(name)
     .split(',')
@@ -24,10 +30,7 @@ function list(name: string): string[] {
     .filter(Boolean);
 }
 
-/** Resolve a possibly-relative path against the server/ folder. */
-function resolveFromServer(p: string): string {
-  return path.isAbsolute(p) ? p : path.join(serverRoot, p);
-}
+const DEFAULT_DATABASE_URL = 'postgres://postgres:postgres@localhost:5432/treatment_plan';
 
 export const config = {
   serverRoot,
@@ -39,7 +42,12 @@ export const config = {
     ttlDays: int('SESSION_TTL_DAYS', 7),
   },
 
-  databaseFile: resolveFromServer(str('DATABASE_FILE', './data/app.db')),
+  // PostgreSQL. `DATABASE_URL` is the standard connection string used by Render,
+  // Heroku, Supabase, Neon, etc. `DATABASE_SSL=1` turns on TLS (needed on most
+  // managed hosts) with a relaxed cert chain check.
+  databaseUrl: str('DATABASE_URL', DEFAULT_DATABASE_URL),
+  databaseSsl: bool('DATABASE_SSL', false),
+  databasePoolMax: int('DATABASE_POOL_MAX', 10),
 
   signupAllowedDomains: list('SIGNUP_ALLOWED_DOMAINS'),
 
@@ -62,6 +70,12 @@ export function zohoOAuthConfigured(): boolean {
 export function warnOnStartup(): void {
   if (config.session.secret === 'dev-only-change-me') {
     console.warn('[config] SESSION_SECRET is the default value — set a real secret before production.');
+  }
+  if (config.databaseUrl === DEFAULT_DATABASE_URL) {
+    console.warn(
+      '[config] DATABASE_URL is not set — falling back to ' +
+        `${DEFAULT_DATABASE_URL}. Set DATABASE_URL to your PostgreSQL instance.`,
+    );
   }
   if (!zohoOAuthConfigured() && !config.zoho.bootstrapRefreshToken) {
     console.warn(

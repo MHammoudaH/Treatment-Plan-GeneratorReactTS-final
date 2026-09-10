@@ -15,8 +15,8 @@ function appRedirect(res: Response, query: Record<string, string>): void {
 }
 
 // GET /api/zoho/status
-zohoRouter.get('/status', requireAuth, (_req: Request, res: Response) => {
-  const conn = getConnection();
+zohoRouter.get('/status', requireAuth, async (_req: Request, res: Response) => {
+  const conn = await getConnection();
   res.json({
     configured: zohoOAuthConfigured(),
     connected: Boolean(conn),
@@ -31,11 +31,11 @@ zohoRouter.get('/status', requireAuth, (_req: Request, res: Response) => {
 
 // GET /api/zoho/connect  — begins the OAuth consent flow (browser navigation).
 // The frontend hits this with ?access_token=<jwt> since it is a top-level redirect.
-zohoRouter.get('/connect', requireAuth, (req: Request, res: Response) => {
+zohoRouter.get('/connect', requireAuth, async (req: Request, res: Response) => {
   if (!zohoOAuthConfigured()) {
     return appRedirect(res, { zoho: 'error', reason: 'not_configured' });
   }
-  const state = createOAuthState(req.user!.sub);
+  const state = await createOAuthState(req.user!.sub);
   return res.redirect(buildAuthorizeUrl(state));
 });
 
@@ -46,7 +46,7 @@ zohoRouter.get('/callback', async (req: Request, res: Response) => {
   if (error) return appRedirect(res, { zoho: 'error', reason: String(error) });
   if (!code || !state) return appRedirect(res, { zoho: 'error', reason: 'missing_code' });
 
-  const { ok, userId } = consumeOAuthState(state);
+  const { ok, userId } = await consumeOAuthState(state);
   if (!ok) return appRedirect(res, { zoho: 'error', reason: 'bad_state' });
 
   try {
@@ -58,7 +58,7 @@ zohoRouter.get('/callback', async (req: Request, res: Response) => {
       return appRedirect(res, { zoho: 'error', reason: 'no_refresh_token' });
     }
     const expiresAt = Date.now() + (tokens.expires_in ?? 3600) * 1000;
-    saveConnection({
+    await saveConnection({
       refreshToken: tokens.refresh_token,
       accessToken: tokens.access_token ?? null,
       expiresAt,
@@ -74,8 +74,8 @@ zohoRouter.get('/callback', async (req: Request, res: Response) => {
 });
 
 // POST /api/zoho/disconnect
-zohoRouter.post('/disconnect', requireAuth, (_req: Request, res: Response) => {
-  clearConnection();
+zohoRouter.post('/disconnect', requireAuth, async (_req: Request, res: Response) => {
+  await clearConnection();
   res.json({ ok: true });
 });
 

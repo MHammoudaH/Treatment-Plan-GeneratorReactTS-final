@@ -11,11 +11,14 @@ import { StepImplantMap } from './components/steps/StepImplantMap';
 import { Step3Options } from './components/steps/Step3Options';
 import { Step4Confirm } from './components/steps/Step4Confirm';
 import { PlasticSurgeryModule } from './components/PlasticSurgeryModule';
+import { TeamLeaderView } from './components/team/TeamLeaderView';
+import { PlanningView } from './components/planning/PlanningView';
+import { ROLES } from './lib/api';
 
 type ClinicModule = 'dental' | 'plastic';
 
 function AppHeader({ onChangeModule }: { onChangeModule?: () => void }) {
-  const { user, logout } = useAuth();
+  const { user, role, logout } = useAuth();
   return (
     <header className="app-header">
       <img src="/assets/logo/Logo-main.png" alt="Duty Clinic" className="app-logo" />
@@ -31,7 +34,10 @@ function AppHeader({ onChangeModule }: { onChangeModule?: () => void }) {
         )}
         {user && (
           <div className="app-user">
-            <span className="app-user-email" title={user.email}>{user.name || user.email}</span>
+            <span className="app-user-email" title={user.email}>
+              {user.name || user.email}
+              {role && role !== ROLES.COORDINATOR ? ` · ${role.replace('_', ' ')}` : ''}
+            </span>
             <button type="button" className="secondary" onClick={logout}>
               Sign out
             </button>
@@ -85,8 +91,14 @@ function WizardShell({ onChangeModule }: { onChangeModule: () => void }) {
   );
 }
 
-function AppContent() {
+/**
+ * The coordinator experience: module landing -> dental wizard / plastic module.
+ * Used directly for coordinators, and reachable by a team leader who opens
+ * "coordinator tools" (`onExit` returns them to the team view).
+ */
+function CoordinatorApp({ onExit }: { onExit?: () => void }) {
   const [module, setModule] = useState<ClinicModule | null>(null);
+  const leave = onExit ?? (() => setModule(null));
 
   if (module === 'dental') {
     return (
@@ -110,11 +122,45 @@ function AppContent() {
   return (
     <QuotationProvider>
       <div className="app-shell">
-        <AppHeader />
+        <AppHeader onChangeModule={onExit ? leave : undefined} />
         <ModuleLanding onChoose={setModule} />
       </div>
     </QuotationProvider>
   );
+}
+
+/**
+ * Role-based routing foundation. Coordinators get the existing tool unchanged.
+ * The two elevated roles land on their own (minimal) views; the backend still
+ * enforces every role boundary regardless of what renders here.
+ */
+function AppContent() {
+  const { role } = useAuth();
+  const [leaderView, setLeaderView] = useState<'team' | 'coordinator'>('team');
+
+  if (role === ROLES.PLANNING_MANAGER) {
+    return (
+      <div className="app-shell">
+        <AppHeader />
+        <PlanningView />
+      </div>
+    );
+  }
+
+  if (role === ROLES.TEAM_LEADER) {
+    if (leaderView === 'coordinator') {
+      return <CoordinatorApp onExit={() => setLeaderView('team')} />;
+    }
+    return (
+      <div className="app-shell">
+        <AppHeader />
+        <TeamLeaderView onOpenCoordinator={() => setLeaderView('coordinator')} />
+      </div>
+    );
+  }
+
+  // coordinator (default)
+  return <CoordinatorApp />;
 }
 
 function App() {

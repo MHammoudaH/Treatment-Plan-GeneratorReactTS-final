@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { config, zohoOAuthConfigured } from '../config.js';
-import { db } from '../db.js';
+import { query, queryOne } from '../db.js';
 
 const STATE_TTL_MS = 10 * 60 * 1000;
 
@@ -15,19 +15,26 @@ export interface ZohoTokenResponse {
 }
 
 /** Create + persist a one-time `state` value for the consent round-trip. */
-export function createOAuthState(userId: number | null): string {
+export async function createOAuthState(userId: number | null): Promise<string> {
   const state = randomBytes(24).toString('base64url');
-  db.prepare('DELETE FROM oauth_states WHERE created_at < ?').run(Date.now() - STATE_TTL_MS);
-  db.prepare('INSERT INTO oauth_states (state, user_id, created_at) VALUES (?, ?, ?)').run(state, userId, Date.now());
+  await query('DELETE FROM oauth_states WHERE created_at < $1', [Date.now() - STATE_TTL_MS]);
+  await query('INSERT INTO oauth_states (state, user_id, created_at) VALUES ($1, $2, $3)', [
+    state,
+    userId,
+    Date.now(),
+  ]);
   return state;
 }
 
-export function consumeOAuthState(state: string): { ok: boolean; userId: number | null } {
-  const row = db.prepare('SELECT user_id, created_at FROM oauth_states WHERE state = ?').get(state) as
-    | { user_id: number | null; created_at: number }
-    | undefined;
-  if (row) db.prepare('DELETE FROM oauth_states WHERE state = ?').run(state);
-  if (!row || Date.now() - row.created_at > STATE_TTL_MS) return { ok: false, userId: null };
+export async function consumeOAuthState(state: string): Promise<{ ok: boolean; userId: number | null }> {
+  const row = await queryOne<{ user_id: number | null; created_at: string | number }>(
+    'SELECT user_id, created_at FROM oauth_states WHERE state = $1',
+    [state],
+  );
+  if (row) await query('DELETE FROM oauth_states WHERE state = $1', [state]);
+  if (!row || Date.now() - (Number(row.created_at) || 0) > STATE_TTL_MS) {
+    return { ok: false, userId: null };
+  }
   return { ok: true, userId: row.user_id };
 }
 
