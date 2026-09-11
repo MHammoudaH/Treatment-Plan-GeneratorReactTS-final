@@ -336,6 +336,11 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
     <div class="implant-legend">
       <span><i class="dot dot-implant"></i>${esc(labels.implant)} · ${bidi(data.implantMap.implants, rtl)}</span>
       <span><i class="dot dot-crown"></i>${esc(labels.crown)} · ${bidi(data.implantMap.crowns, rtl)}</span>
+      ${
+        data.implantMap.bridges
+          ? `<span><i class="dot dot-bridge"></i>${esc(labels.bridge)} · ${bidi(data.implantMap.bridges, rtl)}</span>`
+          : ''
+      }
     </div>
   </div>
 </section>`
@@ -347,6 +352,9 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
   const paymentVisits: string[] = [];
   if (visit1) paymentVisits.push(`<div><span>${esc(labels.visit1)}</span><strong>${m(visit1.finalTotal)}</strong></div>`);
   if (visit2) paymentVisits.push(`<div><span>${esc(labels.visit2)}</span><strong>${m(visit2.finalTotal)}</strong></div>`);
+  if (selected && selected.totals.flightTicket > 0) {
+    paymentVisits.push(`<div><span>${esc(labels.flightTicket)}</span><strong>${m(selected.totals.flightTicket)}</strong></div>`);
+  }
 
   const financing =
     data.payment.installmentEligible && data.payment.financing && selected
@@ -443,6 +451,7 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
   .implant-legend .dot { display: inline-block; width: 3.4mm; height: 3.4mm; border-radius: 50%; margin-inline-end: 2mm; vertical-align: -0.4mm; }
   .implant-legend .dot-implant { background: #2f6bff; }
   .implant-legend .dot-crown { background: #e8a13a; }
+  .implant-legend .dot-bridge { background: #2bb7a0; }
   .clinic-gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin-top: 7mm; }
   .clinic-gallery img { width: 100%; height: 62mm; object-fit: cover; border-radius: 7px; display: block; background: #eef1f5; }
   .clinic-gallery img:first-child { grid-column: 1 / -1; height: 84mm; }

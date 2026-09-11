@@ -311,6 +311,14 @@ function visitSummaryHtml(option: QuotationOption, labels: SimpleLabels, display
   return parts.join('');
 }
 
+/** Flight ticket is a plan-level cost, not attached to a visit — rendered as its own small
+ *  card, same visual pattern as a visit summary. Omitted entirely when nothing was entered
+ *  (never a meaningless zero-value row). */
+function flightTicketSummaryHtml(option: QuotationOption, labels: SimpleLabels, display: QuotationDisplayOptions): string {
+  if (!(option.totals.flightTicket > 0)) return '';
+  return `<div class="visit-summary"><div class="visit-summary-title">${esc(labels.flightTicket)}</div><div class="visit-total"><span>${esc(labels.flightTicket)}</span><strong>${moneyHtml(option.totals.flightTicket, display)}</strong></div></div>`;
+}
+
 function installmentBlockHtml(data: QuotationPdfData, option: QuotationOption, labels: SimpleLabels, display: QuotationDisplayOptions): string {
   const financing = data.payment.financing;
   if (!data.payment.installmentEligible || !financing) return '';
@@ -335,7 +343,7 @@ function optionHtml(option: QuotationOption, data: QuotationPdfData, labels: Sim
   <div class="section-kicker">${esc(labels.accommodation)} — ${visitCount === 1 ? esc(labels.oneVisit) : esc(labels.twoVisits)}</div>
   ${visit1 ? `<div class="visit-heading">${esc(labels.visit1)}</div><table class="proposal-table services-table"><thead><tr><th>${esc(labels.services)}</th><th>${esc(labels.details)}</th><th>${esc(labels.nights)}</th><th>${esc(labels.perNight)}</th><th>${esc(labels.total)}</th></tr></thead><tbody>${hotelRowsHtml(visit1, labels, display)}</tbody></table>` : ''}
   ${visit2 ? `<div class="visit-heading">${esc(labels.visit2)}</div><table class="proposal-table services-table"><thead><tr><th>${esc(labels.services)}</th><th>${esc(labels.details)}</th><th>${esc(labels.nights)}</th><th>${esc(labels.perNight)}</th><th>${esc(labels.total)}</th></tr></thead><tbody>${hotelRowsHtml(visit2, labels, display)}</tbody></table>` : ''}
-  <div class="payment-section"><div class="section-kicker">${esc(labels.paymentByVisit)}</div>${visitSummaryHtml(option, labels, display)}<div class="grand-total"><span>${esc(labels.total)}</span><strong>${moneyHtml(option.totals.total, display)}</strong></div></div>
+  <div class="payment-section"><div class="section-kicker">${esc(labels.paymentByVisit)}</div>${visitSummaryHtml(option, labels, display)}${flightTicketSummaryHtml(option, labels, display)}<div class="grand-total"><span>${esc(labels.total)}</span><strong>${moneyHtml(option.totals.total, display)}</strong></div></div>
   ${installmentBlockHtml(data, option, labels, display)}</section>`;
 }
 
@@ -438,6 +446,12 @@ function arVisitSummaryHtml(option: QuotationOption, display: QuotationDisplayOp
   return rows.join('');
 }
 
+/** Arabic equivalent of `flightTicketSummaryHtml` — omitted entirely when nothing was entered. */
+function arFlightTicketSummaryHtml(option: QuotationOption, display: QuotationDisplayOptions): string {
+  if (!(option.totals.flightTicket > 0)) return '';
+  return `<div class="visit-summary"><div class="visit-title">${ARABIC_LABELS.flightTicket}</div><div class="visit-total"><span>${ARABIC_LABELS.flightTicket}</span><strong>${arMoneyHtml(option.totals.flightTicket, display)}</strong></div></div>`;
+}
+
 function arInstallmentHtml(data: QuotationPdfData, option: QuotationOption, display: QuotationDisplayOptions): string {
   const financing = data.payment.financing;
   if (!data.payment.installmentEligible || !financing) return '';
@@ -487,7 +501,7 @@ function buildArabicHtml(data: QuotationPdfData): string {
       <div class="section-title">${ARABIC_LABELS.accommodation} — ${visitCount === 1 ? ARABIC_LABELS.oneVisit : ARABIC_LABELS.twoVisits}</div>
       ${visit1 ? `<div class="visit-heading">${ARABIC_LABELS.visit1}</div><table class="proposal-table"><thead><tr><th>${ARABIC_LABELS.services}</th><th>${ARABIC_LABELS.details}</th><th>${ARABIC_LABELS.nights}</th><th>${ARABIC_LABELS.perNight}</th><th>${ARABIC_LABELS.total}</th></tr></thead><tbody>${arHotelRowsHtml(visit1, display)}</tbody></table>` : ''}
       ${visit2 ? `<div class="visit-heading">${ARABIC_LABELS.visit2}</div><table class="proposal-table"><thead><tr><th>${ARABIC_LABELS.services}</th><th>${ARABIC_LABELS.details}</th><th>${ARABIC_LABELS.nights}</th><th>${ARABIC_LABELS.perNight}</th><th>${ARABIC_LABELS.total}</th></tr></thead><tbody>${arHotelRowsHtml(visit2, display)}</tbody></table>` : ''}
-      <div class="payment-section"><div class="section-title">${ARABIC_LABELS.paymentByVisit}</div>${arVisitSummaryHtml(option, display)}<div class="grand-total"><span>${ARABIC_LABELS.total}</span><strong>${arMoneyHtml(option.totals.total, display)}</strong></div></div>
+      <div class="payment-section"><div class="section-title">${ARABIC_LABELS.paymentByVisit}</div>${arVisitSummaryHtml(option, display)}${arFlightTicketSummaryHtml(option, display)}<div class="grand-total"><span>${ARABIC_LABELS.total}</span><strong>${arMoneyHtml(option.totals.total, display)}</strong></div></div>
       ${arInstallmentHtml(data, option, display)}</section>`;
     })
     .join('');

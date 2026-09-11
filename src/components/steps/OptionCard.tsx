@@ -2,15 +2,8 @@ import { useMemo } from 'react';
 import { PRICING, markupPresetsForPrice, priceFor, type Currency, type PriceValue } from '../../data/pricing';
 import { formatMoney } from '../../lib/formatMoney';
 import {
-  ALL_ON_N_OPTIONS,
   calculateOption,
-  createAllOnXConfig,
-  deriveAllOnXCounts,
   emptyVisitInput,
-  type AllOnN,
-  type AllOnXConfig,
-  type DentalArch,
-  type DentalTreatmentType,
   type HotelSelection,
   type OptionInput,
   type ProcedureSelection,
@@ -34,8 +27,6 @@ function overrideFromInput(value: string): number | null {
   const n = Number(value);
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
-
-const DEFAULT_BRIDGE_ID = PRICING.bridges[0]?.id ?? null;
 
 export function OptionCard({ option, onChange, onRemove, display, removable }: Props) {
   const fxRate = display.currency === 'USD' ? 1 : display.fxRate;
@@ -75,31 +66,6 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
     return v === null ? `${display.currency} price not configured` : money(v);
   };
 
-  // --- All-on-X: derives implant/crown/bridge counts from the confirmed clinical
-  // configuration. This never decides clinical suitability — it only turns the
-  // doctor-confirmed arch/All-on-N choice into a priced quotation (see engine.ts). ---
-  function applyAllOnX(nextConfig: AllOnXConfig) {
-    const derived = deriveAllOnXCounts(nextConfig);
-    patch({
-      allOnX: nextConfig,
-      implant: { ...option.implant, count: derived.implants },
-      crown: { ...option.crown, count: derived.crowns },
-      bridge: { ...option.bridge, itemId: option.bridge.itemId ?? DEFAULT_BRIDGE_ID, count: derived.bridges },
-    });
-  }
-
-  function setDentalTreatmentType(type: DentalTreatmentType) {
-    if (type === 'all-on-x') {
-      const config = option.allOnX ?? createAllOnXConfig();
-      patch({ dentalTreatmentType: type });
-      applyAllOnX(config);
-    } else {
-      patch({ dentalTreatmentType: type, allOnX: null });
-    }
-  }
-
-  const isAllOnX = option.dentalTreatmentType === 'all-on-x';
-
   return (
     <article className="quotation-option">
       <div className="option-header">
@@ -111,33 +77,12 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
         )}
       </div>
 
-      {/* TREATMENT TYPE */}
-      <h4>Dental treatment type</h4>
-      <label>Treatment type</label>
-      <select value={option.dentalTreatmentType} onChange={(e) => setDentalTreatmentType(e.target.value as DentalTreatmentType)}>
-        <option value="individual">Individual procedures</option>
-        <option value="all-on-x">All-on-X (full-arch fixed bridge)</option>
-      </select>
-      <small className="hint">
-        Select the configuration the doctor has clinically confirmed. This only turns it into a priced quotation — it is not a
-        clinical recommendation.
-      </small>
-
-      {isAllOnX && option.allOnX && (
-        <AllOnXFields config={option.allOnX} onChange={applyAllOnX} />
-      )}
-
       <div className="grid-2">
-        {/* IMPLANTS */}
+        {/* IMPLANTS — quantity is entered independently; never derived from crown/bridge counts. */}
         <div>
           <h4>Implants</h4>
-          <label>Total implants{isAllOnX ? ' (auto-calculated from All-on-X)' : ''}</label>
-          <NumberField
-            min={0}
-            value={option.implant.count}
-            disabled={isAllOnX}
-            onChange={(n) => patch({ implant: { ...option.implant, count: Math.max(0, n) } })}
-          />
+          <label>Total implants</label>
+          <NumberField min={0} value={option.implant.count} onChange={(n) => patch({ implant: { ...option.implant, count: Math.max(0, n) } })} />
 
           <label>Implant system</label>
           <select value={option.implant.itemId ?? ''} onChange={(e) => patch({ implant: { ...option.implant, itemId: e.target.value || null } })}>
@@ -181,16 +126,11 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
           />
         </div>
 
-        {/* CROWNS */}
+        {/* CROWNS — quantity is entered independently; there is no 1-crown-per-implant rule. */}
         <div>
           <h4>Crowns</h4>
-          <label>Total crowns{isAllOnX ? ' (auto-calculated from All-on-X)' : ''}</label>
-          <NumberField
-            min={0}
-            value={option.crown.count}
-            disabled={isAllOnX}
-            onChange={(n) => patch({ crown: { ...option.crown, count: Math.max(0, n) } })}
-          />
+          <label>Total crowns</label>
+          <NumberField min={0} value={option.crown.count} onChange={(n) => patch({ crown: { ...option.crown, count: Math.max(0, n) } })} />
 
           <label>Crown system / material</label>
           <select value={option.crown.itemId ?? ''} onChange={(e) => patch({ crown: { ...option.crown, itemId: e.target.value || null } })}>
@@ -234,17 +174,13 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
         </div>
       </div>
 
-      {/* BRIDGE */}
-      <h4>Full-arch bridge</h4>
+      {/* BRIDGE — an independent procedure the coordinator adds/removes manually. Its
+          quantity is never inferred from implant or crown counts. */}
+      <h4>Bridge</h4>
       <div className="grid-2">
         <div>
-          <label>Bridge quantity (arches){isAllOnX ? ' (auto-calculated from All-on-X)' : ''}</label>
-          <NumberField
-            min={0}
-            value={option.bridge.count}
-            disabled={isAllOnX}
-            onChange={(n) => patch({ bridge: { ...option.bridge, count: Math.max(0, n) } })}
-          />
+          <label>Bridge quantity</label>
+          <NumberField min={0} value={option.bridge.count} onChange={(n) => patch({ bridge: { ...option.bridge, count: Math.max(0, n) } })} />
 
           <label>Bridge type</label>
           <select value={option.bridge.itemId ?? ''} onChange={(e) => patch({ bridge: { ...option.bridge, itemId: e.target.value || null } })}>
@@ -368,7 +304,24 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
         />
       )}
 
-      {/* TREATMENT PLAN TOTAL — always the sum of each visit's own final total */}
+      {/* FLIGHT TICKET — optional, plan-level, manually entered; never calculated or converted */}
+      <div className="flight-ticket">
+        <label>Flight ticket (optional)</label>
+        <input
+          type="number"
+          min={0}
+          step={0.01}
+          placeholder={`e.g. ${display.currency === 'EUR' ? '650' : display.currency === 'AUD' ? '1050' : '700'} — leave empty if not included`}
+          value={option.flightTicket.amount ?? ''}
+          onChange={(e) => patch({ flightTicket: { amount: overrideFromInput(e.target.value) } })}
+        />
+        <small className="hint">
+          Approximate flight-ticket price, entered by the coordinator in {display.currency} — never calculated automatically and
+          added to the treatment-plan total as-is.
+        </small>
+      </div>
+
+      {/* TREATMENT PLAN TOTAL — always the sum of each visit's own final total + flight ticket */}
       <div className="option-total">
         <span>Calculated total</span>
         <strong>{money(result.totals.calculatedTotal)}</strong>
@@ -378,75 +331,27 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
         <strong className="option-subtotal">{money(result.totals.finalTotal)}</strong>
       </div>
 
-      {option.visits === 2 && (
+      {(option.visits === 2 || result.totals.flightTicket > 0) && (
         <div className="payment-breakdown">
           <div className="summary-row">
             <span>Visit 1</span>
             <strong>{money(result.totals.visit1)}</strong>
           </div>
-          <div className="summary-row">
-            <span>Visit 2</span>
-            <strong>{money(result.totals.visit2)}</strong>
-          </div>
+          {option.visits === 2 && (
+            <div className="summary-row">
+              <span>Visit 2</span>
+              <strong>{money(result.totals.visit2)}</strong>
+            </div>
+          )}
+          {result.totals.flightTicket > 0 && (
+            <div className="summary-row">
+              <span>Flight ticket</span>
+              <strong>{money(result.totals.flightTicket)}</strong>
+            </div>
+          )}
         </div>
       )}
     </article>
-  );
-}
-
-function AllOnXFields({ config, onChange }: { config: AllOnXConfig; onChange: (next: AllOnXConfig) => void }) {
-  const derived = useMemo(() => deriveAllOnXCounts(config), [config]);
-  return (
-    <div className="all-on-x-fields">
-      <div className="grid-2">
-        <div>
-          <label>Arch</label>
-          <select value={config.arch} onChange={(e) => onChange({ ...config, arch: e.target.value as DentalArch })}>
-            <option value="upper">Upper jaw</option>
-            <option value="lower">Lower jaw</option>
-            <option value="both">Upper + lower</option>
-          </select>
-
-          {(config.arch === 'upper' || config.arch === 'both') && (
-            <>
-              <label>{config.arch === 'both' ? 'Upper — All-on-' : 'All-on-'}</label>
-              <select value={config.upperAllOnN} onChange={(e) => onChange({ ...config, upperAllOnN: Number(e.target.value) as AllOnN })}>
-                {ALL_ON_N_OPTIONS.map((n) => (
-                  <option key={n} value={n}>
-                    All-on-{n}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-
-          {(config.arch === 'lower' || config.arch === 'both') && (
-            <>
-              <label>{config.arch === 'both' ? 'Lower — All-on-' : 'All-on-'}</label>
-              <select value={config.lowerAllOnN} onChange={(e) => onChange({ ...config, lowerAllOnN: Number(e.target.value) as AllOnN })}>
-                {ALL_ON_N_OPTIONS.map((n) => (
-                  <option key={n} value={n}>
-                    All-on-{n}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-        </div>
-
-        <div>
-          <label>Crowns per arch (full-arch bridge configuration)</label>
-          <NumberField min={1} value={config.crownsPerArch} onChange={(n) => onChange({ ...config, crownsPerArch: Math.max(1, n) })} />
-          <small className="hint">Configurable per clinic/prosthetic design — not a fixed clinical rule.</small>
-        </div>
-      </div>
-
-      <div className="all-on-x-summary">
-        <span>{derived.implants} × Implants</span>
-        <span>{derived.crowns} × Crowns</span>
-        <span>{derived.bridges} × Full-arch bridge</span>
-      </div>
-    </div>
   );
 }
 

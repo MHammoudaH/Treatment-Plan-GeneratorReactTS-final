@@ -38,6 +38,7 @@ export interface PremiumLabels {
   implantMapIntro: string;
   implant: string;
   crown: string;
+  bridge: string;
   // Treatment table
   procedure: string;
   qty: string;
@@ -49,6 +50,7 @@ export interface PremiumLabels {
   // Visits & services
   visit1: string;
   visit2: string;
+  flightTicket: string;
   oneVisit: string;
   twoVisits: string;
   nights: string;
@@ -94,6 +96,7 @@ const EN: PremiumLabels = {
   implantMapIntro: 'Planned implant and crown positions for your treatment.',
   implant: 'Implant',
   crown: 'Crown',
+  bridge: 'Bridge',
   procedure: 'Procedure',
   qty: 'Qty.',
   total: 'Total',
@@ -103,6 +106,7 @@ const EN: PremiumLabels = {
   included: 'Included',
   visit1: 'Visit 1',
   visit2: 'Visit 2',
+  flightTicket: 'Flight ticket',
   oneVisit: '1 visit',
   twoVisits: '2 visits',
   nights: 'nights',
@@ -154,6 +158,7 @@ const RU: PremiumLabels = {
   implantMapIntro: 'Запланированные позиции имплантов и коронок для вашего лечения.',
   implant: 'Имплант',
   crown: 'Коронка',
+  bridge: 'Мост',
   procedure: 'Процедура',
   qty: 'Кол-во',
   total: 'Итого',
@@ -163,6 +168,7 @@ const RU: PremiumLabels = {
   included: 'Включено',
   visit1: 'Первый визит',
   visit2: 'Второй визит',
+  flightTicket: 'Авиабилет',
   oneVisit: '1 визит',
   twoVisits: '2 визита',
   nights: 'ночей',
@@ -213,6 +219,7 @@ const FR: PremiumLabels = {
   implantMapIntro: 'Positions prévues des implants et des couronnes pour votre traitement.',
   implant: 'Implant',
   crown: 'Couronne',
+  bridge: 'Bridge',
   procedure: 'Procédure',
   qty: 'Qté',
   total: 'Total',
@@ -222,6 +229,7 @@ const FR: PremiumLabels = {
   included: 'Inclus',
   visit1: 'Première visite',
   visit2: 'Deuxième visite',
+  flightTicket: 'Billet d’avion',
   oneVisit: '1 visite',
   twoVisits: '2 visites',
   nights: 'nuits',
@@ -273,6 +281,7 @@ const ES: PremiumLabels = {
   implantMapIntro: 'Posiciones previstas de implantes y coronas para su tratamiento.',
   implant: 'Implante',
   crown: 'Corona',
+  bridge: 'Puente',
   procedure: 'Procedimiento',
   qty: 'Cant.',
   total: 'Total',
@@ -282,6 +291,7 @@ const ES: PremiumLabels = {
   included: 'Incluido',
   visit1: 'Primera visita',
   visit2: 'Segunda visita',
+  flightTicket: 'Billete de avión',
   oneVisit: '1 visita',
   twoVisits: '2 visitas',
   nights: 'noches',
@@ -333,6 +343,7 @@ const AR: PremiumLabels = {
   implantMapIntro: 'المواضع المخططة للزرعات والتيجان لعلاجك.',
   implant: 'زرعة',
   crown: 'تاج',
+  bridge: 'جسر',
   procedure: 'الإجراء',
   qty: 'الكمية',
   total: 'الإجمالي',
@@ -342,6 +353,7 @@ const AR: PremiumLabels = {
   included: 'مشمول',
   visit1: 'الزيارة الأولى',
   visit2: 'الزيارة الثانية',
+  flightTicket: 'تذكرة الطيران',
   oneVisit: 'زيارة واحدة',
   twoVisits: 'زيارتان',
   nights: 'ليالٍ',

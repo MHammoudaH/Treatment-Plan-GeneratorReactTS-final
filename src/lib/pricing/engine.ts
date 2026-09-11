@@ -42,13 +42,20 @@
  * therefore converted from its USD price using the reference `fxRate` — that rate is
  * otherwise used only to print an optional "≈ $X USD" reference line (see
  * `src/lib/formatMoney.ts`), never to compute a treatment price.
+ *
+ * TREATMENT COMPOSITION: implant, crown and bridge quantities are entered independently by
+ * the coordinator — there is no automatic "All-on-X" derivation, no 1-crown-per-implant
+ * coupling, and bridge quantity is never inferred from implant/crown counts. The coordinator
+ * builds the plan from the doctor's confirmed treatment directly.
+ *
+ * FLIGHT TICKET: an optional, plan-level, manually entered cost (never calculated, never
+ * currency-converted) added on top of the visits' final totals — see `totals.flightTicket`.
  */
 
 import {
   PRICING,
   STANDARD_PROSTHESIS_USD,
   STANDARD_TRANSFER_USD,
-  DEFAULT_FULL_ARCH_CROWNS_PER_ARCH,
   priceFor,
   type BridgeCatalogItem,
   type CrownCatalogItem,
@@ -120,66 +127,29 @@ export interface VisitInput {
   overrideTotal: number | null;
 }
 
-/** Which arch(es) an All-on-X treatment covers. */
-export type DentalArch = 'upper' | 'lower' | 'both';
-
-/** All-on-4 / All-on-6 / All-on-8 — the number of implants placed per arch. */
-export type AllOnN = 4 | 6 | 8;
-
-export const ALL_ON_N_OPTIONS: AllOnN[] = [4, 6, 8];
-
-/**
- * The coordinator's All-on-X selections. This never itself changes clinical suitability —
- * it only records the doctor-confirmed configuration so the engine/UI/PDF can derive the
- * implant/crown/bridge quantities automatically instead of the coordinator entering them
- * one by one. See `deriveAllOnXCounts`.
- */
-export interface AllOnXConfig {
-  arch: DentalArch;
-  /** Implants for the upper arch. Used when `arch` is 'upper' or 'both'. */
-  upperAllOnN: AllOnN;
-  /** Implants for the lower arch. Used when `arch` is 'lower' or 'both'. */
-  lowerAllOnN: AllOnN;
-  /** Crowns fitted per arch on the fixed bridge — configurable, not a hardcoded clinical
-   *  constant (full-arch prosthetic design varies). Defaults to `DEFAULT_FULL_ARCH_CROWNS_PER_ARCH`. */
-  crownsPerArch: number;
+/** An optional, plan-level, manually entered cost — see the module doc comment. */
+export interface FlightTicketInput {
+  /** Approximate flight-ticket price the coordinator typed, in the quotation's selected
+   *  currency, or null when not entered. Never calculated, never converted between
+   *  currencies — see `calculateOption`. */
+  amount: number | null;
 }
 
-export function createAllOnXConfig(): AllOnXConfig {
-  return { arch: 'upper', upperAllOnN: 6, lowerAllOnN: 6, crownsPerArch: DEFAULT_FULL_ARCH_CROWNS_PER_ARCH };
+export function emptyFlightTicket(): FlightTicketInput {
+  return { amount: null };
 }
-
-/** Implant / crown / bridge quantities implied by an All-on-X configuration. Pure and
- *  deterministic — the ONE place this arithmetic happens (see formulas in the module doc
- *  and the pricing brief §5/§7). One bridge per arch treated. */
-export function deriveAllOnXCounts(config: AllOnXConfig): { implants: number; crowns: number; bridges: number } {
-  const perArchImplants: number[] = [];
-  if (config.arch === 'upper' || config.arch === 'both') perArchImplants.push(config.upperAllOnN);
-  if (config.arch === 'lower' || config.arch === 'both') perArchImplants.push(config.lowerAllOnN);
-  const arches = perArchImplants.length;
-  return {
-    implants: perArchImplants.reduce((sum, n) => sum + n, 0),
-    crowns: Math.max(0, config.crownsPerArch) * arches,
-    bridges: arches,
-  };
-}
-
-export type DentalTreatmentType = 'individual' | 'all-on-x';
 
 export interface OptionInput {
   id: string;
   name: string;
-  /** UI mode only — does not change how totals are calculated. 'all-on-x' means the
-   *  implant/crown/bridge counts below were auto-populated from `allOnX` (see
-   *  `deriveAllOnXCounts`); the coordinator can still fine-tune them afterwards. */
-  dentalTreatmentType: DentalTreatmentType;
-  /** Present when `dentalTreatmentType === 'all-on-x'`; null otherwise. Clinical suitability
-   *  is the doctor's — this only records the confirmed configuration for pricing/labeling. */
-  allOnX: AllOnXConfig | null;
+  /** Implant quantity, brand and pricing — entered independently of crown/bridge quantity. */
   implant: ProductSelection;
+  /** Crown quantity, material and pricing — entered independently of implant/bridge quantity.
+   *  There is no 1-crown-per-implant rule; the coordinator enters the actual count. */
   crown: ProductSelection;
   /** Full-arch prosthetic bridge — an ordinary priced line like implant/crown (unit price
-   *  × quantity), independent of currency. `count` is normally 1 or 2 (arches treated). */
+   *  × quantity), independent of currency AND independent of implant/crown quantity. The
+   *  coordinator adds/removes it manually; it is never inferred from implants being present. */
   bridge: ProductSelection;
   procedures: ProcedureSelection[];
   visits: 1 | 2;
@@ -188,6 +158,8 @@ export interface OptionInput {
   visit1: VisitInput;
   /** Required when `visits === 2`; ignored (treated as absent) when `visits === 1`. */
   visit2: VisitInput | null;
+  /** Optional plan-level flight-ticket cost — see `FlightTicketInput`. */
+  flightTicket: FlightTicketInput;
 }
 
 export function emptyServiceSelection(): ServiceSelection {
@@ -210,8 +182,6 @@ export function createOptionInput(id: string, name: string): OptionInput {
   return {
     id,
     name,
-    dentalTreatmentType: 'individual',
-    allOnX: null,
     implant: { itemId: null, count: 0, markupPercent: 25, finalUnitPriceOverride: null },
     crown: { itemId: null, count: 0, markupPercent: 25, finalUnitPriceOverride: null },
     bridge: emptyProductSelection(),
@@ -220,6 +190,7 @@ export function createOptionInput(id: string, name: string): OptionInput {
     visit1CrownCount: 0,
     visit1: { ...emptyVisitInput(), transfer: { selectedUsd: STANDARD_TRANSFER_USD, finalPriceOverride: null } },
     visit2: emptyVisitInput(),
+    flightTicket: emptyFlightTicket(),
   };
 }
 
@@ -457,15 +428,21 @@ export function calculateOption(input: OptionInput, currency: Currency, fxRate: 
 
   const visits: QuotationVisits = { count: input.visits, visit1, visit2 };
 
+  // Optional plan-level cost, entered directly in the selected currency — never calculated,
+  // never converted. 0 when not entered (see FlightTicketInput / module doc).
+  const flightTicket = hasOverride(input.flightTicket.amount) ? round2(input.flightTicket.amount) : 0;
+
   // The treatment-plan total is ALWAYS the sum of each visit's own final total (override or
-  // calculated) — never a proportional scale of a single whole-option number. See module doc.
-  const calculatedTotal = round2(visit1.calculatedTotal + (visit2?.calculatedTotal ?? 0));
-  const finalTotal = round2(visit1.finalTotal + (visit2?.finalTotal ?? 0));
+  // calculated) plus any plan-level cost like the flight ticket — never a proportional scale
+  // of a single whole-option number. See module doc.
+  const calculatedTotal = round2(visit1.calculatedTotal + (visit2?.calculatedTotal ?? 0) + flightTicket);
+  const finalTotal = round2(visit1.finalTotal + (visit2?.finalTotal ?? 0) + flightTicket);
 
   const totals: QuotationOptionTotals = {
     treatmentAndServices: finalTotal,
     visit1: visit1.finalTotal,
     visit2: visit2?.finalTotal ?? 0,
+    flightTicket,
     calculatedTotal,
     finalTotal,
     total: finalTotal,

@@ -20,6 +20,7 @@ export interface ArabicLabels {
   accommodation: string;
   visit1: string;
   visit2: string;
+  flightTicket: string;
   hotel: string;
   room: string;
   nights: string;
@@ -66,6 +67,7 @@ export const ARABIC_LABELS: ArabicLabels = {
   accommodation: 'الإقامة والخدمات',
   visit1: 'الزيارة الأولى',
   visit2: 'الزيارة الثانية',
+  flightTicket: 'تذكرة الطيران',
   hotel: 'الفندق',
   room: 'الغرفة',
   nights: 'الليالي',

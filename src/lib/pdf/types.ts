@@ -173,11 +173,15 @@ export interface QuotationOptionTotals {
   visit1: number;
   /** = visit2.finalTotal, or 0 when the option has only one visit. */
   visit2: number;
-  /** Sum of every visit's `calculatedTotal`, i.e. the total BEFORE any per-visit overrides. */
+  /** Optional plan-level flight-ticket cost, in the selected currency. 0 when not entered.
+   *  Manually entered by the coordinator — never calculated, never currency-converted. */
+  flightTicket: number;
+  /** Sum of every visit's `calculatedTotal` plus `flightTicket`, i.e. the total BEFORE any
+   *  per-visit overrides. */
   calculatedTotal: number;
-  /** Sum of every visit's `finalTotal` — the authoritative treatment-plan total. This is
-   *  what changes when a coordinator overrides one visit; the other visit's calculated
-   *  price is untouched (no proportional scaling of the whole option). */
+  /** Sum of every visit's `finalTotal` plus `flightTicket` — the authoritative treatment-plan
+   *  total. This is what changes when a coordinator overrides one visit; the other visit's
+   *  calculated price is untouched (no proportional scaling of the whole option). */
   finalTotal: number;
   /** Alias of `finalTotal`. Grand total for the option — the number the PDF prints as the option's price. */
   total: number;
@@ -292,6 +296,8 @@ export interface ImplantMapData {
   image: string;
   implants: number;
   crowns: number;
+  /** Bridge units marked on the tooth map. Optional — omit or 0 hides the legend row. */
+  bridges?: number;
 }
 
 export interface QuotationPdfData {

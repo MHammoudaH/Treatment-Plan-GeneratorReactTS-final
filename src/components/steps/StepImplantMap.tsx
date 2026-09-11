@@ -65,8 +65,9 @@ export function StepImplantMap() {
     <section className="wizard-step">
       <h2>Implant map</h2>
       <p className="step-intro">
-        Click a tooth to plan an <strong>implant</strong>, click again for a <strong>crown</strong>, once more to clear.
-        The 3D view updates live and a snapshot is included in the Premium Proposal PDF.
+        Click a tooth to cycle: <strong>implant</strong> → <strong>crown</strong> → <strong>implant-supported crown</strong> →{' '}
+        <strong>bridge</strong> → clear. The 3D view updates live and a snapshot is included in the Premium Proposal PDF. This is a
+        visual representation of the treatment plan, not a clinical recommendation.
       </p>
 
       {parsed && (
@@ -80,6 +81,7 @@ export function StepImplantMap() {
       <div className="implant-map-counts">
         <span className="tag tag-implant">Implants: {marks.implants}</span>
         <span className="tag tag-crown">Crowns: {marks.crowns}</span>
+        <span className="tag tag-bridge">Bridge units: {marks.bridges}</span>
         <button type="button" className="secondary" onClick={() => dispatch({ type: 'SUGGEST_TEETH_FROM_DIAGNOSIS' })}>
           Suggest from diagnosis
         </button>

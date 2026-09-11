@@ -244,11 +244,6 @@ export const PRICING: PricingCatalog = {
 export const STANDARD_TRANSFER_USD = 150;
 export const STANDARD_PROSTHESIS_USD = 200;
 
-/** Default number of crowns fitted per arch on a full-arch (All-on-X) fixed bridge.
- *  Configurable per option in the wizard (`OptionInput.allOnX.crownsPerArch`) — this is
- *  only the starting value offered to the coordinator, not a hardcoded clinical rule. */
-export const DEFAULT_FULL_ARCH_CROWNS_PER_ARCH = 12;
-
 /** Coordinator markup-percent presets, keyed by base unit price band.
  *  Legacy source: `getUnitMarkupOptions()` / `updateMarkupOptions()` in app.js. */
 export function markupPresetsForPrice(price: number): number[] {

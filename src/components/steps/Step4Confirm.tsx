@@ -29,7 +29,7 @@ export function Step4Confirm() {
       try {
         const { renderImplantMapSnapshot } = await import('../../lib/dental/implantMapSnapshot');
         const image = await renderImplantMapSnapshot(state.toothPlan);
-        pdfData.implantMap = { image, implants: marks.implants, crowns: marks.crowns };
+        pdfData.implantMap = { image, implants: marks.implants, crowns: marks.crowns, bridges: marks.bridges };
       } catch {
         // Snapshot failed (e.g. no WebGL) — issue the proposal without the implant map.
       } finally {
