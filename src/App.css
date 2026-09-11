@@ -566,12 +566,57 @@
   margin-top: 8px;
 }
 
-.manual-final-price {
+.manual-final-price,
+.visit-override {
   margin: 16px 0;
   padding: 12px 14px;
   border: 1px dashed #cfd7e1;
   border-radius: 6px;
   background: #fafbfd;
+}
+
+.visit-final-total {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 15px;
+}
+
+.visit-final-total strong {
+  color: var(--navy);
+}
+
+.config-warning {
+  margin: 6px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fff4e5;
+  color: #7a4b00;
+  font-size: 13px;
+}
+
+.all-on-x-fields {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin: 10px 0 16px;
+  background: #fbfcfe;
+}
+
+.all-on-x-summary {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.all-on-x-summary span {
+  background: var(--navy);
+  color: #fff;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .option-total {

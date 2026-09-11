@@ -60,7 +60,8 @@ export function Step4Confirm() {
         </div>
 
         {state.options.map((input) => {
-          const result = calculateOption(input);
+          const fxRate = display.currency === 'USD' ? 1 : display.fxRate;
+          const result = calculateOption(input, display.currency, fxRate);
           return (
             <div className="quotation-summary-option" key={input.id}>
               <h3>{input.name}</h3>

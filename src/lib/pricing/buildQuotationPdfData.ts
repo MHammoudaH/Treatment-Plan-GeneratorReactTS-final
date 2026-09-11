@@ -10,7 +10,8 @@ import type { WizardState } from '../../types/wizard';
 import { calculateFinancing, calculateOption } from './engine';
 
 export function buildQuotationPdfData(state: WizardState): QuotationPdfData {
-  const options = state.options.map(calculateOption);
+  const fxRate = state.display.currency === 'USD' ? 1 : state.display.fxRate;
+  const options = state.options.map((option) => calculateOption(option, state.display.currency, fxRate));
 
   const installmentEligible =
     state.paymentMethod === 'installments' && PRICING.financing.eligibleCountries.includes(state.patient.country);

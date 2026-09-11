@@ -15,6 +15,7 @@ export interface ArabicLabels {
   total: string;
   implants: string;
   crowns: string;
+  bridge: string;
   procedures: string;
   accommodation: string;
   visit1: string;
@@ -60,6 +61,7 @@ export const ARABIC_LABELS: ArabicLabels = {
   total: 'الإجمالي',
   implants: 'زراعة الأسنان',
   crowns: 'التيجان',
+  bridge: 'الجسر التعويضي الكامل',
   procedures: 'إجراءات إضافية',
   accommodation: 'الإقامة والخدمات',
   visit1: 'الزيارة الأولى',

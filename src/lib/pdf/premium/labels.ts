@@ -44,6 +44,7 @@ export interface PremiumLabels {
   total: string;
   dentalImplants: string;
   dentalCrowns: string;
+  dentalBridge: string;
   included: string;
   // Visits & services
   visit1: string;
@@ -98,6 +99,7 @@ const EN: PremiumLabels = {
   total: 'Total',
   dentalImplants: 'Dental implants',
   dentalCrowns: 'Dental crowns',
+  dentalBridge: 'Full-arch dental bridge',
   included: 'Included',
   visit1: 'Visit 1',
   visit2: 'Visit 2',
@@ -157,6 +159,7 @@ const RU: PremiumLabels = {
   total: 'Итого',
   dentalImplants: 'Зубные импланты',
   dentalCrowns: 'Зубные коронки',
+  dentalBridge: 'Полный мостовидный протез',
   included: 'Включено',
   visit1: 'Первый визит',
   visit2: 'Второй визит',
@@ -215,6 +218,7 @@ const FR: PremiumLabels = {
   total: 'Total',
   dentalImplants: 'Implants dentaires',
   dentalCrowns: 'Couronnes dentaires',
+  dentalBridge: 'Bridge complet sur arcade',
   included: 'Inclus',
   visit1: 'Première visite',
   visit2: 'Deuxième visite',
@@ -274,6 +278,7 @@ const ES: PremiumLabels = {
   total: 'Total',
   dentalImplants: 'Implantes dentales',
   dentalCrowns: 'Coronas dentales',
+  dentalBridge: 'Puente dental de arco completo',
   included: 'Incluido',
   visit1: 'Primera visita',
   visit2: 'Segunda visita',
@@ -333,6 +338,7 @@ const AR: PremiumLabels = {
   total: 'الإجمالي',
   dentalImplants: 'زرعات الأسنان',
   dentalCrowns: 'تيجان الأسنان',
+  dentalBridge: 'الجسر التعويضي الكامل',
   included: 'مشمول',
   visit1: 'الزيارة الأولى',
   visit2: 'الزيارة الثانية',

@@ -20,6 +20,7 @@ export interface SimpleLabels {
   total: string;
   implants: string;
   crowns: string;
+  bridge: string;
   procedures: string;
   accommodation: string;
   visit1: string;
@@ -56,7 +57,7 @@ export interface SimpleLabels {
 export const SIMPLE_LABELS: Record<SimpleLatinLanguage, SimpleLabels> = {
   Russian: {
     proposal: 'ПЕРСОНАЛЬНЫЙ ПЛАН ЛЕЧЕНИЯ', preparedFor: 'Подготовлено для', date: 'Дата', treatmentPlan: 'ПЛАН ЛЕЧЕНИЯ',
-    treatment: 'Лечение', quantity: 'Кол-во', unitPrice: 'Цена за единицу', total: 'Стоимость', implants: 'Импланты', crowns: 'Коронки',
+    treatment: 'Лечение', quantity: 'Кол-во', unitPrice: 'Цена за единицу', total: 'Стоимость', implants: 'Импланты', crowns: 'Коронки', bridge: 'Мостовидный протез',
     procedures: 'Дополнительные процедуры', accommodation: 'ПРОЖИВАНИЕ И УСЛУГИ', visit1: 'ПЕРВЫЙ ВИЗИТ', visit2: 'ВТОРОЙ ВИЗИТ',
     hotel: 'Отель', room: 'Номер', nights: 'Ночей', perNight: 'Цена за ночь', services: 'Услуги', details: 'Детали', included: 'Включено',
     transfer: 'VIP-трансфер', prosthesis: 'Зубной протез', translator: 'Переводчик', paymentByVisit: 'Оплата по визитам', optionTotal: 'Стоимость варианта',
@@ -68,7 +69,7 @@ export const SIMPLE_LABELS: Record<SimpleLatinLanguage, SimpleLabels> = {
   },
   English: {
     proposal: 'PERSONALIZED TREATMENT PROPOSAL', preparedFor: 'Prepared for', date: 'Date', treatmentPlan: 'TREATMENT PLAN', treatment: 'Treatment', quantity: 'Qty.', unitPrice: 'Unit price', total: 'Total',
-    implants: 'Implants', crowns: 'Crowns', procedures: 'Additional procedures', accommodation: 'ACCOMMODATION & SERVICES', visit1: 'VISIT 1', visit2: 'VISIT 2', hotel: 'Hotel', room: 'Room', nights: 'Nights', perNight: 'Price / night', services: 'Services', details: 'Details', included: 'Included',
+    implants: 'Implants', crowns: 'Crowns', bridge: 'Full-arch bridge', procedures: 'Additional procedures', accommodation: 'ACCOMMODATION & SERVICES', visit1: 'VISIT 1', visit2: 'VISIT 2', hotel: 'Hotel', room: 'Room', nights: 'Nights', perNight: 'Price / night', services: 'Services', details: 'Details', included: 'Included',
     transfer: 'VIP transfer', prosthesis: 'Dental prosthesis', translator: 'Translator', paymentByVisit: 'Payment by visit', optionTotal: 'Option total', visit: 'Visit', oneVisit: '1 visit', twoVisits: '2 visits', important: 'IMPORTANT',
     generated: 'This document was generated automatically from the selected treatment option.', disclaimer: 'The final treatment plan and procedure scope are confirmed by the doctor after clinical examination and required diagnostic assessment.',
     intro: 'We are pleased to provide your personalized treatment proposal based on the information provided. The following pages summarize the selected treatment, accommodation, services and payment plan.',
@@ -76,7 +77,7 @@ export const SIMPLE_LABELS: Record<SimpleLatinLanguage, SimpleLabels> = {
   },
   French: {
     proposal: 'PLAN DE TRAITEMENT PERSONNALISÉ', preparedFor: 'Préparé pour', date: 'Date', treatmentPlan: 'PLAN DE TRAITEMENT', treatment: 'Traitement', quantity: 'Qté.', unitPrice: 'Prix unitaire', total: 'Total',
-    implants: 'Implants', crowns: 'Couronnes', procedures: 'Procédures supplémentaires', accommodation: 'HÉBERGEMENT ET SERVICES', visit1: 'PREMIÈRE VISITE', visit2: 'DEUXIÈME VISITE', hotel: 'Hôtel', room: 'Chambre', nights: 'Nuits', perNight: 'Prix / nuit', services: 'Services', details: 'Détails', included: 'Inclus',
+    implants: 'Implants', crowns: 'Couronnes', bridge: 'Bridge complet', procedures: 'Procédures supplémentaires', accommodation: 'HÉBERGEMENT ET SERVICES', visit1: 'PREMIÈRE VISITE', visit2: 'DEUXIÈME VISITE', hotel: 'Hôtel', room: 'Chambre', nights: 'Nuits', perNight: 'Prix / nuit', services: 'Services', details: 'Détails', included: 'Inclus',
     transfer: 'Transfert VIP', prosthesis: 'Prothèse dentaire', translator: 'Interprète', paymentByVisit: 'Paiement par visite', optionTotal: 'Total de l’option', visit: 'Visite', oneVisit: '1 visite', twoVisits: '2 visites', important: 'IMPORTANT',
     generated: 'Ce document a été généré automatiquement à partir de l’option de traitement sélectionnée.', disclaimer: 'Le plan de traitement final et le volume des procédures sont confirmés par le médecin après l’examen clinique et les examens diagnostiques nécessaires.',
     intro: 'Nous vous proposons un plan de traitement personnalisé basé sur les informations fournies. Les pages suivantes résument le traitement sélectionné, l’hébergement, les services et les modalités de paiement.',
@@ -84,7 +85,7 @@ export const SIMPLE_LABELS: Record<SimpleLatinLanguage, SimpleLabels> = {
   },
   Spanish: {
     proposal: 'PLAN DE TRATAMIENTO PERSONALIZADO', preparedFor: 'Preparado para', date: 'Fecha', treatmentPlan: 'PLAN DE TRATAMIENTO', treatment: 'Tratamiento', quantity: 'Cant.', unitPrice: 'Precio unitario', total: 'Total',
-    implants: 'Implantes', crowns: 'Coronas', procedures: 'Procedimientos adicionales', accommodation: 'ALOJAMIENTO Y SERVICIOS', visit1: 'PRIMERA VISITA', visit2: 'SEGUNDA VISITA', hotel: 'Hotel', room: 'Habitación', nights: 'Noches', perNight: 'Precio / noche', services: 'Servicios', details: 'Detalles', included: 'Incluido',
+    implants: 'Implantes', crowns: 'Coronas', bridge: 'Puente de arco completo', procedures: 'Procedimientos adicionales', accommodation: 'ALOJAMIENTO Y SERVICIOS', visit1: 'PRIMERA VISITA', visit2: 'SEGUNDA VISITA', hotel: 'Hotel', room: 'Habitación', nights: 'Noches', perNight: 'Precio / noche', services: 'Servicios', details: 'Detalles', included: 'Incluido',
     transfer: 'Traslado VIP', prosthesis: 'Prótesis dental', translator: 'Intérprete', paymentByVisit: 'Pago por visita', optionTotal: 'Total de la opción', visit: 'Visita', oneVisit: '1 visita', twoVisits: '2 visitas', important: 'IMPORTANTE',
     generated: 'Este documento se generó automáticamente a partir de la opción de tratamiento seleccionada.', disclaimer: 'El plan de tratamiento final y el alcance de los procedimientos serán confirmados por el médico después del examen clínico y las pruebas diagnósticas necesarias.',
     intro: 'Le ofrecemos un plan de tratamiento personalizado basado en la información proporcionada. Las siguientes páginas resumen el tratamiento seleccionado, alojamiento, servicios y forma de pago.',

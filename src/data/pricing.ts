@@ -2,15 +2,55 @@
  * DutyAI official pricing catalog.
  * Ported verbatim from the legacy `Data/pricing.js` (`window.DUTY_PRICING`).
  * Source: Duty Clinic - Sales Price List.xlsx
- * Prices are official base prices in USD. Coordinator markup/overrides are applied
+ * Prices are official base prices. Coordinator markup/overrides are applied
  * separately by the pricing engine (see src/lib/pricing/engine.ts).
+ *
+ * MULTI-CURRENCY: every clinic price is a `PriceValue` — three INDEPENDENT numbers
+ * (usd/eur/aud), never derived from one another. `null` means "not configured for
+ * that currency yet" — see `priceFor()`. Do not invent missing EUR/AUD values; only
+ * the clinic's official USD list (and the two bridge prices explicitly given) are
+ * populated here. Everything else starts `null` until a coordinator/admin sets it.
  */
+
+export type Currency = 'USD' | 'EUR' | 'AUD';
+
+export const CURRENCIES: readonly Currency[] = ['USD', 'EUR', 'AUD'];
+
+/** Three independent clinic prices. Never compute one from another. */
+export interface PriceValue {
+  usd: number | null;
+  eur: number | null;
+  aud: number | null;
+}
+
+/** A USD-only price, EUR/AUD left unconfigured (`null`) — NOT a conversion, just "not set yet". */
+export function usdOnly(usd: number): PriceValue {
+  return { usd, eur: null, aud: null };
+}
+
+/** The independent price for `currency`, or `null` if that currency isn't configured
+ *  for this item. Never falls back to another currency — that would silently
+ *  reintroduce USD-based conversion, which this catalog forbids. */
+export function priceFor(value: PriceValue, currency: Currency): number | null {
+  switch (currency) {
+    case 'USD':
+      return value.usd;
+    case 'EUR':
+      return value.eur;
+    case 'AUD':
+      return value.aud;
+  }
+}
+
+export function hasPrice(value: PriceValue, currency: Currency): boolean {
+  return priceFor(value, currency) !== null;
+}
 
 export interface CrownCatalogItem {
   id: string;
   name: string;
   displayName?: string;
-  price: number;
+  price: PriceValue;
 }
 
 export interface ImplantCatalogItem {
@@ -18,15 +58,23 @@ export interface ImplantCatalogItem {
   name: string;
   displayName?: string;
   origin: string;
-  price: number;
+  price: PriceValue;
 }
 
 export interface ProcedureCatalogItem {
   id: string;
   name: string;
-  price: number;
+  price: PriceValue;
   /** Present only for quantity-based procedures (e.g. "1 cc", "one side", "per arch"). */
   unit?: string;
+}
+
+/** A full-arch prosthetic bridge, priced independently per currency and billed
+ *  `unit price × quantity` (one bridge per arch treated, see engine.ts). */
+export interface BridgeCatalogItem {
+  id: string;
+  name: string;
+  price: PriceValue;
 }
 
 export interface HotelRoomOption {
@@ -63,47 +111,54 @@ export interface PricingCatalog {
   crowns: CrownCatalogItem[];
   implants: ImplantCatalogItem[];
   procedures: ProcedureCatalogItem[];
+  bridges: BridgeCatalogItem[];
   hotels: HotelCatalogItem[];
   financing: FinancingRules;
 }
 
 export const PRICING: PricingCatalog = {
   crowns: [
-    { id: 'ivoclar-zirconia', name: 'Zirconium Crowns Ivoclar German', price: 100 },
-    { id: 'emax', name: 'Zirconium Crowns Emax', price: 150 },
-    { id: 'monolithic', name: 'Zirconium Crowns Monolithic', price: 170 },
-    { id: 'multilayer', name: 'Zirconium Crowns Multilayer', price: 170 },
-    { id: 'straumann-zirconia', name: 'Zirconium Crowns Straumann', displayName: 'Straumann Zirconia', price: 170 },
-    { id: 'veneers', name: 'Veneers', price: 150 },
+    { id: 'ivoclar-zirconia', name: 'Zirconium Crowns Ivoclar German', price: usdOnly(100) },
+    { id: 'emax', name: 'Zirconium Crowns Emax', price: usdOnly(150) },
+    { id: 'monolithic', name: 'Zirconium Crowns Monolithic', price: usdOnly(170) },
+    { id: 'multilayer', name: 'Zirconium Crowns Multilayer', price: usdOnly(170) },
+    { id: 'straumann-zirconia', name: 'Zirconium Crowns Straumann', displayName: 'Straumann Zirconia', price: usdOnly(170) },
+    { id: 'veneers', name: 'Veneers', price: usdOnly(150) },
   ],
   implants: [
-    { id: 'medigma', name: 'German Implants Medigma', displayName: 'Medigma', origin: 'German', price: 300 },
-    { id: 'bego', name: 'German Implants Bego', displayName: 'BEGO', origin: 'German', price: 370 },
-    { id: 'hiossen', name: 'American Implants Hiossen', displayName: 'Hiossen', origin: 'American', price: 500 },
-    { id: 'zimmer', name: 'American Implants Zimmer', displayName: 'Zimmer', origin: 'American', price: 650 },
-    { id: 'neodent', name: 'Neodent by Straumann', origin: 'Swiss', price: 500 },
-    { id: 'medentika', name: 'Medentika by Straumann', displayName: 'Medentika by Straumann Group', origin: 'Swiss', price: 650 },
-    { id: 'nobel-biocare', name: 'Nobel Biocare', origin: 'Other', price: 600 },
-    { id: 'megagen', name: 'Korean Implants Megagen', displayName: 'Megagen', origin: 'Korean', price: 500 },
-    { id: 'osstem', name: 'Korean Implants Osstem', displayName: 'Osstem', origin: 'Korean', price: 500 },
-    { id: 'straumann', name: 'Swiss Implants Straumann', displayName: 'Straumann', origin: 'Swiss', price: 600 },
-    { id: 'straumann-blt', name: 'Swiss Implants Straumann BLT', displayName: 'Straumann BLT', origin: 'Swiss', price: 600 },
-    { id: 'straumann-blx', name: 'Swiss Implants Straumann BLX', displayName: 'Straumann BLX', origin: 'Swiss', price: 750 },
-    { id: 'venus', name: 'Turkish Implants Venus', displayName: 'Venus', origin: 'Turkish', price: 225 },
+    { id: 'medigma', name: 'German Implants Medigma', displayName: 'Medigma', origin: 'German', price: usdOnly(300) },
+    { id: 'bego', name: 'German Implants Bego', displayName: 'BEGO', origin: 'German', price: usdOnly(370) },
+    { id: 'hiossen', name: 'American Implants Hiossen', displayName: 'Hiossen', origin: 'American', price: usdOnly(500) },
+    { id: 'zimmer', name: 'American Implants Zimmer', displayName: 'Zimmer', origin: 'American', price: usdOnly(650) },
+    { id: 'neodent', name: 'Neodent by Straumann', origin: 'Swiss', price: usdOnly(500) },
+    { id: 'medentika', name: 'Medentika by Straumann', displayName: 'Medentika by Straumann Group', origin: 'Swiss', price: usdOnly(650) },
+    { id: 'nobel-biocare', name: 'Nobel Biocare', origin: 'Other', price: usdOnly(600) },
+    { id: 'megagen', name: 'Korean Implants Megagen', displayName: 'Megagen', origin: 'Korean', price: usdOnly(500) },
+    { id: 'osstem', name: 'Korean Implants Osstem', displayName: 'Osstem', origin: 'Korean', price: usdOnly(500) },
+    { id: 'straumann', name: 'Swiss Implants Straumann', displayName: 'Straumann', origin: 'Swiss', price: usdOnly(600) },
+    { id: 'straumann-blt', name: 'Swiss Implants Straumann BLT', displayName: 'Straumann BLT', origin: 'Swiss', price: usdOnly(600) },
+    { id: 'straumann-blx', name: 'Swiss Implants Straumann BLX', displayName: 'Straumann BLX', origin: 'Swiss', price: usdOnly(750) },
+    { id: 'venus', name: 'Turkish Implants Venus', displayName: 'Venus', origin: 'Turkish', price: usdOnly(225) },
   ],
   procedures: [
-    { id: 'bone-graft', name: 'Bone Grafting', price: 400, unit: '1 cc' },
-    { id: 'sinus-1', name: 'Sinus Lifting with Bone Graft (1 Side)', price: 740, unit: 'one side' },
-    { id: 'sinus-2', name: 'Sinus Lifting with Bone Graft (2 Sides)', price: 1400, unit: 'two sides' },
-    { id: 'surgical-extraction', name: 'Surgical Extraction', price: 150 },
-    { id: 'implant-removal', name: 'Implants Removal', price: 100 },
-    { id: 'root-canal', name: 'Root Canal', price: 50 },
-    { id: 'gingivectomy', name: 'Gingivectomy', price: 300, unit: 'per arch' },
-    { id: 'fillings', name: 'Fillings', price: 75 },
+    { id: 'bone-graft', name: 'Bone Grafting', price: usdOnly(400), unit: '1 cc' },
+    { id: 'sinus-1', name: 'Sinus Lifting with Bone Graft (1 Side)', price: usdOnly(740), unit: 'one side' },
+    { id: 'sinus-2', name: 'Sinus Lifting with Bone Graft (2 Sides)', price: usdOnly(1400), unit: 'two sides' },
+    { id: 'surgical-extraction', name: 'Surgical Extraction', price: usdOnly(150) },
+    { id: 'implant-removal', name: 'Implants Removal', price: usdOnly(100) },
+    { id: 'root-canal', name: 'Root Canal', price: usdOnly(50) },
+    { id: 'gingivectomy', name: 'Gingivectomy', price: usdOnly(300), unit: 'per arch' },
+    { id: 'fillings', name: 'Fillings', price: usdOnly(75) },
     // Added by coordinator-updates.js in production (procedureSource()) — kept here as
     // first-class catalog entries rather than a runtime patch.
-    { id: 'general-anesthesia', name: 'General Anesthesia', price: 1500 },
-    { id: 'hiv-protocol', name: 'HIV Protocol for a patient with HIV', price: 1500 },
+    { id: 'general-anesthesia', name: 'General Anesthesia', price: usdOnly(1500) },
+    { id: 'hiv-protocol', name: 'HIV Protocol for a patient with HIV', price: usdOnly(1500) },
+  ],
+  bridges: [
+    // The clinic's usual full-arch fixed-bridge price. USD/EUR are the clinic's own
+    // independent figures for each currency (NOT converted from one another). AUD is
+    // intentionally left unconfigured — do not assume AUD = USD or AUD = EUR.
+    { id: 'full-arch-bridge', name: 'Full-Arch Dental Bridge', price: { usd: 1000, eur: 1000, aud: null } },
   ],
   hotels: [
     { id: 'tryp-wyndham-topkapi', name: 'Tryp by Wyndham Istanbul Topkapi', single: 65, double: 65, triple: 95, currency: 'USD' },
@@ -182,9 +237,17 @@ export const PRICING: PricingCatalog = {
 };
 
 /** Flat clinic-standard prices used by the pricing engine's defaults (legacy: hardcoded
- *  constants inside coordinator-final-pricing.js, now first-class catalog values). */
+ *  constants inside coordinator-final-pricing.js, now first-class catalog values).
+ *  Hotel/transfer/prosthesis logistics pricing is USD-only by design (unchanged from the
+ *  legacy app) — the multi-currency architecture below applies to the clinical treatment
+ *  items (implants, crowns, procedures, bridges) named in the pricing brief. */
 export const STANDARD_TRANSFER_USD = 150;
 export const STANDARD_PROSTHESIS_USD = 200;
+
+/** Default number of crowns fitted per arch on a full-arch (All-on-X) fixed bridge.
+ *  Configurable per option in the wizard (`OptionInput.allOnX.crownsPerArch`) — this is
+ *  only the starting value offered to the coordinator, not a hardcoded clinical rule. */
+export const DEFAULT_FULL_ARCH_CROWNS_PER_ARCH = 12;
 
 /** Coordinator markup-percent presets, keyed by base unit price band.
  *  Legacy source: `getUnitMarkupOptions()` / `updateMarkupOptions()` in app.js. */

@@ -55,31 +55,40 @@ function esc(value: unknown): string {
     .replace(/'/g, '&#039;');
 }
 
-/** Formats a USD amount into the display currency. Legacy source: `pdfMoney()` (and, once the
- *  coordinator layer patches it, `window.pdfMoney`/`premiumMoney`). */
-function money(valueUsd: number, display: QuotationDisplayOptions): string {
-  const amount = (Number(valueUsd) || 0) * display.usdToCurrencyRate;
+/**
+ * Formats an amount that is ALREADY expressed in `display.currency` — every figure in a
+ * `QuotationOption` comes straight out of `calculateOption()` (see `src/lib/pricing/engine.ts`)
+ * already priced in the selected currency; nothing here converts USD to EUR/AUD. Legacy
+ * source: `pdfMoney()` (and, once the coordinator layer patches it, `window.pdfMoney`/
+ * `premiumMoney`) — which DID multiply by a USD rate; that conversion step is gone.
+ */
+function money(value: number, display: QuotationDisplayOptions): string {
+  const amount = Number(value) || 0;
   const symbol = display.currency === 'EUR' ? '€' : display.currency === 'AUD' ? 'A$' : '$';
   const main = `${symbol}${amount.toLocaleString('en-US', {
     minimumFractionDigits: amount % 1 ? 2 : 0,
     maximumFractionDigits: 2,
   })}`;
   if (display.currency === 'USD' || !display.showUsdEquivalent) return main;
-  const usd = (Number(valueUsd) || 0).toLocaleString('en-US', {
-    minimumFractionDigits: (Number(valueUsd) || 0) % 1 ? 2 : 0,
+  // Reference-only USD equivalent — the inverse of the isolated fxRate, never the source of
+  // the amount above. See QuotationDisplayOptions.usdToCurrencyRate.
+  const rate = display.usdToCurrencyRate || 1;
+  const usdEquivalent = amount / rate;
+  const usd = usdEquivalent.toLocaleString('en-US', {
+    minimumFractionDigits: usdEquivalent % 1 ? 2 : 0,
     maximumFractionDigits: 2,
   });
   return `${main} (≈ $${usd})`;
 }
 
 /** Legacy source: `pdfMoneyHtml()`. */
-function moneyHtml(valueUsd: number, display: QuotationDisplayOptions): string {
-  return `<span dir="ltr">${esc(money(valueUsd, display))}</span>`;
+function moneyHtml(value: number, display: QuotationDisplayOptions): string {
+  return `<span dir="ltr">${esc(money(value, display))}</span>`;
 }
 
 /** Legacy source: `arPdfMoney()`. */
-function arMoneyHtml(valueUsd: number, display: QuotationDisplayOptions): string {
-  return `<bdi class="ltr-number">${esc(money(valueUsd, display))}</bdi>`;
+function arMoneyHtml(value: number, display: QuotationDisplayOptions): string {
+  return `<bdi class="ltr-number">${esc(money(value, display))}</bdi>`;
 }
 
 function formatDate(iso: string, language: string): string {
@@ -249,7 +258,7 @@ function activeServices(services: QuotationVisitServices): QuotationServiceItem[
 
 function treatmentRowsHtml(option: QuotationOption, labels: SimpleLabels, language: SimpleLatinLanguage, display: QuotationDisplayOptions): string {
   const rows: string[] = [];
-  const { implants, crowns, procedures } = option.treatment;
+  const { implants, crowns, bridge, procedures } = option.treatment;
 
   if (implants.quantity > 0) {
     rows.push(
@@ -259,6 +268,11 @@ function treatmentRowsHtml(option: QuotationOption, labels: SimpleLabels, langua
   if (crowns.quantity > 0) {
     rows.push(
       `<tr><td>${esc(labels.crowns)} — ${esc(translateProductName(crowns.name || '', language))}</td><td>${crowns.quantity}</td><td>${moneyHtml(crowns.finalUnitPrice, display)}</td><td>${moneyHtml(crowns.total, display)}</td></tr>`,
+    );
+  }
+  if (bridge.quantity > 0) {
+    rows.push(
+      `<tr><td>${esc(labels.bridge)} — ${esc(bridge.name || labels.bridge)}</td><td>${bridge.quantity}</td><td>${moneyHtml(bridge.finalUnitPrice, display)}</td><td>${moneyHtml(bridge.total, display)}</td></tr>`,
     );
   }
   for (const p of procedures) {
@@ -286,12 +300,12 @@ function visitSummaryHtml(option: QuotationOption, labels: SimpleLabels, display
   const { visit1, visit2 } = option.visits;
   if (visit1) {
     parts.push(
-      `<div class="visit-summary"><div class="visit-summary-title">${esc(labels.visit1)}</div><div class="visit-line"><span>${esc(labels.treatment)}</span><strong>${moneyHtml(visit1.dentalTotal, display)}</strong></div><div class="visit-line"><span>${esc(labels.services)}</span><strong>${moneyHtml(visit1.servicesTotal, display)}</strong></div><div class="visit-total"><span>${esc(labels.visit)} 1</span><strong>${moneyHtml(visit1.total, display)}</strong></div></div>`,
+      `<div class="visit-summary"><div class="visit-summary-title">${esc(labels.visit1)}</div><div class="visit-line"><span>${esc(labels.treatment)}</span><strong>${moneyHtml(visit1.dentalTotal, display)}</strong></div><div class="visit-line"><span>${esc(labels.services)}</span><strong>${moneyHtml(visit1.servicesTotal, display)}</strong></div><div class="visit-total"><span>${esc(labels.visit)} 1</span><strong>${moneyHtml(visit1.finalTotal, display)}</strong></div></div>`,
     );
   }
   if (visit2) {
     parts.push(
-      `<div class="visit-summary"><div class="visit-summary-title">${esc(labels.visit2)}</div><div class="visit-line"><span>${esc(labels.treatment)}</span><strong>${moneyHtml(visit2.dentalTotal, display)}</strong></div><div class="visit-line"><span>${esc(labels.services)}</span><strong>${moneyHtml(visit2.servicesTotal, display)}</strong></div><div class="visit-total"><span>${esc(labels.visit)} 2</span><strong>${moneyHtml(visit2.total, display)}</strong></div></div>`,
+      `<div class="visit-summary"><div class="visit-summary-title">${esc(labels.visit2)}</div><div class="visit-line"><span>${esc(labels.treatment)}</span><strong>${moneyHtml(visit2.dentalTotal, display)}</strong></div><div class="visit-line"><span>${esc(labels.services)}</span><strong>${moneyHtml(visit2.servicesTotal, display)}</strong></div><div class="visit-total"><span>${esc(labels.visit)} 2</span><strong>${moneyHtml(visit2.finalTotal, display)}</strong></div></div>`,
     );
   }
   return parts.join('');
@@ -413,12 +427,12 @@ function arVisitSummaryHtml(option: QuotationOption, display: QuotationDisplayOp
   const { visit1, visit2 } = option.visits;
   if (visit1) {
     rows.push(
-      `<div class="visit-summary"><div class="visit-title">${ARABIC_LABELS.visit1}</div><div class="visit-line"><span>${ARABIC_LABELS.treatment}</span><strong>${arMoneyHtml(visit1.dentalTotal, display)}</strong></div><div class="visit-line"><span>${ARABIC_LABELS.services}</span><strong>${arMoneyHtml(visit1.servicesTotal, display)}</strong></div><div class="visit-total"><span>${ARABIC_LABELS.visit} 1</span><strong>${arMoneyHtml(visit1.total, display)}</strong></div></div>`,
+      `<div class="visit-summary"><div class="visit-title">${ARABIC_LABELS.visit1}</div><div class="visit-line"><span>${ARABIC_LABELS.treatment}</span><strong>${arMoneyHtml(visit1.dentalTotal, display)}</strong></div><div class="visit-line"><span>${ARABIC_LABELS.services}</span><strong>${arMoneyHtml(visit1.servicesTotal, display)}</strong></div><div class="visit-total"><span>${ARABIC_LABELS.visit} 1</span><strong>${arMoneyHtml(visit1.finalTotal, display)}</strong></div></div>`,
     );
   }
   if (visit2) {
     rows.push(
-      `<div class="visit-summary"><div class="visit-title">${ARABIC_LABELS.visit2}</div><div class="visit-line"><span>${ARABIC_LABELS.treatment}</span><strong>${arMoneyHtml(visit2.dentalTotal, display)}</strong></div><div class="visit-line"><span>${ARABIC_LABELS.services}</span><strong>${arMoneyHtml(visit2.servicesTotal, display)}</strong></div><div class="visit-total"><span>${ARABIC_LABELS.visit} 2</span><strong>${arMoneyHtml(visit2.total, display)}</strong></div></div>`,
+      `<div class="visit-summary"><div class="visit-title">${ARABIC_LABELS.visit2}</div><div class="visit-line"><span>${ARABIC_LABELS.treatment}</span><strong>${arMoneyHtml(visit2.dentalTotal, display)}</strong></div><div class="visit-line"><span>${ARABIC_LABELS.services}</span><strong>${arMoneyHtml(visit2.servicesTotal, display)}</strong></div><div class="visit-total"><span>${ARABIC_LABELS.visit} 2</span><strong>${arMoneyHtml(visit2.finalTotal, display)}</strong></div></div>`,
     );
   }
   return rows.join('');
@@ -443,7 +457,7 @@ function buildArabicHtml(data: QuotationPdfData): string {
   const optionsHtml = data.options
     .map((option, index) => {
       const { visit1, visit2, count: visitCount } = option.visits;
-      const { implants, crowns, procedures } = option.treatment;
+      const { implants, crowns, bridge, procedures } = option.treatment;
       const rows: string[] = [];
 
       if (implants.quantity > 0) {
@@ -454,6 +468,11 @@ function buildArabicHtml(data: QuotationPdfData): string {
       if (crowns.quantity > 0) {
         rows.push(
           `<tr><td>${ARABIC_LABELS.crowns} — <bdi class="mixed-label">${esc(arTranslateCrownName(crowns.name || ''))}</bdi></td><td><bdi class="ltr-number">${crowns.quantity}</bdi></td><td>${arMoneyHtml(crowns.finalUnitPrice, display)}</td><td>${arMoneyHtml(crowns.total, display)}</td></tr>`,
+        );
+      }
+      if (bridge.quantity > 0) {
+        rows.push(
+          `<tr><td>${ARABIC_LABELS.bridge}</td><td><bdi class="ltr-number">${bridge.quantity}</bdi></td><td>${arMoneyHtml(bridge.finalUnitPrice, display)}</td><td>${arMoneyHtml(bridge.total, display)}</td></tr>`,
         );
       }
       for (const p of procedures) {

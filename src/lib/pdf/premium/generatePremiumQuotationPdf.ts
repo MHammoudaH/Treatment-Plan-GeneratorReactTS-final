@@ -73,17 +73,25 @@ function bidi(value: string | number, rtl: boolean): string {
   return rtl ? `<bdi>${value}</bdi>` : String(value);
 }
 
-/** Legacy source: `premiumMoney()` — currency conversion + optional USD equivalent folded in. */
-function money(valueUsd: number, display: QuotationDisplayOptions): string {
-  const amount = (Number(valueUsd) || 0) * display.usdToCurrencyRate;
+/**
+ * Legacy source: `premiumMoney()` — optional USD equivalent folded in. `value` is ALREADY
+ * expressed in `display.currency` (every figure in a `QuotationOption` comes straight out of
+ * `calculateOption()`, see `src/lib/pricing/engine.ts`) — no USD conversion happens here.
+ */
+function money(value: number, display: QuotationDisplayOptions): string {
+  const amount = Number(value) || 0;
   const symbol = display.currency === 'EUR' ? '€' : display.currency === 'AUD' ? 'A$' : '$';
   const main = `${symbol}${amount.toLocaleString('en-US', {
     minimumFractionDigits: amount % 1 ? 2 : 0,
     maximumFractionDigits: 2,
   })}`;
   if (display.currency === 'USD' || !display.showUsdEquivalent) return main;
-  const usd = (Number(valueUsd) || 0).toLocaleString('en-US', {
-    minimumFractionDigits: (Number(valueUsd) || 0) % 1 ? 2 : 0,
+  // Reference-only USD equivalent — the inverse of the isolated fxRate, never the source of
+  // the amount above. See QuotationDisplayOptions.usdToCurrencyRate.
+  const rate = display.usdToCurrencyRate || 1;
+  const usdEquivalent = amount / rate;
+  const usd = usdEquivalent.toLocaleString('en-US', {
+    minimumFractionDigits: usdEquivalent % 1 ? 2 : 0,
     maximumFractionDigits: 2,
   });
   return `${main} (≈ $${usd})`;
@@ -141,9 +149,9 @@ function treatmentRowsHtml(
   rtl: boolean,
 ): string {
   const rows: string[] = [];
-  const { implants, crowns, procedures } = option.treatment;
-  const totalText = (valueUsd: number) =>
-    display.showProductPrices ? bidi(esc(money(valueUsd, display)), rtl) : esc(labels.included);
+  const { implants, crowns, bridge, procedures } = option.treatment;
+  const totalText = (value: number) =>
+    display.showProductPrices ? bidi(esc(money(value, display)), rtl) : esc(labels.included);
 
   if (implants.quantity) {
     rows.push(
@@ -154,6 +162,12 @@ function treatmentRowsHtml(
   if (crowns.quantity) {
     rows.push(
       `<div class="treatment-row"><div><strong>${esc(labels.dentalCrowns)}</strong><span>${esc(crowns.name || '')}</span></div><strong>${bidi(crowns.quantity, rtl)}</strong><strong>${totalText(crowns.total)}</strong></div>`,
+    );
+  }
+
+  if (bridge.quantity) {
+    rows.push(
+      `<div class="treatment-row"><div><strong>${esc(labels.dentalBridge)}</strong><span>${esc(bridge.name || '')}</span></div><strong>${bidi(bridge.quantity, rtl)}</strong><strong>${totalText(bridge.total)}</strong></div>`,
     );
   }
 
@@ -198,7 +212,7 @@ function visitCardHtml(
 
   return `
     <div class="visit-card">
-      <div class="visit-title"><span>${esc(label)}</span><strong>${m(visit.total)}</strong></div>
+      <div class="visit-title"><span>${esc(label)}</span><strong>${m(visit.finalTotal)}</strong></div>
       ${
         hotel
           ? `
@@ -331,8 +345,8 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
   const visit1 = selected?.visits.visit1 ?? null;
   const visit2 = selected?.visits.visit2 ?? null;
   const paymentVisits: string[] = [];
-  if (visit1) paymentVisits.push(`<div><span>${esc(labels.visit1)}</span><strong>${m(visit1.total)}</strong></div>`);
-  if (visit2) paymentVisits.push(`<div><span>${esc(labels.visit2)}</span><strong>${m(visit2.total)}</strong></div>`);
+  if (visit1) paymentVisits.push(`<div><span>${esc(labels.visit1)}</span><strong>${m(visit1.finalTotal)}</strong></div>`);
+  if (visit2) paymentVisits.push(`<div><span>${esc(labels.visit2)}</span><strong>${m(visit2.finalTotal)}</strong></div>`);
 
   const financing =
     data.payment.installmentEligible && data.payment.financing && selected

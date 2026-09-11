@@ -35,16 +35,22 @@ export interface TreatmentLineItem {
   name: string | null;
   /** Total units across the whole option (both visits combined). */
   quantity: number;
-  /** Catalog base unit price in USD, before markup. */
+  /** Catalog base unit price in the quotation's selected currency, before markup. 0 when `priceConfigured` is false. */
   baseUnitPrice: number;
   /** Coordinator markup percentage applied on top of `baseUnitPrice`. */
   markupPercent: number;
-  /** Final per-unit price actually billed (base + markup, or manual override), in USD. This is what the PDF prints. */
+  /** Final per-unit price actually billed (base + markup, or manual override), in the quotation's selected currency. This is what the PDF prints. */
   finalUnitPrice: number;
-  /** Manual per-unit price override typed by the coordinator, or null if the calculated price is used. Informational only — `finalUnitPrice` already reflects it. */
+  /** Manual per-unit price override typed by the coordinator (in the selected currency), or null if the calculated price is used. Informational only — `finalUnitPrice` already reflects it. */
   manualUnitPrice: number | null;
-  /** `quantity * finalUnitPrice`, in USD. */
+  /** `quantity * finalUnitPrice`, in the quotation's selected currency. */
   total: number;
+  /** False when the catalog has no independent price configured for the selected currency
+   *  AND no manual override was entered — `baseUnitPrice`/`finalUnitPrice`/`total` are all 0
+   *  and must NOT be treated as a real price. The catalog never falls back to converting
+   *  another currency's price, so the renderer should show a "price not configured" notice
+   *  instead of a $0 line. Always true when `id` is null (nothing selected yet). */
+  priceConfigured: boolean;
 }
 
 /**
@@ -67,14 +73,20 @@ export interface ProcedureLineItem {
   baseUnitPrice: number;
   /** Manual per-unit price override, or null. Informational — `unitPrice` already reflects it. */
   manualUnitPrice: number | null;
-  /** `quantity * unitPrice`, in USD. */
+  /** `quantity * unitPrice`, in the quotation's selected currency. */
   total: number;
+  /** See `TreatmentLineItem.priceConfigured` — same meaning. */
+  priceConfigured: boolean;
 }
 
 /** The treatment breakdown for one quotation option. Legacy source: `option.treatment`. */
 export interface QuotationTreatment {
   implants: TreatmentLineItem;
   crowns: TreatmentLineItem;
+  /** Full-arch prosthetic bridge line (`unit price × quantity`, e.g. 1 per arch treated).
+   *  `quantity` is 0 when the option has no bridge — the line is still present so PDFs can
+   *  render a consistent shape; renderers should skip a zero-quantity bridge row. */
+  bridge: TreatmentLineItem;
   procedures: ProcedureLineItem[];
 }
 
@@ -130,12 +142,19 @@ export interface QuotationVisit {
   /** Hotel booked for this visit, or null when no accommodation is included. */
   hotel: QuotationHotelDetails | null;
   services: QuotationVisitServices;
-  /** Dental/treatment cost attributed to this visit, in USD (legacy `visit1Dental`/`visit2Dental`). */
+  /** Dental/treatment cost attributed to this visit, in the quotation's selected currency (legacy `visit1Dental`/`visit2Dental`). */
   dentalTotal: number;
-  /** Hotel + services cost attributed to this visit, in USD (legacy `visit1Services`/`visit2Services`). */
+  /** Hotel + services cost attributed to this visit, in the quotation's selected currency (legacy `visit1Services`/`visit2Services`). */
   servicesTotal: number;
-  /** `dentalTotal + servicesTotal` for this visit, in USD (legacy `visit1Total`/`visit2Total`). */
-  total: number;
+  /** `dentalTotal + servicesTotal` for this visit, BEFORE any per-visit override — in the selected currency. */
+  calculatedTotal: number;
+  /** Coordinator's final-price override for THIS visit only, in the selected currency, or
+   *  null when not set. Per-visit — there is no whole-option override. When set, it
+   *  REPLACES `calculatedTotal` outright (never added/subtracted/scaled). */
+  overrideTotal: number | null;
+  /** `overrideTotal ?? calculatedTotal` — the authoritative amount for this visit. Every
+   *  renderer (UI and PDF) must print this, never `calculatedTotal`, when the two differ. */
+  finalTotal: number;
 }
 
 /** Visit structure for one option: either a single combined visit or two separate visits. */
@@ -146,14 +165,21 @@ export interface QuotationVisits {
   visit2: QuotationVisit | null;
 }
 
-/** Aggregate totals for one option, in USD. Legacy source: `option.totals`. */
+/** Aggregate totals for one option, in the quotation's selected currency. Legacy source: `option.totals`. */
 export interface QuotationOptionTotals {
   /** Same value as `total` in the legacy data (both mirror `calculateOption()`'s `subtotal`) — kept for shape fidelity. */
   treatmentAndServices: number;
+  /** = visit1.finalTotal */
   visit1: number;
-  /** 0 when the option has only one visit. */
+  /** = visit2.finalTotal, or 0 when the option has only one visit. */
   visit2: number;
-  /** Grand total for the option, in USD. This is the number the PDF prints as the option's price. */
+  /** Sum of every visit's `calculatedTotal`, i.e. the total BEFORE any per-visit overrides. */
+  calculatedTotal: number;
+  /** Sum of every visit's `finalTotal` — the authoritative treatment-plan total. This is
+   *  what changes when a coordinator overrides one visit; the other visit's calculated
+   *  price is untouched (no proportional scaling of the whole option). */
+  finalTotal: number;
+  /** Alias of `finalTotal`. Grand total for the option — the number the PDF prints as the option's price. */
   total: number;
 }
 
@@ -169,8 +195,6 @@ export interface QuotationOption {
   treatment: QuotationTreatment;
   visits: QuotationVisits;
   totals: QuotationOptionTotals;
-  /** Coordinator's manual final-price override for the whole option, in the *display* currency, when set (legacy `coordinator-updates.js` `data.options[i].manualFinalPrice`). Informational only — `totals.total` already reflects any override upstream. */
-  manualFinalPrice?: number;
   /** Currency the coordinator was viewing when this option was priced (legacy `option.displayCurrency`). Informational only — use `QuotationPdfData.display.currency` to control what the PDF renders. */
   displayCurrency?: DisplayCurrencyCode;
 }
@@ -237,9 +261,16 @@ export interface QuotationPatient {
  * default to USD / rate 1 / all prices shown.
  */
 export interface QuotationDisplayOptions {
-  /** Currency every money amount is rendered in. */
+  /** Currency every money amount is rendered in. Implant/crown/procedure/bridge amounts are
+   *  the clinic's OWN independent price for this currency (never computed from USD) — see
+   *  `PriceValue` in `src/data/pricing.ts`. Hotel/transfer/prosthesis logistics prices have
+   *  no independent multi-currency list, so they are still expressed via `usdToCurrencyRate`. */
   currency: DisplayCurrencyCode;
-  /** Multiplier applied to a USD amount to get the displayed amount (1 for USD; the coordinator-edited USD→EUR reference rate for EUR). */
+  /** Reference "1 USD = X currency" rate (1 for USD). Two uses ONLY: (1) converting the
+   *  USD-only hotel/transfer/prosthesis logistics prices into the selected currency, and
+   *  (2) computing the optional "≈ $X USD" reference line (`showUsdEquivalent`). It is
+   *  NEVER used to compute an implant/crown/procedure/bridge price — those come directly
+   *  from the catalog's per-currency value or a manual override typed in that currency. */
   usdToCurrencyRate: number;
   /** When false, hides the printed price for treatment line items (implants/crowns/procedures) — Premium proposal only, see README. */
   showProductPrices: boolean;

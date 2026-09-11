@@ -41,7 +41,10 @@ export function Step3Options() {
             <div className="eur-rate-wrap">
               <label>1 USD = {display.currency}</label>
               <NumberField min={0.0001} step={0.0001} value={display.fxRate} onChange={(rate) => dispatch({ type: 'SET_DISPLAY', display: { fxRate: rate } })} />
-              <small>Reference rate; adjust before issuing the quotation.</small>
+              <small>
+                Used only for hotel/transfer/prosthesis (USD-only pricing) and the optional USD-equivalent line below.
+                Implant, crown, bridge and procedure prices use the clinic's own {display.currency} price — never converted from USD.
+              </small>
               <label className="inline-check">
                 <input
                   type="checkbox"
@@ -107,7 +110,8 @@ export function Step3Options() {
       {state.paymentMethod === 'installments' && state.patient.country && ['United States', 'Canada'].includes(state.patient.country) && (
         <div className="financing-summary">
           {state.options.map((input) => {
-            const result = calculateOption(input);
+            const fxRate = display.currency === 'USD' ? 1 : display.fxRate;
+            const result = calculateOption(input, display.currency, fxRate);
             const financing = calculateFinancing(result, state.patient.country, state.paymentMethod);
             if (!financing.eligible) return null;
             return (

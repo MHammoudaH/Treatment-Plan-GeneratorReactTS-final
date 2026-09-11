@@ -1,5 +1,7 @@
 /**
- * DutyAI consolidated pricing engine.
+ * DutyAI consolidated pricing engine — THE single authoritative place treatment-option
+ * pricing is calculated. Nothing else in the app computes a price; UI components and PDF
+ * generators only render the `QuotationOption` this module produces.
  *
  * This REPLACES five layered legacy scripts that monkey-patched `window.calculateOption`
  * on top of each other at runtime, in this confirmed production order:
@@ -21,19 +23,40 @@
  *
  * This engine keeps every override *capability* the legacy layers offered, but as ONE
  * coherent, typed computation with a single, predictable precedence per field:
- *   1. Per-unit / per-line final-price overrides (implant, crown, each procedure line,
- *      each visit's hotel nightly rate, transfer, prosthesis) are applied first.
- *   2. A single whole-option "final total override" (if set) proportionally scales the
- *      totals computed from step 1 — matching the legacy proportional-scale approach,
- *      which was the simplest and most predictable of the three "whole total" mechanisms
- *      found in the legacy code.
+ *   1. Per-unit / per-line final-price overrides (implant, crown, bridge, each procedure
+ *      line, each visit's hotel nightly rate, transfer, prosthesis) are applied first.
+ *   2. A per-VISIT final-price override (if set) REPLACES that visit's calculated total
+ *      outright — never added, subtracted, or proportionally blended with it. There is no
+ *      whole-option override; the option's grand total is always the sum of its visits'
+ *      final totals (see `calculateOption`'s `totals.finalTotal`).
  *
  * It also fixes the `Number(null) === 0` class of bug found earlier in this project:
  * every "is this field manually overridden" check here explicitly rejects null/undefined/
  * empty-string BEFORE coercing to a number, via `hasOverride()` below.
+ *
+ * MULTI-CURRENCY: USD, EUR and AUD are three INDEPENDENT clinic price lists (see
+ * `PriceValue` in `src/data/pricing.ts`). `calculateOption` takes the selected `currency`
+ * and reads that currency's price directly from the catalog — it never multiplies a USD
+ * price by an exchange rate to get a EUR/AUD figure. The one exception is logistics
+ * (hotel/transfer/prosthesis), which has no independent multi-currency list and is
+ * therefore converted from its USD price using the reference `fxRate` — that rate is
+ * otherwise used only to print an optional "≈ $X USD" reference line (see
+ * `src/lib/formatMoney.ts`), never to compute a treatment price.
  */
 
-import { PRICING, STANDARD_PROSTHESIS_USD, STANDARD_TRANSFER_USD, type HotelCatalogItem } from '../../data/pricing';
+import {
+  PRICING,
+  STANDARD_PROSTHESIS_USD,
+  STANDARD_TRANSFER_USD,
+  DEFAULT_FULL_ARCH_CROWNS_PER_ARCH,
+  priceFor,
+  type BridgeCatalogItem,
+  type CrownCatalogItem,
+  type Currency,
+  type HotelCatalogItem,
+  type ImplantCatalogItem,
+  type PriceValue,
+} from '../../data/pricing';
 import type {
   ProcedureLineItem,
   QuotationHotelDetails,
@@ -52,21 +75,21 @@ import type {
 // ---------------------------------------------------------------------------------------
 
 export interface ProductSelection {
-  /** Catalog id (`DUTY_PRICING.implants[].id` / `.crowns[].id`), or null when not yet chosen. */
+  /** Catalog id (`PRICING.implants|crowns|bridges[].id`), or null when not yet chosen. */
   itemId: string | null;
   count: number;
   /** Coordinator markup percentage, applied when `finalUnitPriceOverride` is not set. Legacy default: 25. */
   markupPercent: number;
-  /** Direct final unit price in USD. When set, takes precedence over `markupPercent`. */
+  /** Direct final unit price, in the quotation's selected currency. Takes precedence over `markupPercent`. */
   finalUnitPriceOverride: number | null;
 }
 
 export interface ProcedureSelection {
-  /** Catalog id (`DUTY_PRICING.procedures[].id`). */
+  /** Catalog id (`PRICING.procedures[].id`). */
   procedureId: string;
   /** Billed quantity. Ignored (treated as 1) for procedures without a `unit`. */
   quantity: number;
-  /** Direct final PER-UNIT price in USD (multiplied by quantity), overriding the catalog price. */
+  /** Direct final PER-UNIT price in the selected currency (multiplied by quantity), overriding the catalog price. */
   finalUnitPriceOverride: number | null;
 }
 
@@ -75,7 +98,8 @@ export interface HotelSelection {
   /** 'single' | 'double' | 'triple', or a room-option name for hotels with `roomOptions`. */
   roomType: string;
   nights: number;
-  /** Coordinator's negotiated nightly rate in USD. When set, replaces the catalog rate. */
+  /** Coordinator's negotiated nightly rate in USD (hotels have no independent multi-currency
+   *  price list — see the module doc comment). When set, replaces the catalog rate. */
   nightlyPriceOverride: number | null;
 }
 
@@ -90,13 +114,73 @@ export interface VisitInput {
   hotel: HotelSelection;
   transfer: ServiceSelection;
   prosthesis: ServiceSelection;
+  /** Coordinator's final-price override for THIS visit only, in the selected currency, or
+   *  null. Replaces the visit's calculated total outright — see module doc comment. Every
+   *  visit has its own independent override; there is no whole-option override. */
+  overrideTotal: number | null;
 }
+
+/** Which arch(es) an All-on-X treatment covers. */
+export type DentalArch = 'upper' | 'lower' | 'both';
+
+/** All-on-4 / All-on-6 / All-on-8 — the number of implants placed per arch. */
+export type AllOnN = 4 | 6 | 8;
+
+export const ALL_ON_N_OPTIONS: AllOnN[] = [4, 6, 8];
+
+/**
+ * The coordinator's All-on-X selections. This never itself changes clinical suitability —
+ * it only records the doctor-confirmed configuration so the engine/UI/PDF can derive the
+ * implant/crown/bridge quantities automatically instead of the coordinator entering them
+ * one by one. See `deriveAllOnXCounts`.
+ */
+export interface AllOnXConfig {
+  arch: DentalArch;
+  /** Implants for the upper arch. Used when `arch` is 'upper' or 'both'. */
+  upperAllOnN: AllOnN;
+  /** Implants for the lower arch. Used when `arch` is 'lower' or 'both'. */
+  lowerAllOnN: AllOnN;
+  /** Crowns fitted per arch on the fixed bridge — configurable, not a hardcoded clinical
+   *  constant (full-arch prosthetic design varies). Defaults to `DEFAULT_FULL_ARCH_CROWNS_PER_ARCH`. */
+  crownsPerArch: number;
+}
+
+export function createAllOnXConfig(): AllOnXConfig {
+  return { arch: 'upper', upperAllOnN: 6, lowerAllOnN: 6, crownsPerArch: DEFAULT_FULL_ARCH_CROWNS_PER_ARCH };
+}
+
+/** Implant / crown / bridge quantities implied by an All-on-X configuration. Pure and
+ *  deterministic — the ONE place this arithmetic happens (see formulas in the module doc
+ *  and the pricing brief §5/§7). One bridge per arch treated. */
+export function deriveAllOnXCounts(config: AllOnXConfig): { implants: number; crowns: number; bridges: number } {
+  const perArchImplants: number[] = [];
+  if (config.arch === 'upper' || config.arch === 'both') perArchImplants.push(config.upperAllOnN);
+  if (config.arch === 'lower' || config.arch === 'both') perArchImplants.push(config.lowerAllOnN);
+  const arches = perArchImplants.length;
+  return {
+    implants: perArchImplants.reduce((sum, n) => sum + n, 0),
+    crowns: Math.max(0, config.crownsPerArch) * arches,
+    bridges: arches,
+  };
+}
+
+export type DentalTreatmentType = 'individual' | 'all-on-x';
 
 export interface OptionInput {
   id: string;
   name: string;
+  /** UI mode only — does not change how totals are calculated. 'all-on-x' means the
+   *  implant/crown/bridge counts below were auto-populated from `allOnX` (see
+   *  `deriveAllOnXCounts`); the coordinator can still fine-tune them afterwards. */
+  dentalTreatmentType: DentalTreatmentType;
+  /** Present when `dentalTreatmentType === 'all-on-x'`; null otherwise. Clinical suitability
+   *  is the doctor's — this only records the confirmed configuration for pricing/labeling. */
+  allOnX: AllOnXConfig | null;
   implant: ProductSelection;
   crown: ProductSelection;
+  /** Full-arch prosthetic bridge — an ordinary priced line like implant/crown (unit price
+   *  × quantity), independent of currency. `count` is normally 1 or 2 (arches treated). */
+  bridge: ProductSelection;
   procedures: ProcedureSelection[];
   visits: 1 | 2;
   /** Crowns completed during visit 1 when `visits === 2`. Remaining crowns are assigned to visit 2. */
@@ -104,9 +188,6 @@ export interface OptionInput {
   visit1: VisitInput;
   /** Required when `visits === 2`; ignored (treated as absent) when `visits === 1`. */
   visit2: VisitInput | null;
-  /** Whole-option final price override, in USD. When set, proportionally scales every
-   *  visit/dental/services total computed from the granular overrides above. */
-  finalTotalOverride: number | null;
 }
 
 export function emptyServiceSelection(): ServiceSelection {
@@ -118,21 +199,27 @@ export function emptyHotelSelection(): HotelSelection {
 }
 
 export function emptyVisitInput(): VisitInput {
-  return { hotel: emptyHotelSelection(), transfer: emptyServiceSelection(), prosthesis: emptyServiceSelection() };
+  return { hotel: emptyHotelSelection(), transfer: emptyServiceSelection(), prosthesis: emptyServiceSelection(), overrideTotal: null };
+}
+
+export function emptyProductSelection(): ProductSelection {
+  return { itemId: null, count: 0, markupPercent: 0, finalUnitPriceOverride: null };
 }
 
 export function createOptionInput(id: string, name: string): OptionInput {
   return {
     id,
     name,
+    dentalTreatmentType: 'individual',
+    allOnX: null,
     implant: { itemId: null, count: 0, markupPercent: 25, finalUnitPriceOverride: null },
     crown: { itemId: null, count: 0, markupPercent: 25, finalUnitPriceOverride: null },
+    bridge: emptyProductSelection(),
     procedures: [],
     visits: 2,
     visit1CrownCount: 0,
     visit1: { ...emptyVisitInput(), transfer: { selectedUsd: STANDARD_TRANSFER_USD, finalPriceOverride: null } },
     visit2: emptyVisitInput(),
-    finalTotalOverride: null,
   };
 }
 
@@ -157,12 +244,16 @@ function round2(value: number): number {
 // Catalog lookups
 // ---------------------------------------------------------------------------------------
 
-function findImplant(id: string | null) {
+function findImplant(id: string | null): ImplantCatalogItem | null {
   return id ? PRICING.implants.find((item) => item.id === id) ?? null : null;
 }
 
-function findCrown(id: string | null) {
+function findCrown(id: string | null): CrownCatalogItem | null {
   return id ? PRICING.crowns.find((item) => item.id === id) ?? null : null;
+}
+
+function findBridge(id: string | null): BridgeCatalogItem | null {
+  return id ? PRICING.bridges.find((item) => item.id === id) ?? null : null;
 }
 
 function findProcedure(id: string) {
@@ -195,75 +286,111 @@ function hotelRoomLabel(hotel: HotelCatalogItem, roomType: string): string {
 // Line-item calculators
 // ---------------------------------------------------------------------------------------
 
-function calculateProduct(selection: ProductSelection, catalog: ReturnType<typeof findImplant> | ReturnType<typeof findCrown>): TreatmentLineItem {
-  const baseUnitPrice = catalog?.price ?? 0;
+/** Implant / crown / bridge: unit price × quantity, in `currency`, with markup% or a direct
+ *  manual override. `catalog` is null when nothing is selected yet OR when the selected
+ *  item has no price configured for `currency` — in the latter case `priceConfigured` is
+ *  false and every price field is 0 (never a converted guess) unless the coordinator typed
+ *  a manual override, which is always honoured (that's an explicit human-entered price, not
+ *  a fallback conversion). */
+function calculateProduct(
+  selection: ProductSelection,
+  catalog: { id: string; name: string; displayName?: string; price: PriceValue } | null,
+  currency: Currency,
+): TreatmentLineItem {
+  const nativePrice = catalog ? priceFor(catalog.price, currency) : null;
+  const override = hasOverride(selection.finalUnitPriceOverride) ? selection.finalUnitPriceOverride : null;
+  const priceConfigured = override !== null || nativePrice !== null;
+  const baseUnitPrice = nativePrice ?? 0;
   const markupUnitPrice = baseUnitPrice * (1 + selection.markupPercent / 100);
-  const finalUnitPrice = hasOverride(selection.finalUnitPriceOverride) ? selection.finalUnitPriceOverride : markupUnitPrice;
+  const finalUnitPrice = override ?? markupUnitPrice;
   return {
     id: catalog?.id ?? null,
     name: catalog ? (catalog.displayName ?? catalog.name) : null,
     quantity: selection.count,
-    baseUnitPrice,
+    baseUnitPrice: round2(baseUnitPrice),
     markupPercent: selection.markupPercent,
     finalUnitPrice: round2(finalUnitPrice),
-    manualUnitPrice: hasOverride(selection.finalUnitPriceOverride) ? selection.finalUnitPriceOverride : null,
+    manualUnitPrice: override,
     total: round2(selection.count * finalUnitPrice),
+    priceConfigured,
   };
 }
 
-function calculateProcedureLine(selection: ProcedureSelection): ProcedureLineItem | null {
+function calculateProcedureLine(selection: ProcedureSelection, currency: Currency): ProcedureLineItem | null {
   const catalog = findProcedure(selection.procedureId);
   if (!catalog) return null;
   const quantity = catalog.unit ? Math.max(0, selection.quantity || 1) : 1;
-  const unitPrice = hasOverride(selection.finalUnitPriceOverride) ? selection.finalUnitPriceOverride : catalog.price;
+  const nativePrice = priceFor(catalog.price, currency);
+  const override = hasOverride(selection.finalUnitPriceOverride) ? selection.finalUnitPriceOverride : null;
+  const priceConfigured = override !== null || nativePrice !== null;
+  const unitPrice = override ?? nativePrice ?? 0;
   return {
     id: catalog.id,
     name: catalog.name,
     unit: catalog.unit ?? null,
     quantity,
     unitPrice: round2(unitPrice),
-    baseUnitPrice: catalog.price,
-    manualUnitPrice: hasOverride(selection.finalUnitPriceOverride) ? selection.finalUnitPriceOverride : null,
+    baseUnitPrice: round2(nativePrice ?? 0),
+    manualUnitPrice: override,
     total: round2(quantity * unitPrice),
+    priceConfigured,
   };
 }
 
-function calculateHotel(selection: HotelSelection): QuotationHotelDetails | null {
+/** Hotel/transfer/prosthesis have no independent multi-currency price list, so — unlike
+ *  the dental lines above — they are priced in USD and converted with `fxRate` (1 for USD),
+ *  the same reference rate used for the optional "≈ $X USD" display line. This is the one
+ *  place `fxRate` feeds into a calculated total, and it is logistics, not a clinical price. */
+function calculateHotel(selection: HotelSelection, fxRate: number): QuotationHotelDetails | null {
   const catalog = findHotel(selection.hotelId);
   if (!catalog || selection.nights <= 0) return null;
-  // Standard catalog rate for the room type, unless the coordinator entered a negotiated one.
-  const nightlyPrice = hasOverride(selection.nightlyPriceOverride)
-    ? selection.nightlyPriceOverride
-    : hotelNightlyRate(catalog, selection.roomType);
+  const nightlyUsd = hasOverride(selection.nightlyPriceOverride) ? selection.nightlyPriceOverride : hotelNightlyRate(catalog, selection.roomType);
+  const nightlyPrice = round2(nightlyUsd * fxRate);
   return {
     id: catalog.id,
     name: catalog.name,
     roomType: selection.roomType,
     roomLabel: hotelRoomLabel(catalog, selection.roomType),
     nights: selection.nights,
-    nightlyPrice: round2(nightlyPrice),
+    nightlyPrice,
     total: round2(nightlyPrice * selection.nights),
     currency: catalog.currency,
   };
 }
 
-function calculateService(name: string, selection: ServiceSelection): QuotationServiceItem {
-  const total = hasOverride(selection.finalPriceOverride) ? selection.finalPriceOverride : selection.selectedUsd;
-  return { name, total: round2(total), included: total === 0 };
+function calculateService(name: string, selection: ServiceSelection, fxRate: number): QuotationServiceItem {
+  const usd = hasOverride(selection.finalPriceOverride) ? selection.finalPriceOverride : selection.selectedUsd;
+  const total = round2(usd * fxRate);
+  return { name, total, included: usd === 0 };
 }
 
 // ---------------------------------------------------------------------------------------
 // Whole-option computation
 // ---------------------------------------------------------------------------------------
 
-export function calculateOption(input: OptionInput): QuotationOption {
+/**
+ * @param currency The quotation's selected currency. Implant/crown/procedure/bridge prices
+ *   come directly from the catalog's value for this currency (or a manual override typed in
+ *   this currency) — never computed from another currency.
+ * @param fxRate Reference "1 USD = X `currency`" rate (pass 1 for USD). Used ONLY to convert
+ *   the USD-only hotel/transfer/prosthesis logistics prices, and made available on the
+ *   result for an optional USD-equivalent display line — never to price implants/crowns/
+ *   procedures/bridges.
+ */
+export function calculateOption(input: OptionInput, currency: Currency, fxRate: number): QuotationOption {
+  const effectiveFxRate = currency === 'USD' ? 1 : fxRate;
+
   const implantCatalog = findImplant(input.implant.itemId);
   const crownCatalog = findCrown(input.crown.itemId);
+  const bridgeCatalog = findBridge(input.bridge.itemId);
 
-  const implantLine = calculateProduct(input.implant, implantCatalog);
-  const crownLine = calculateProduct(input.crown, crownCatalog);
+  const implantLine = calculateProduct(input.implant, implantCatalog, currency);
+  const crownLine = calculateProduct(input.crown, crownCatalog, currency);
+  const bridgeLine = calculateProduct(input.bridge, bridgeCatalog, currency);
 
-  const procedures = input.procedures.map(calculateProcedureLine).filter((line): line is ProcedureLineItem => line !== null);
+  const procedures = input.procedures
+    .map((p) => calculateProcedureLine(p, currency))
+    .filter((line): line is ProcedureLineItem => line !== null);
   const proceduresTotal = round2(procedures.reduce((sum, line) => sum + line.total, 0));
 
   // Crowns split across visits (legacy: visit1-crown-count input, remainder to visit2).
@@ -272,20 +399,24 @@ export function calculateOption(input: OptionInput): QuotationOption {
   const visit1CrownTotal = round2(visit1CrownCount * crownLine.finalUnitPrice);
   const visit2CrownTotal = round2(visit2CrownCount * crownLine.finalUnitPrice);
 
-  // All implants and additional procedures are billed on visit 1 (legacy behaviour,
-  // preserved: implants/procedures have no per-visit split in the source data model).
-  const visit1DentalTotal = round2(implantLine.total + visit1CrownTotal + proceduresTotal);
+  // All implants, the bridge and additional procedures are billed on visit 1 (legacy
+  // behaviour, preserved: these have no per-visit split in the source data model — a
+  // bridge is a discrete per-arch unit, not something to fraction across visits).
+  const visit1DentalTotal = round2(implantLine.total + bridgeLine.total + visit1CrownTotal + proceduresTotal);
   const visit2DentalTotal = round2(visit2CrownTotal);
 
-  const visit1Hotel = calculateHotel(input.visit1.hotel);
-  const visit1Transfer = calculateService('VIP transfer', input.visit1.transfer);
-  const visit1Prosthesis = calculateService('Dental prosthesis', input.visit1.prosthesis);
+  const visit1Hotel = calculateHotel(input.visit1.hotel, effectiveFxRate);
+  const visit1Transfer = calculateService('VIP transfer', input.visit1.transfer, effectiveFxRate);
+  const visit1Prosthesis = calculateService('Dental prosthesis', input.visit1.prosthesis, effectiveFxRate);
   const visit1Services: QuotationVisitServices = {
     transfer: visit1Transfer,
     prosthesis: visit1Prosthesis,
     translator: { name: 'Translator', total: 0, included: true },
   };
   const visit1ServicesTotal = round2((visit1Hotel?.total ?? 0) + visit1Transfer.total + visit1Prosthesis.total);
+  const visit1CalculatedTotal = round2(visit1DentalTotal + visit1ServicesTotal);
+  const visit1OverrideTotal = hasOverride(input.visit1.overrideTotal) ? input.visit1.overrideTotal : null;
+  const visit1FinalTotal = visit1OverrideTotal ?? visit1CalculatedTotal;
 
   const visit1: QuotationVisit = {
     crowns: visit1CrownCount,
@@ -293,13 +424,15 @@ export function calculateOption(input: OptionInput): QuotationOption {
     services: visit1Services,
     dentalTotal: visit1DentalTotal,
     servicesTotal: visit1ServicesTotal,
-    total: round2(visit1DentalTotal + visit1ServicesTotal),
+    calculatedTotal: visit1CalculatedTotal,
+    overrideTotal: visit1OverrideTotal,
+    finalTotal: visit1FinalTotal,
   };
 
   let visit2: QuotationVisit | null = null;
   if (input.visits === 2 && input.visit2) {
-    const visit2Hotel = calculateHotel(input.visit2.hotel);
-    const visit2Transfer = calculateService('VIP transfer', input.visit2.transfer);
+    const visit2Hotel = calculateHotel(input.visit2.hotel, effectiveFxRate);
+    const visit2Transfer = calculateService('VIP transfer', input.visit2.transfer, effectiveFxRate);
     // The prosthesis is delivered once, on Visit 1 — a second visit never carries a
     // prosthesis line at all (no charge, no row in the PDF).
     const visit2Services: QuotationVisitServices = {
@@ -307,46 +440,38 @@ export function calculateOption(input: OptionInput): QuotationOption {
       translator: { name: 'Translator', total: 0, included: true },
     };
     const visit2ServicesTotal = round2((visit2Hotel?.total ?? 0) + visit2Transfer.total);
+    const visit2CalculatedTotal = round2(visit2DentalTotal + visit2ServicesTotal);
+    const visit2OverrideTotal = hasOverride(input.visit2.overrideTotal) ? input.visit2.overrideTotal : null;
+    const visit2FinalTotal = visit2OverrideTotal ?? visit2CalculatedTotal;
     visit2 = {
       crowns: visit2CrownCount,
       hotel: visit2Hotel,
       services: visit2Services,
       dentalTotal: visit2DentalTotal,
       servicesTotal: visit2ServicesTotal,
-      total: round2(visit2DentalTotal + visit2ServicesTotal),
+      calculatedTotal: visit2CalculatedTotal,
+      overrideTotal: visit2OverrideTotal,
+      finalTotal: visit2FinalTotal,
     };
   }
 
   const visits: QuotationVisits = { count: input.visits, visit1, visit2 };
 
-  let subtotal = round2(visit1.total + (visit2?.total ?? 0));
-  let finalVisit1 = visit1.total;
-  let finalVisit2 = visit2?.total ?? 0;
-
-  // Whole-option override: proportionally scale everything computed so far. This is the
-  // single "final total" escape hatch this engine offers (legacy had three overlapping,
-  // inconsistently-composing mechanisms for this — see file header).
-  if (hasOverride(input.finalTotalOverride) && input.finalTotalOverride > 0) {
-    const target = input.finalTotalOverride;
-    if (subtotal > 0) {
-      const ratio = target / subtotal;
-      finalVisit1 = round2(finalVisit1 * ratio);
-      finalVisit2 = round2(finalVisit2 * ratio);
-    } else {
-      finalVisit1 = target;
-      finalVisit2 = 0;
-    }
-    subtotal = round2(finalVisit1 + finalVisit2);
-  }
+  // The treatment-plan total is ALWAYS the sum of each visit's own final total (override or
+  // calculated) — never a proportional scale of a single whole-option number. See module doc.
+  const calculatedTotal = round2(visit1.calculatedTotal + (visit2?.calculatedTotal ?? 0));
+  const finalTotal = round2(visit1.finalTotal + (visit2?.finalTotal ?? 0));
 
   const totals: QuotationOptionTotals = {
-    treatmentAndServices: subtotal,
-    visit1: finalVisit1,
-    visit2: finalVisit2,
-    total: subtotal,
+    treatmentAndServices: finalTotal,
+    visit1: visit1.finalTotal,
+    visit2: visit2?.finalTotal ?? 0,
+    calculatedTotal,
+    finalTotal,
+    total: finalTotal,
   };
 
-  const treatment: QuotationTreatment = { implants: implantLine, crowns: crownLine, procedures };
+  const treatment: QuotationTreatment = { implants: implantLine, crowns: crownLine, bridge: bridgeLine, procedures };
 
   return {
     id: input.id,
@@ -354,13 +479,15 @@ export function calculateOption(input: OptionInput): QuotationOption {
     treatment,
     visits,
     totals,
-    ...(hasOverride(input.finalTotalOverride) ? { manualFinalPrice: input.finalTotalOverride } : {}),
+    displayCurrency: currency,
   };
 }
 
 // ---------------------------------------------------------------------------------------
 // Financing (US / Canada installment plan). Legacy source: recalculateQuotation()'s
-// `installmentEligible` block in app.js, using DUTY_PRICING.financing.
+// `installmentEligible` block in app.js, using PRICING.financing. Financing terms are
+// defined in USD; when the option's selected currency isn't USD the numbers below are in
+// that currency instead (pre-existing simplification, unchanged by the multi-currency work).
 // ---------------------------------------------------------------------------------------
 
 export interface FinancingBreakdown {
