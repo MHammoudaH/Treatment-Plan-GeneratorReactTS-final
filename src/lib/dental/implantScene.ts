@@ -32,7 +32,7 @@ import { LOWER_FDI, MARK_COLORS, markHasCrown, markHasImplant, UPPER_FDI, type T
  *  shot): off-axis in X, closer to eye-level with the arches, so the two arches read as a
  *  mouth viewed at an angle rather than two parallel shelves seen from above. */
 export const DEFAULT_CAMERA = {
-  position: new THREE.Vector3(0.8, 0.5, 2.05),
+  position: new THREE.Vector3(0.68, 0.46, 2.55),
   target: new THREE.Vector3(-0.05, -0.02, 0.08),
 };
 
@@ -112,27 +112,35 @@ function toothRadius(fdi: number): number {
 // Materials — created once and reused across every tooth (cheap, avoids per-mesh churn).
 // ---------------------------------------------------------------------------------------
 
-const materialCache = new Map<string, THREE.MeshStandardMaterial>();
+// MeshPhysicalMaterial (a superset of MeshStandardMaterial) so ceramic crowns and gum tissue
+// get a clearcoat layer — a second, sharper specular response on top of the base one. That's
+// what separates a flat-lit plastic look from something that reads as glazed ceramic/moist
+// tissue under studio lighting, even with no environment map (clearcoat responds to the direct
+// lights themselves, not just image-based lighting).
+const materialCache = new Map<string, THREE.MeshPhysicalMaterial>();
 
-function material(key: string, params: THREE.MeshStandardMaterialParameters): THREE.MeshStandardMaterial {
+function material(key: string, params: THREE.MeshPhysicalMaterialParameters): THREE.MeshPhysicalMaterial {
   const cached = materialCache.get(key);
   if (cached) return cached;
-  const mat = new THREE.MeshStandardMaterial(params);
+  const mat = new THREE.MeshPhysicalMaterial(params);
   materialCache.set(key, mat);
   return mat;
 }
 
-function crownMaterial(mark: ToothMark | undefined): THREE.MeshStandardMaterial {
-  if (mark === 'crown') return material('crown', { color: MARK_COLORS.crown, roughness: 0.22, metalness: 0.05 });
-  if (mark === 'implant-crown') return material('implantCrown', { color: MARK_COLORS.implantCrown, roughness: 0.22, metalness: 0.05 });
-  if (mark === 'bridge') return material('bridge', { color: MARK_COLORS.bridge, roughness: 0.22, metalness: 0.05 });
-  return material('naturalTooth', { color: MARK_COLORS.tooth, roughness: 0.32, metalness: 0 });
+const CERAMIC = { clearcoat: 0.45, clearcoatRoughness: 0.2 };
+
+function crownMaterial(mark: ToothMark | undefined): THREE.MeshPhysicalMaterial {
+  if (mark === 'crown') return material('crown', { color: MARK_COLORS.crown, roughness: 0.22, metalness: 0.05, ...CERAMIC });
+  if (mark === 'implant-crown') return material('implantCrown', { color: MARK_COLORS.implantCrown, roughness: 0.22, metalness: 0.05, ...CERAMIC });
+  if (mark === 'bridge') return material('bridge', { color: MARK_COLORS.bridge, roughness: 0.22, metalness: 0.05, ...CERAMIC });
+  return material('naturalTooth', { color: MARK_COLORS.tooth, roughness: 0.28, metalness: 0, ...CERAMIC });
 }
 
 const rootMaterial = () => material('root', { color: '#eee4d3', roughness: 0.55, metalness: 0 });
-const gumMaterial = () => material('gum', { color: MARK_COLORS.gum, roughness: 0.55, metalness: 0, side: THREE.DoubleSide });
-const fixtureMaterial = () => material('fixture', { color: MARK_COLORS.metal, roughness: 0.28, metalness: 0.9 });
-const abutmentMaterial = () => material('abutment', { color: '#dfe2e6', roughness: 0.3, metalness: 0.85 });
+const gumMaterial = () => material('gum', { color: MARK_COLORS.gum, roughness: 0.5, metalness: 0, clearcoat: 0.18, clearcoatRoughness: 0.4, side: THREE.DoubleSide });
+const boneMaterial = () => material('bone', { color: MARK_COLORS.bone, roughness: 0.75, metalness: 0 });
+const fixtureMaterial = () => material('fixture', { color: MARK_COLORS.metal, roughness: 0.32, metalness: 0.95, clearcoat: 0.3, clearcoatRoughness: 0.35 });
+const abutmentMaterial = () => material('abutment', { color: '#dfe2e6', roughness: 0.32, metalness: 0.9, clearcoat: 0.3, clearcoatRoughness: 0.3 });
 const missingMaterial = () => material('missing', { color: MARK_COLORS.missing, roughness: 0.6, metalness: 0, transparent: true, opacity: 0.5 });
 
 // ---------------------------------------------------------------------------------------
@@ -345,10 +353,38 @@ function rootGeometryFor(fdi: number): THREE.BufferGeometry {
   return cachedGeometry(`root-${type}`, () => new THREE.LatheGeometry(rootProfile(toothRadius(fdi) * 0.85, ROOT_HEIGHT), 10));
 }
 
+/** Perturbs a cylinder's own vertices into a helical thread ridge — a real dental implant is a
+ *  threaded screw, and a smooth cylinder (no matter how well-proportioned) reads as "a peg",
+ *  not "an implant". Builds the ridge directly into the geometry once (cached like every other
+ *  part here), rather than a texture or a separate decorative mesh. */
+function addHelicalThread(geo: THREE.BufferGeometry, radius: number, height: number, depth: number, turns: number): THREE.BufferGeometry {
+  const pos = geo.attributes.position;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const angle = Math.atan2(v.z, v.x);
+    const yFrac = v.y / height + 0.5; // CylinderGeometry is Y-centered: -height/2..height/2 -> 0..1
+    const phase = angle + yFrac * turns * Math.PI * 2;
+    const ridge = Math.sin(phase) * 0.5 + 0.5; // 0..1, a thin ridge rather than a broad sine bulge
+    const sharpRidge = Math.pow(ridge, 3);
+    const scale = 1 + (sharpRidge - 0.5) * (depth / radius);
+    v.x *= scale;
+    v.z *= scale;
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  return geo;
+}
+
 function fixtureGeometryFor(fdi: number): THREE.BufferGeometry {
   const type = toothTypeFor(fdi);
   const r = toothRadius(fdi) * 0.5;
-  return cachedGeometry(`fixture-${type}`, () => new THREE.CylinderGeometry(r * 0.8, r, FIXTURE_HEIGHT, 14));
+  return cachedGeometry(`fixture-${type}`, () => {
+    const geo = new THREE.CylinderGeometry(r * 0.8, r, FIXTURE_HEIGHT, 16, 28);
+    const turns = 5; // dense enough to read as a screw at this model's scale, not aliased/noisy
+    return addHelicalThread(geo, r, FIXTURE_HEIGHT, r * 0.16, turns);
+  });
 }
 
 function abutmentGeometryFor(fdi: number): THREE.BufferGeometry {
@@ -357,13 +393,39 @@ function abutmentGeometryFor(fdi: number): THREE.BufferGeometry {
   return cachedGeometry(`abutment-${type}`, () => new THREE.CylinderGeometry(r * 0.65, r, ABUTMENT_HEIGHT, 12));
 }
 
+/** A short collar of exposed alveolar bone right at the gumline around an implant — real
+ *  implant-planning visuals commonly show this bone/gingiva/implant layering; without it an
+ *  implant just pokes out of gum-colored tissue with nothing reading as "bone". */
+function boneCollarGeometryFor(fdi: number): THREE.BufferGeometry {
+  const type = toothTypeFor(fdi);
+  const r = toothRadius(fdi) * 0.5;
+  return cachedGeometry(`boneCollar-${type}`, () => new THREE.CylinderGeometry(r * 1.05, r * 1.3, 0.03, 16));
+}
+
 function healingCapRadius(fdi: number): number {
-  return toothRadius(fdi) * 0.5;
+  return toothRadius(fdi) * 0.42;
 }
 
 function healingCapGeometryFor(fdi: number): THREE.BufferGeometry {
   const type = toothTypeFor(fdi);
-  return cachedGeometry(`healingCap-${type}`, () => new THREE.SphereGeometry(healingCapRadius(fdi), 12, 8, 0, Math.PI * 2, 0, Math.PI / 2));
+  // A flat healing screw cap, not a smooth dome — real ones are a short flat/domed disc, and a
+  // flat top reads more like implant hardware than a rounded "gumdrop".
+  return cachedGeometry(`healingCap-${type}`, () => new THREE.CylinderGeometry(healingCapRadius(fdi), healingCapRadius(fdi) * 0.88, 0.018, 14));
+}
+
+const NECK_HEIGHT = 0.032;
+
+/** A short exposed length of threaded implant neck between the gum surface and the healing
+ *  cap — the only place in the whole model where the implant's own threading is actually
+ *  visible (the rest of the fixture is correctly buried in bone, which is realistic but means
+ *  it never reads as "threaded" on its own). Shares `addHelicalThread` with the full fixture. */
+function implantNeckGeometryFor(fdi: number): THREE.BufferGeometry {
+  const type = toothTypeFor(fdi);
+  const r = toothRadius(fdi) * 0.42;
+  return cachedGeometry(`implantNeck-${type}`, () => {
+    const geo = new THREE.CylinderGeometry(r, r * 0.92, NECK_HEIGHT, 14, 6);
+    return addHelicalThread(geo, r, NECK_HEIGHT, r * 0.14, 2);
+  });
 }
 
 function missingMarkerGeometryFor(fdi: number): THREE.BufferGeometry {
@@ -416,9 +478,9 @@ function makeTooth(fdi: number, mark: ToothMark | undefined, gumY: number, crown
     const crown = new THREE.Mesh(geometry, crownMaterial(mark));
     orient(crown, flip);
     if (!mark) {
-      crown.material = (crown.material as THREE.MeshStandardMaterial).clone();
-      (crown.material as THREE.MeshStandardMaterial).transparent = true;
-      (crown.material as THREE.MeshStandardMaterial).opacity = 0.88;
+      crown.material = (crown.material as THREE.MeshPhysicalMaterial).clone();
+      (crown.material as THREE.MeshPhysicalMaterial).transparent = true;
+      (crown.material as THREE.MeshPhysicalMaterial).opacity = 0.88;
     }
     // Distinguish an actual crown RESTORATION (markHasCrown) from a bridge unit's cap and
     // from a natural, untouched tooth's own (visible but unrestored) crown — every tooth has
@@ -466,11 +528,34 @@ function makeTooth(fdi: number, mark: ToothMark | undefined, gumY: number, crown
     fixture.userData.part = 'fixture';
     group.add(fixture);
 
+    // A short exposed-bone collar right where the fixture meets the gum surface — the
+    // "bone → gingiva → implant" layering a real implant diagram shows, instead of the implant
+    // just poking out of gum-coloured tissue with no bone at all. Positioned at the SAME
+    // "clears the gum crest" reference (`GUM_EMERGENCE`) the healing cap uses below, just
+    // slightly further in — otherwise, at this ridge's crest thickness, anything placed near
+    // the nominal gumline (Y=0) is entirely swallowed by the gum and never actually visible.
+    const boneCollar = new THREE.Mesh(boneCollarGeometryFor(fdi), boneMaterial());
+    boneCollar.position.y = crownSign * (GUM_EMERGENCE - 0.012);
+    boneCollar.userData.part = 'bone-collar';
+    group.add(boneCollar);
+
     if (mark === 'implant') {
-      // No crown yet — a small metal healing cap pokes through the gum instead.
-      const cap = new THREE.Mesh(healingCapGeometryFor(fdi), material('healingCap', { color: MARK_COLORS.metal, roughness: 0.25, metalness: 0.85 }));
+      // No crown yet — a short threaded neck plus a flat healing screw cap pokes through the
+      // gum instead. Both positioned beyond `GUM_EMERGENCE` (how far the gingiva's own
+      // scalloped crest can reach outward at a tooth centre) — anything closer than that is
+      // invisible, buried inside the gum mesh. This is the one place the implant's own thread
+      // detail is actually visible — the rest of the fixture is correctly buried in bone.
+      const healingMetal = material('healingCap', { color: MARK_COLORS.metal, roughness: 0.25, metalness: 0.85, clearcoat: 0.3, clearcoatRoughness: 0.3 });
+
+      const neck = new THREE.Mesh(implantNeckGeometryFor(fdi), healingMetal);
+      orient(neck, flip);
+      neck.position.y = crownSign * (GUM_EMERGENCE + NECK_HEIGHT / 2);
+      neck.userData.part = 'implant-neck';
+      group.add(neck);
+
+      const cap = new THREE.Mesh(healingCapGeometryFor(fdi), healingMetal);
       orient(cap, flip);
-      cap.position.y = crownSign * (healingCapRadius(fdi) * 0.5);
+      cap.position.y = crownSign * (GUM_EMERGENCE + NECK_HEIGHT + 0.009);
       cap.userData.part = 'healing-cap';
       group.add(cap);
     }
@@ -520,6 +605,12 @@ const GINGIVA_CREST_MAX_V = 0.058;
  *  applied only to the crest-side cross-section points (scaled by how close each point is to
  *  the crest), so it never touches the base depth the implant-embedding margin depends on. */
 const SCALLOP_AMPLITUDE = 0.02;
+/** How far beyond the nominal gumline (Y=0) the gingiva's own crest can reach at a tooth
+ *  centre — `GINGIVA_CREST_MAX_V + SCALLOP_AMPLITUDE`, plus a small margin. Anything meant to
+ *  visibly emerge through the gum (the healing cap on a bare implant, the bone collar around
+ *  one) must sit further out than this, or the gum crest simply swallows it — used by
+ *  `makeTooth`, declared here next to the crest constants it derives from. */
+const GUM_EMERGENCE = GINGIVA_CREST_MAX_V + SCALLOP_AMPLITUDE + 0.012;
 
 /** A rounded ridge profile — wider than tall, a small crest nearest the tooth tapering into a
  *  broader base. Closed loop, lateral (u) symmetric. The base reaches deeper (v: -0.15) than
@@ -664,6 +755,56 @@ function bridgeConnectorBars(fdiList: readonly number[], plan: Record<number, To
 }
 
 // ---------------------------------------------------------------------------------------
+// FDI number labels — small canvas-texture sprites, not DOM/HTML overlays, so they are part of
+// the SAME scene graph the off-screen PDF snapshot renders (an <Html> overlay from drei would
+// only ever appear in the live view, never the snapshot). Sprites always face the camera, so
+// they stay readable as the coordinator orbits. Guarded for `document` because
+// `buildImplantPlanGroup` also runs inside the (DOM-less, Node) vitest environment — labels are
+// simply skipped there, which doesn't affect anything the tests assert on.
+// ---------------------------------------------------------------------------------------
+
+const labelTextureCache = new Map<number, THREE.CanvasTexture>();
+
+function labelTextureFor(fdi: number): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  const cached = labelTextureCache.get(fdi);
+  if (cached) return cached;
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = 'rgba(13, 21, 38, 0.85)';
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2 - 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = '#eaf1ff';
+  ctx.font = '700 25px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(fdi), size / 2, size / 2 + 1);
+  const texture = new THREE.CanvasTexture(canvas);
+  labelTextureCache.set(fdi, texture);
+  return texture;
+}
+
+/** A fresh Sprite per tooth (Object3D instances can't be shared across a group's two possible
+ *  builds), reusing the cached per-FDI texture/material so repeated builds stay cheap. */
+function makeLabelSprite(fdi: number): THREE.Sprite | null {
+  const texture = labelTextureFor(fdi);
+  if (!texture) return null;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true }));
+  sprite.scale.set(0.085, 0.085, 1);
+  sprite.userData.part = 'label';
+  sprite.renderOrder = 10;
+  return sprite;
+}
+
+// ---------------------------------------------------------------------------------------
 // Whole-arch / whole-plan assembly
 // ---------------------------------------------------------------------------------------
 
@@ -678,6 +819,16 @@ function buildArch(fdiList: readonly number[], plan: Record<number, ToothMark>, 
     tooth.position.z = z;
     tooth.rotation.y = rotationY;
     arch.add(tooth);
+
+    // Added as a child of `tooth` (not positioned in world space directly) so the group's own
+    // rotationY carries the fixed local offset below into the correct "outward from the arch"
+    // world direction automatically, matching every other part's local-space convention here.
+    const label = makeLabelSprite(fdi);
+    if (label) {
+      const height = CROWN_HEIGHT[toothTypeFor(fdi)];
+      label.position.set(0, crownSign * height * 1.35, toothRadius(fdi) * 2.4);
+      tooth.add(label);
+    }
   });
 
   for (const bar of bridgeConnectorBars(fdiList, plan, gumY, crownSign)) arch.add(bar);
@@ -719,7 +870,7 @@ export function disposeGroup(object: THREE.Object3D): void {
     if (mesh.geometry && !sharedGeometries.has(mesh.geometry)) mesh.geometry.dispose();
     const mat = mesh.material as THREE.Material | THREE.Material[] | undefined;
     const disposeOne = (m: THREE.Material) => {
-      if (!sharedMaterials.has(m as THREE.MeshStandardMaterial)) m.dispose();
+      if (!sharedMaterials.has(m as THREE.MeshPhysicalMaterial)) m.dispose();
     };
     if (Array.isArray(mat)) mat.forEach(disposeOne);
     else if (mat) disposeOne(mat);
