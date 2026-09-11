@@ -15,11 +15,17 @@
  *   'implant'        — an implant fixture placed, not yet carrying its own crown mark.
  *   'implant-crown'  — an implant-supported crown: the combination of the two concepts.
  *   'bridge'         — part of a bridge/pontic restoration.
+ *   'missing'        — the tooth position is absent (extracted/congenitally missing), with
+ *                       no restoration planned there.
+ *
+ * A treatment plan with several adjacent `'implant-crown'` positions represents multiple
+ * implants supporting a larger prosthetic restoration — that composition needs no extra mark
+ * of its own; each position is still individually correct (its own fixture + abutment + crown).
  *
  * This is a VISUALIZATION of the coordinator's entered quantities, not a clinical
  * determination of exact tooth positions — see `suggestPlan`.
  */
-export type ToothMark = 'implant' | 'crown' | 'implant-crown' | 'bridge';
+export type ToothMark = 'implant' | 'crown' | 'implant-crown' | 'bridge' | 'missing';
 
 /** Upper arch, patient's right → left, as shown on a standard chart. */
 export const UPPER_FDI = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
@@ -63,25 +69,28 @@ export function markHasCrown(mark: ToothMark | undefined): boolean {
   return mark === 'crown' || mark === 'implant-crown';
 }
 
-export function countMarks(plan: Record<number, ToothMark>): { implants: number; crowns: number; bridges: number } {
+export function countMarks(plan: Record<number, ToothMark>): { implants: number; crowns: number; bridges: number; missing: number } {
   let implants = 0;
   let crowns = 0;
   let bridges = 0;
+  let missing = 0;
   for (const mark of Object.values(plan)) {
     if (markHasImplant(mark)) implants++;
     if (markHasCrown(mark)) crowns++;
     if (mark === 'bridge') bridges++;
+    if (mark === 'missing') missing++;
   }
-  return { implants, crowns, bridges };
+  return { implants, crowns, bridges, missing };
 }
 
-/** none → implant → crown → implant-supported crown → bridge → none. Lets the coordinator
- *  manually represent every state the 3D view can distinguish by clicking a tooth. */
+/** none → implant → crown → implant-supported crown → bridge → missing → none. Lets the
+ *  coordinator manually represent every state the 3D view can distinguish by clicking a tooth. */
 export function cycleMark(current: ToothMark | undefined): ToothMark | null {
   if (current === undefined) return 'implant';
   if (current === 'implant') return 'crown';
   if (current === 'crown') return 'implant-crown';
   if (current === 'implant-crown') return 'bridge';
+  if (current === 'bridge') return 'missing';
   return null;
 }
 
@@ -90,10 +99,11 @@ export const MARK_COLORS = {
   crown: '#e8a13a',
   implantCrown: '#7c4dff',
   bridge: '#2bb7a0',
+  missing: '#9aa3b0',
   tooth: '#f1ece1',
-  gum: '#c9848f',
+  gum: '#d98a95',
   bone: '#e7ddc9',
-  metal: '#c7ccd4',
+  metal: '#c9cdd3',
 } as const;
 
 /** Priority order for auto-placing implants across an arch (canines & centrals first, then

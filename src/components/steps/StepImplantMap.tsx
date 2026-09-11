@@ -65,8 +65,9 @@ export function StepImplantMap() {
     <section className="wizard-step">
       <h2>Implant map</h2>
       <p className="step-intro">
-        Click a tooth to cycle: <strong>implant</strong> → <strong>crown</strong> → <strong>implant-supported crown</strong> →{' '}
-        <strong>bridge</strong> → clear. The 3D view updates live and a snapshot is included in the Premium Proposal PDF. This is a
+        Click a tooth — on the chart below or directly in the 3D view — to cycle: <strong>implant</strong> →{' '}
+        <strong>crown</strong> → <strong>implant-supported crown</strong> → <strong>bridge</strong> → <strong>missing</strong> →
+        clear. Both views share the same plan and update live; a snapshot is included in the Premium Proposal PDF. This is a
         visual representation of the treatment plan, not a clinical recommendation.
       </p>
 
@@ -82,6 +83,7 @@ export function StepImplantMap() {
         <span className="tag tag-implant">Implants: {marks.implants}</span>
         <span className="tag tag-crown">Crowns: {marks.crowns}</span>
         <span className="tag tag-bridge">Bridge units: {marks.bridges}</span>
+        <span className="tag tag-missing">Missing: {marks.missing}</span>
         <button type="button" className="secondary" onClick={() => dispatch({ type: 'SUGGEST_TEETH_FROM_DIAGNOSIS' })}>
           Suggest from diagnosis
         </button>
@@ -91,7 +93,7 @@ export function StepImplantMap() {
       </div>
 
       <Suspense fallback={<div className="implant-map-3d" />}>
-        <ImplantMap3D plan={toothPlan} />
+        <ImplantMap3D plan={toothPlan} onToggle={(fdi) => dispatch({ type: 'CYCLE_TOOTH', fdi })} />
       </Suspense>
 
       <div className="wizard-actions">

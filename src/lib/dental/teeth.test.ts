@@ -80,8 +80,8 @@ describe('suggestPlan / countMarks — deterministic visualization of entered qu
   });
 });
 
-describe('cycleMark — manual tooth-chart click cycle covers all 5 concepts', () => {
-  it('none -> implant -> crown -> implant-crown -> bridge -> none', () => {
+describe('cycleMark — manual tooth-chart click cycle covers all 6 concepts', () => {
+  it('none -> implant -> crown -> implant-crown -> bridge -> missing -> none', () => {
     let mark = cycleMark(undefined);
     expect(mark).toBe('implant');
     mark = cycleMark(mark ?? undefined);
@@ -90,6 +90,8 @@ describe('cycleMark — manual tooth-chart click cycle covers all 5 concepts', (
     expect(mark).toBe('implant-crown');
     mark = cycleMark(mark ?? undefined);
     expect(mark).toBe('bridge');
+    mark = cycleMark(mark ?? undefined);
+    expect(mark).toBe('missing');
     mark = cycleMark(mark ?? undefined);
     expect(mark).toBeNull();
   });

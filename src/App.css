@@ -689,6 +689,7 @@
 .tooth-crown { background: #e8a13a; border-color: #e8a13a; color: #fff; }
 .tooth-implant-crown { background: #7c4dff; border-color: #7c4dff; color: #fff; }
 .tooth-bridge { background: #2bb7a0; border-color: #2bb7a0; color: #fff; }
+.tooth-missing { background: #9aa3b0; border-color: #9aa3b0; color: #fff; text-decoration: line-through; }
 .tooth:nth-child(9) { margin-left: 14px; }
 
 .implant-map-counts {
@@ -708,6 +709,7 @@
 .tag-implant { background: #2f6bff; }
 .tag-crown { background: #e8a13a; }
 .tag-bridge { background: #2bb7a0; }
+.tag-missing { background: #9aa3b0; }
 
 .implant-map-3d {
   width: 100%;
