@@ -3,7 +3,9 @@ import { useQuotation } from '../../context/QuotationContext';
 import { countMarks, LOWER_FDI, toothName, UPPER_FDI, type ToothMark } from '../../lib/dental/teeth';
 
 // three.js is heavy — load the 3D viewer (and three) only when this step is opened.
-const ImplantMap3D = lazy(() => import('../ImplantMap3D'));
+// `DentalMap3D` loads a GLB dental asset when one exists (see DENTAL_MODEL_ASSET.md) and falls
+// back to the existing procedural renderer otherwise, so this swap is visually a no-op today.
+const DentalMap3D = lazy(() => import('../DentalMap3D'));
 
 function ToothButton({
   fdi,
@@ -93,7 +95,7 @@ export function StepImplantMap() {
       </div>
 
       <Suspense fallback={<div className="implant-map-3d" />}>
-        <ImplantMap3D plan={toothPlan} onToggle={(fdi) => dispatch({ type: 'CYCLE_TOOTH', fdi })} />
+        <DentalMap3D plan={toothPlan} onToggle={(fdi) => dispatch({ type: 'CYCLE_TOOTH', fdi })} />
       </Suspense>
 
       <div className="wizard-actions">

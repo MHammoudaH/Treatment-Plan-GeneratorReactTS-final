@@ -27,8 +27,17 @@ export function Step4Confirm() {
     if (marks.implants || marks.crowns) {
       setBuildingPremium(true);
       try {
-        const { renderImplantMapSnapshot } = await import('../../lib/dental/implantMapSnapshot');
-        const image = await renderImplantMapSnapshot(state.toothPlan);
+        // Prefer the GLB-backed snapshot (see DENTAL_MODEL_ASSET.md); while no asset exists,
+        // this rejects immediately and we fall back to the existing procedural snapshot — same
+        // deterministic presentation camera contract either way, never a random leftover angle.
+        let image: string;
+        try {
+          const { renderDentalMapSnapshot } = await import('../../lib/dental/gltf/DentalMapSnapshot');
+          image = await renderDentalMapSnapshot(state.toothPlan);
+        } catch {
+          const { renderImplantMapSnapshot } = await import('../../lib/dental/implantMapSnapshot');
+          image = await renderImplantMapSnapshot(state.toothPlan);
+        }
         pdfData.implantMap = { image, implants: marks.implants, crowns: marks.crowns, bridges: marks.bridges };
       } catch {
         // Snapshot failed (e.g. no WebGL) — issue the proposal without the implant map.
