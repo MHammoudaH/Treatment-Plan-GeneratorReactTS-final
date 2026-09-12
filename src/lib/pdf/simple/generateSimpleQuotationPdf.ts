@@ -34,6 +34,7 @@ import {
 import { transliteratePatientName } from './transliteration';
 import { ARABIC_LABELS } from './arabicLabels';
 import { transliterateArabicPatientName } from './arabicTransliteration';
+import { translateOrigin, withOrigin } from '../originLabels';
 
 const DEFAULT_DISPLAY: QuotationDisplayOptions = {
   currency: 'USD',
@@ -261,8 +262,9 @@ function treatmentRowsHtml(option: QuotationOption, labels: SimpleLabels, langua
   const { implants, crowns, bridge, procedures } = option.treatment;
 
   if (implants.quantity > 0) {
+    const implantName = withOrigin(translateProductName(implants.name || '', language), implants.origin, language);
     rows.push(
-      `<tr><td>${esc(labels.implants)} — ${esc(translateProductName(implants.name || '', language))}</td><td>${implants.quantity}</td><td>${moneyHtml(implants.finalUnitPrice, display)}</td><td>${moneyHtml(implants.total, display)}</td></tr>`,
+      `<tr><td>${esc(labels.implants)} — ${esc(implantName)}</td><td>${implants.quantity}</td><td>${moneyHtml(implants.finalUnitPrice, display)}</td><td>${moneyHtml(implants.total, display)}</td></tr>`,
     );
   }
   if (crowns.quantity > 0) {
@@ -401,6 +403,7 @@ ${translatedPlan ? `
 </div>
 ` : ''}
 ${optionsHtml}
+${data.notes?.trim() ? `<div class="section-kicker">${esc(labels.notes)}</div><div class="diagnosis">${esc(data.notes.trim())}</div>` : ''}
 <section class="closing"><div class="important"><div class="important-title">${esc(labels.important)}</div><div>${esc(labels.disclaimer)}</div></div></section>
 <footer class="footer"><strong>Duty Clinic Istanbul</strong> | Istanbul, Türkiye | +90 536 779 07 91 | dutyclinic.com | info@dutyclinic.com<br>${esc(labels.generated)}</footer></div>
 <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),350));</script></body></html>`;
@@ -475,8 +478,13 @@ function buildArabicHtml(data: QuotationPdfData): string {
       const rows: string[] = [];
 
       if (implants.quantity > 0) {
+        // The brand name stays in its own LTR-isolated span (it's Latin text, e.g.
+        // "Straumann") — the Arabic origin word is a separate RTL-isolated span, not
+        // concatenated into the Latin string, so bidi layout/punctuation order stays correct.
+        const originAr = translateOrigin(implants.origin, 'Arabic');
+        const originSpan = originAr ? ` <bdi class="mixed-label">(${esc(originAr)})</bdi>` : '';
         rows.push(
-          `<tr><td>${ARABIC_LABELS.implants} — <bdi class="brand-name">${esc(implants.name || '')}</bdi></td><td><bdi class="ltr-number">${implants.quantity}</bdi></td><td>${arMoneyHtml(implants.finalUnitPrice, display)}</td><td>${arMoneyHtml(implants.total, display)}</td></tr>`,
+          `<tr><td>${ARABIC_LABELS.implants} — <bdi class="brand-name">${esc(implants.name || '')}</bdi>${originSpan}</td><td><bdi class="ltr-number">${implants.quantity}</bdi></td><td>${arMoneyHtml(implants.finalUnitPrice, display)}</td><td>${arMoneyHtml(implants.total, display)}</td></tr>`,
         );
       }
       if (crowns.quantity > 0) {
@@ -554,6 +562,7 @@ function buildArabicHtml(data: QuotationPdfData): string {
     <div class="intro">${ARABIC_LABELS.intro}</div>
     ${translatedPlan ? `<div class="section-title">${ARABIC_LABELS.treatmentPlan}</div><div class="diagnosis"><ul class="treatment-plan-list">${translatedPlan}</ul></div><div class="subtitle">${ARABIC_LABELS.translationNotice}</div>` : ''}
     ${optionsHtml}
+    ${data.notes?.trim() ? `<div class="section-title">${ARABIC_LABELS.notes}</div><div class="diagnosis">${esc(data.notes.trim())}</div>` : ''}
     <section class="closing"><div class="important"><div class="important-title">${ARABIC_LABELS.important}</div><div>${ARABIC_LABELS.disclaimer}</div></div></section>
     <footer class="footer"><strong>Duty Clinic Istanbul</strong> | Istanbul, Türkiye | <span class="ltr">+90 536 779 07 91</span> | <span class="ltr">dutyclinic.com</span> | <span class="ltr">info@dutyclinic.com</span><br>${ARABIC_LABELS.generated}</footer>
   </div><script>window.addEventListener('load',()=>setTimeout(()=>window.print(),350));</script></body></html>`;

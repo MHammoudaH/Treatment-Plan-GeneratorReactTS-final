@@ -72,6 +72,8 @@ export interface PremiumLabels {
   // Closing
   closing: string;
   closingTagline: string;
+  /** Section title for the coordinator's free-text notes page — omitted entirely when empty. */
+  notes: string;
   important: string;
   disclaimer: string;
   // Misc
@@ -124,6 +126,7 @@ const EN: PremiumLabels = {
   experienceIntro: 'Duty Clinic Istanbul — our facilities and patient areas.',
   closing: 'We look forward to welcoming you to Duty Clinic Istanbul.',
   closingTagline: 'Professional dental care with international standards.',
+  notes: 'Notes',
   important: 'IMPORTANT',
   disclaimer:
     'The final treatment plan and procedure scope are confirmed by the doctor after clinical examination and required diagnostic assessment.',
@@ -186,6 +189,7 @@ const RU: PremiumLabels = {
   experienceIntro: 'Duty Clinic Istanbul — наша клиника и зоны для пациентов.',
   closing: 'Будем рады приветствовать вас в Duty Clinic Istanbul.',
   closingTagline: 'Профессиональная стоматологическая помощь по международным стандартам.',
+  notes: 'Примечания',
   important: 'ВАЖНО',
   disclaimer:
     'Окончательный план лечения и объём процедур подтверждаются врачом после клинического осмотра и необходимых диагностических исследований.',
@@ -247,6 +251,7 @@ const FR: PremiumLabels = {
   experienceIntro: 'Duty Clinic Istanbul — nos installations et espaces patients.',
   closing: 'Nous serons heureux de vous accueillir à Duty Clinic Istanbul.',
   closingTagline: 'Soins dentaires professionnels aux normes internationales.',
+  notes: 'Notes',
   important: 'IMPORTANT',
   disclaimer:
     'Le plan de traitement final et le volume des procédures sont confirmés par le médecin après l’examen clinique et les examens diagnostiques nécessaires.',
@@ -309,6 +314,7 @@ const ES: PremiumLabels = {
   experienceIntro: 'Duty Clinic Istanbul — nuestras instalaciones y áreas para pacientes.',
   closing: 'Esperamos darle la bienvenida a Duty Clinic Istanbul.',
   closingTagline: 'Atención dental profesional con estándares internacionales.',
+  notes: 'Notas',
   important: 'IMPORTANTE',
   disclaimer:
     'El plan de tratamiento final y el alcance de los procedimientos serán confirmados por el médico después del examen clínico y las pruebas diagnósticas necesarias.',
@@ -371,6 +377,7 @@ const AR: PremiumLabels = {
   experienceIntro: 'Duty Clinic Istanbul — مرافقنا ومناطق المرضى.',
   closing: 'نتطلع إلى الترحيب بكم في Duty Clinic Istanbul.',
   closingTagline: 'رعاية أسنان احترافية وفق المعايير الدولية.',
+  notes: 'ملاحظات',
   important: 'هام',
   disclaimer:
     'يتم تأكيد خطة العلاج النهائية ونطاق الإجراءات من قبل الطبيب بعد الفحص السريري والتقييم التشخيصي اللازم.',

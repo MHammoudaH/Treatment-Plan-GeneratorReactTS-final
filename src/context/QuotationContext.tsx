@@ -16,6 +16,10 @@ type Action =
   | { type: 'PREFILL_OPTIONS_FROM_DIAGNOSIS' }
   | { type: 'REMOVE_OPTION'; id: string }
   | { type: 'UPDATE_OPTION'; id: string; option: OptionInput }
+  | { type: 'SET_NOTES'; notes: string }
+  | { type: 'ADD_PATIENT_PHOTOS'; photos: string[] }
+  | { type: 'REMOVE_PATIENT_PHOTO'; index: number }
+  | { type: 'SET_REPLACE_IMPLANT_MAP_WITH_PHOTOS'; value: boolean }
   | { type: 'RESET' };
 
 function reducer(state: WizardState, action: Action): WizardState {
@@ -81,6 +85,14 @@ function reducer(state: WizardState, action: Action): WizardState {
     }
     case 'UPDATE_OPTION':
       return { ...state, options: state.options.map((option) => (option.id === action.id ? action.option : option)) };
+    case 'SET_NOTES':
+      return { ...state, notes: action.notes };
+    case 'ADD_PATIENT_PHOTOS':
+      return { ...state, patientPhotos: [...state.patientPhotos, ...action.photos] };
+    case 'REMOVE_PATIENT_PHOTO':
+      return { ...state, patientPhotos: state.patientPhotos.filter((_, i) => i !== action.index) };
+    case 'SET_REPLACE_IMPLANT_MAP_WITH_PHOTOS':
+      return { ...state, replaceImplantMapWithPhotos: action.value };
     case 'RESET':
       return createInitialState();
     default:

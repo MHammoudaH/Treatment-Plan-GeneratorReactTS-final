@@ -33,6 +33,11 @@ export interface TreatmentLineItem {
   id: string | null;
   /** Display name of the brand/product, e.g. "Straumann" or "Zirconium Crowns Emax". Localized at render time via product-name dictionaries. */
   name: string | null;
+  /** Raw catalog country-of-origin ("German" / "American" / "Swiss" / "Korean" / "Turkish" /
+   *  "Other"), implants only — null for crowns/bridges (no such field on those catalog items).
+   *  Translated and appended to `name` at render time (and "Other"/unrecognised values
+   *  skipped — too vague to be useful patient-facing info) — see `src/lib/pdf/originLabels.ts`. */
+  origin: string | null;
   /** Total units across the whole option (both visits combined). */
   quantity: number;
   /** Catalog base unit price in the quotation's selected currency, before markup. 0 when `priceConfigured` is false. */
@@ -308,8 +313,25 @@ export interface QuotationPdfData {
   options: QuotationOption[];
   /** Currency/visibility controls. Omit to default to USD at rate 1 with all prices shown. */
   display?: QuotationDisplayOptions;
-  /** Optional 3D implant-map snapshot; when present the Premium Proposal adds an "Implant Map" page. */
+  /** Optional 3D implant-map snapshot; when present (or `patientPhotos` is) the Premium
+   *  Proposal adds an "Implant Map" page. See `patientPhotos`/`replaceImplantMapWithPhotos`
+   *  for how uploaded photos interact with this snapshot. */
   implantMap?: ImplantMapData;
+  /** Additional patient images (X-rays, intraoral photos, scans, …) for the Implant Map
+   *  section — `data:image/...;base64,...` URLs, resized/compressed client-side before being
+   *  stored (see `src/lib/pdf/imageUtils.ts`); never uploaded to a server. Premium Proposal
+   *  only — the Simple Quotation has no image section. */
+  patientPhotos?: string[];
+  /** Governs how `patientPhotos` and the 3D `implantMap` snapshot combine on the Implant Map
+   *  page, when both a snapshot exists and photos were uploaded:
+   *   - no photos uploaded            -> the 3D snapshot alone (unchanged existing behaviour)
+   *   - photos uploaded, false/unset  -> the 3D snapshot AND the photos, together
+   *   - photos uploaded, true         -> the photos REPLACE the 3D snapshot
+   *  Has no effect when `patientPhotos` is empty. */
+  replaceImplantMapWithPhotos?: boolean;
+  /** Free-text coordinator notes, printed as their own page/section near the end of the
+   *  document (just before the closing page) in both PDFs. Omitted entirely when empty. */
+  notes?: string;
   /** Legacy schema marker, carried through for forward compatibility. Not used by the renderers. */
   schemaVersion?: number;
 }

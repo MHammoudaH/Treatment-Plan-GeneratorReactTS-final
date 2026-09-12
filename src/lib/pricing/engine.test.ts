@@ -318,3 +318,33 @@ describe('bridge pricing (§2 previously, still applicable)', () => {
     expect(calculateOption(twoArches, 'AUD', 1).treatment.bridge.priceConfigured).toBe(false);
   });
 });
+
+// ===========================================================================
+// Implant country-of-origin passthrough (for the PDF brand/origin display)
+// ===========================================================================
+
+describe('implant origin passthrough', () => {
+  it('a selected implant carries its catalog origin', () => {
+    const straumann = PRICING.implants.find((i) => i.id === 'straumann')!;
+    expect(straumann.origin).toBe('Swiss');
+
+    const option = treatmentOption({ implants: 1, crowns: 0 });
+    option.implant.itemId = 'straumann';
+    const result = calculateOption(option, 'USD', 1);
+    expect(result.treatment.implants.origin).toBe('Swiss');
+  });
+
+  it('crowns/bridges never carry an origin (no such catalog field) — always null', () => {
+    const option = treatmentOption({ implants: 0, crowns: 1, bridges: 1 });
+    option.crown.itemId = PRICING.crowns[0].id;
+    option.bridge.itemId = PRICING.bridges[0].id;
+    const result = calculateOption(option, 'USD', 1);
+    expect(result.treatment.crowns.origin).toBeNull();
+    expect(result.treatment.bridge.origin).toBeNull();
+  });
+
+  it('no implant selected -> origin is null', () => {
+    const result = calculateOption(treatmentOption({ implants: 0, crowns: 0 }), 'USD', 1);
+    expect(result.treatment.implants.origin).toBeNull();
+  });
+});

@@ -48,6 +48,8 @@ export interface ArabicLabels {
   translationNotice: string;
   roomSingle: string;
   roomDouble: string;
+  /** Section title for the coordinator's free-text notes block — omitted entirely when empty. */
+  notes: string;
 }
 
 /** Legacy source: `arPdfLabels()`. */
@@ -95,4 +97,5 @@ export const ARABIC_LABELS: ArabicLabels = {
   translationNotice: 'تمت ترجمة خطة العلاج بناءً على بيانات الطبيب المؤكدة.',
   roomSingle: 'مفردة',
   roomDouble: 'مزدوجة',
+  notes: 'ملاحظات',
 };

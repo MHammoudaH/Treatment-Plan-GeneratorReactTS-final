@@ -52,6 +52,8 @@ export interface SimpleLabels {
   cashPerVisit: string;
   option: string;
   translationNotice: string;
+  /** Section title for the coordinator's free-text notes block — omitted entirely when empty. */
+  notes: string;
 }
 
 /** Legacy source: `pdfLabels()`'s `dictionaries` object. */
@@ -66,7 +68,7 @@ export const SIMPLE_LABELS: Record<SimpleLatinLanguage, SimpleLabels> = {
     disclaimer: 'Окончательный план лечения и объём процедур подтверждаются врачом после клинического осмотра и необходимых диагностических исследований.',
     intro: 'Предлагаем индивидуальный план лечения, подготовленный на основании предоставленной информации. Ниже представлены выбранные варианты лечения, проживание, услуги и порядок оплаты.',
     installment: 'РАССРОЧКА ДЛЯ США / КАНАДЫ', package: 'Пакет +', installmentAmount: 'Сумма рассрочки', remainingCash: 'Оставшаяся сумма', cashPerVisit: 'Оплата наличными по визитам',
-    option: 'ВАРИАНТ', translationNotice: 'Перевод плана лечения выполнен на основании подтверждённых данных врача.',
+    option: 'ВАРИАНТ', translationNotice: 'Перевод плана лечения выполнен на основании подтверждённых данных врача.', notes: 'Примечания',
   },
   English: {
     proposal: 'PERSONALIZED TREATMENT PROPOSAL', preparedFor: 'Prepared for', date: 'Date', treatmentPlan: 'TREATMENT PLAN', treatment: 'Treatment', quantity: 'Qty.', unitPrice: 'Unit price', total: 'Total',
@@ -74,7 +76,7 @@ export const SIMPLE_LABELS: Record<SimpleLatinLanguage, SimpleLabels> = {
     transfer: 'VIP transfer', prosthesis: 'Dental prosthesis', translator: 'Translator', paymentByVisit: 'Payment by visit', optionTotal: 'Option total', visit: 'Visit', oneVisit: '1 visit', twoVisits: '2 visits', important: 'IMPORTANT',
     generated: 'This document was generated automatically from the selected treatment option.', disclaimer: 'The final treatment plan and procedure scope are confirmed by the doctor after clinical examination and required diagnostic assessment.',
     intro: 'We are pleased to provide your personalized treatment proposal based on the information provided. The following pages summarize the selected treatment, accommodation, services and payment plan.',
-    installment: 'US / CANADA INSTALLMENT PLAN', package: 'Package +', installmentAmount: 'Installment amount', remainingCash: 'Remaining cash', cashPerVisit: 'Cash per visit', option: 'OPTION', translationNotice: 'Treatment plan translated from the confirmed doctor data.',
+    installment: 'US / CANADA INSTALLMENT PLAN', package: 'Package +', installmentAmount: 'Installment amount', remainingCash: 'Remaining cash', cashPerVisit: 'Cash per visit', option: 'OPTION', translationNotice: 'Treatment plan translated from the confirmed doctor data.', notes: 'Notes',
   },
   French: {
     proposal: 'PLAN DE TRAITEMENT PERSONNALISÉ', preparedFor: 'Préparé pour', date: 'Date', treatmentPlan: 'PLAN DE TRAITEMENT', treatment: 'Traitement', quantity: 'Qté.', unitPrice: 'Prix unitaire', total: 'Total',
@@ -82,7 +84,7 @@ export const SIMPLE_LABELS: Record<SimpleLatinLanguage, SimpleLabels> = {
     transfer: 'Transfert VIP', prosthesis: 'Prothèse dentaire', translator: 'Interprète', paymentByVisit: 'Paiement par visite', optionTotal: 'Total de l’option', visit: 'Visite', oneVisit: '1 visite', twoVisits: '2 visites', important: 'IMPORTANT',
     generated: 'Ce document a été généré automatiquement à partir de l’option de traitement sélectionnée.', disclaimer: 'Le plan de traitement final et le volume des procédures sont confirmés par le médecin après l’examen clinique et les examens diagnostiques nécessaires.',
     intro: 'Nous vous proposons un plan de traitement personnalisé basé sur les informations fournies. Les pages suivantes résument le traitement sélectionné, l’hébergement, les services et les modalités de paiement.',
-    installment: 'PLAN DE PAIEMENT POUR LES ÉTATS-UNIS / CANADA', package: 'Forfait +', installmentAmount: 'Montant du financement', remainingCash: 'Solde restant', cashPerVisit: 'Paiement comptant par visite', option: 'OPTION', translationNotice: 'Plan de traitement traduit à partir des données confirmées du médecin.',
+    installment: 'PLAN DE PAIEMENT POUR LES ÉTATS-UNIS / CANADA', package: 'Forfait +', installmentAmount: 'Montant du financement', remainingCash: 'Solde restant', cashPerVisit: 'Paiement comptant par visite', option: 'OPTION', translationNotice: 'Plan de traitement traduit à partir des données confirmées du médecin.', notes: 'Notes',
   },
   Spanish: {
     proposal: 'PLAN DE TRATAMIENTO PERSONALIZADO', preparedFor: 'Preparado para', date: 'Fecha', treatmentPlan: 'PLAN DE TRATAMIENTO', treatment: 'Tratamiento', quantity: 'Cant.', unitPrice: 'Precio unitario', total: 'Total',
@@ -90,7 +92,7 @@ export const SIMPLE_LABELS: Record<SimpleLatinLanguage, SimpleLabels> = {
     transfer: 'Traslado VIP', prosthesis: 'Prótesis dental', translator: 'Intérprete', paymentByVisit: 'Pago por visita', optionTotal: 'Total de la opción', visit: 'Visita', oneVisit: '1 visita', twoVisits: '2 visitas', important: 'IMPORTANTE',
     generated: 'Este documento se generó automáticamente a partir de la opción de tratamiento seleccionada.', disclaimer: 'El plan de tratamiento final y el alcance de los procedimientos serán confirmados por el médico después del examen clínico y las pruebas diagnósticas necesarias.',
     intro: 'Le ofrecemos un plan de tratamiento personalizado basado en la información proporcionada. Las siguientes páginas resumen el tratamiento seleccionado, alojamiento, servicios y forma de pago.',
-    installment: 'PLAN DE CUOTAS PARA EE. UU. / CANADÁ', package: 'Paquete +', installmentAmount: 'Importe financiado', remainingCash: 'Saldo restante', cashPerVisit: 'Pago en efectivo por visita', option: 'OPCIÓN', translationNotice: 'Plan de tratamiento traducido a partir de los datos confirmados por el médico.',
+    installment: 'PLAN DE CUOTAS PARA EE. UU. / CANADÁ', package: 'Paquete +', installmentAmount: 'Importe financiado', remainingCash: 'Saldo restante', cashPerVisit: 'Pago en efectivo por visita', option: 'OPCIÓN', translationNotice: 'Plan de tratamiento traducido a partir de los datos confirmados por el médico.', notes: 'Notas',
   },
 };
 

@@ -24,6 +24,19 @@ export interface ExperienceEntry {
   period: string;
 }
 
+/** What the Premium Proposal's "Your Dental Team" page actually prints for a doctor, in one
+ *  non-English language — see `toPdfDoctor`. `name` is never translated (a proper noun). */
+export interface DoctorPdfTranslation {
+  specialty: string;
+  /** The complete one-sentence bio line, pre-written in this language (not composed from
+   *  fragments — natural phrasing differs too much per language for safe concatenation). */
+  bio: string;
+  /** Translated version of `expertise`/`treatments`, capped to 4 — kept for data completeness;
+   *  the Premium PDF only falls back to it when `bio` is empty, which never happens today
+   *  since `bio` is always populated (see `toPdfDoctor`). */
+  expertise?: string[];
+}
+
 export interface DoctorProfile {
   id: number;
   name: string;
@@ -46,6 +59,12 @@ export interface DoctorProfile {
   experienceHistory?: ExperienceEntry[];
   photoUrl: string;
   source: string;
+  /** Russian/French/Spanish/Arabic versions of what the Premium Proposal PDF prints for this
+   *  doctor — see `DoctorPdfTranslation`. English has no entry here; it's the existing
+   *  `specialty`/`expertise`/`treatments` fields above, via `bioFor()`. A good-faith
+   *  professional translation — recommend a native-speaker review pass before relying on it
+   *  for a patient-facing medical document at scale. */
+  translations?: Partial<Record<'Russian' | 'French' | 'Spanish' | 'Arabic', DoctorPdfTranslation>>;
 }
 
 export const DOCTORS: DoctorProfile[] = [
@@ -65,6 +84,28 @@ export const DOCTORS: DoctorProfile[] = [
     languages: [],
     photoUrl: '/assets/doctors/dr-murat-a.jpg',
     source: 'Better by MTA',
+    translations: {
+      Russian: {
+        specialty: 'Стоматология',
+        bio: 'Стоматология. Специализация: зубные импланты, протезирование, хирургия мягких тканей.',
+        expertise: ['Зубные импланты', 'Протезирование', 'Хирургия мягких тканей', 'Эстетические реставрации'],
+      },
+      French: {
+        specialty: 'Dentisterie',
+        bio: 'Dentisterie. Spécialisation : implants dentaires, prothèses, chirurgie des tissus mous.',
+        expertise: ['Implants dentaires', 'Prothèses', 'Chirurgie des tissus mous', 'Restaurations esthétiques'],
+      },
+      Spanish: {
+        specialty: 'Odontología',
+        bio: 'Odontología. Especialización: implantes dentales, prótesis, cirugía de tejidos blandos.',
+        expertise: ['Implantes dentales', 'Prótesis', 'Cirugía de tejidos blandos', 'Restauraciones estéticas'],
+      },
+      Arabic: {
+        specialty: 'طب الأسنان',
+        bio: 'طب الأسنان. التخصص: زراعة الأسنان، التركيبات، جراحة الأنسجة الرخوة.',
+        expertise: ['زراعة الأسنان', 'التركيبات', 'جراحة الأنسجة الرخوة', 'الحشوات التجميلية'],
+      },
+    },
   },
   {
     id: 2,
@@ -88,6 +129,28 @@ export const DOCTORS: DoctorProfile[] = [
     treatments: ['Crowns', 'Gum Disease Treatment', 'Implantology and Oral Surgery', 'Oral Cancer Screening', 'Prosthodontics', 'Root Canal Therapy'],
     photoUrl: '/assets/doctors/dr-vahap-cin.jpg',
     source: 'Better by MTA',
+    translations: {
+      Russian: {
+        specialty: 'Ортопедическая стоматология',
+        bio: 'Ортопедическая стоматология. Специализация: протезирование зубов, заболевания височно-нижнечелюстного сустава, цифровой дизайн улыбки.',
+        expertise: ['Протезирование зубов', 'Заболевания ВНЧС', 'Цифровой дизайн улыбки', 'Протезирование на имплантах'],
+      },
+      French: {
+        specialty: 'Dentisterie prothétique',
+        bio: "Dentisterie prothétique. Spécialisation : traitements prothétiques dentaires, troubles de l'articulation temporo-mandibulaire, Digital Smile Design.",
+        expertise: ["Traitements prothétiques dentaires", "Troubles de l'ATM", 'Digital Smile Design', 'Prothèses sur implants'],
+      },
+      Spanish: {
+        specialty: 'Odontología protésica',
+        bio: 'Odontología protésica. Especialización: tratamientos protésicos dentales, trastornos de la articulación temporomandibular, diseño digital de sonrisa.',
+        expertise: ['Tratamientos protésicos dentales', 'Trastornos de la ATM', 'Diseño digital de sonrisa', 'Prótesis sobre implantes'],
+      },
+      Arabic: {
+        specialty: 'طب أسنان تعويضي',
+        bio: 'طب أسنان تعويضي. التخصص: العلاجات التعويضية للأسنان، اضطرابات مفصل الفك الصدغي، تصميم الابتسامة الرقمي.',
+        expertise: ['العلاجات التعويضية للأسنان', 'اضطرابات مفصل الفك الصدغي', 'تصميم الابتسامة الرقمي', 'التعويضات على الزرعات'],
+      },
+    },
   },
   {
     id: 3,
@@ -141,6 +204,28 @@ export const DOCTORS: DoctorProfile[] = [
     ],
     photoUrl: '/assets/doctors/elvin-guliyev.jpg',
     source: 'Better by MTA',
+    translations: {
+      Russian: {
+        specialty: 'Челюстно-лицевая хирургия',
+        bio: 'Челюстно-лицевая хирургия. Специализация: удаление ретинированных зубов, лечение ороантральных свищей, кисты челюсти.',
+        expertise: ['Удаление ретинированных зубов', 'Лечение ороантральных свищей', 'Кисты челюсти', 'Зубные импланты'],
+      },
+      French: {
+        specialty: 'Chirurgie orale, dentaire et maxillo-faciale',
+        bio: 'Chirurgie orale, dentaire et maxillo-faciale. Spécialisation : extraction des dents incluses, traitement des fistules oro-antrales, kystes de la mâchoire.',
+        expertise: ['Extraction des dents incluses', 'Traitement des fistules oro-antrales', 'Kystes de la mâchoire', 'Implants dentaires'],
+      },
+      Spanish: {
+        specialty: 'Cirugía oral, dental y maxilofacial',
+        bio: 'Cirugía oral, dental y maxilofacial. Especialización: extracción de dientes retenidos, tratamiento de fístulas oroantrales, quistes maxilares.',
+        expertise: ['Extracción de dientes retenidos', 'Tratamiento de fístulas oroantrales', 'Quistes maxilares', 'Implantes dentales'],
+      },
+      Arabic: {
+        specialty: 'جراحة الفم والأسنان والفكين',
+        bio: 'جراحة الفم والأسنان والفكين. التخصص: خلع الأسنان المطمورة، علاج الناسور الفموي الجيبي، كيسات الفك.',
+        expertise: ['خلع الأسنان المطمورة', 'علاج الناسور الفموي الجيبي', 'كيسات الفك', 'زراعة الأسنان'],
+      },
+    },
   },
   {
     id: 4,
@@ -172,25 +257,56 @@ export const DOCTORS: DoctorProfile[] = [
     treatments: ['Implants', 'Surgical Treatments', 'Full-mouth Restoration', 'Gingivectomy', 'Prosthetics', 'Extractions', 'Root Canal Therapy', 'Restorations'],
     photoUrl: '/assets/doctors/vail-aksoy.jpg',
     source: 'Better by MTA',
+    translations: {
+      Russian: {
+        specialty: 'Ортопедическая стоматология и хирургия',
+        bio: 'Ортопедическая стоматология и хирургия · 15 лет опыта. Специализация: полная реставрация зубного ряда, ламинирующие виниры, циркониевые коронки.',
+        expertise: ['Полная реставрация зубного ряда', 'Ламинирующие виниры', 'Циркониевые коронки', 'Керамические реставрации'],
+      },
+      French: {
+        specialty: 'Prothèses dentaires et chirurgie',
+        bio: "Prothèses dentaires et chirurgie · 15 ans d'expérience. Spécialisation : restaurations complètes, facettes lamina, couronnes en zircone.",
+        expertise: ['Restaurations complètes', 'Facettes lamina', 'Couronnes en zircone', 'Restaurations en porcelaine'],
+      },
+      Spanish: {
+        specialty: 'Prostodoncia y cirugía dental',
+        bio: 'Prostodoncia y cirugía dental · 15 años de experiencia. Especialización: rehabilitación completa de boca, carillas lamina, coronas de zirconio.',
+        expertise: ['Rehabilitación completa de boca', 'Carillas lamina', 'Coronas de zirconio', 'Restauraciones de porcelana'],
+      },
+      Arabic: {
+        specialty: 'طب التعويضات السنية والجراحة',
+        bio: 'طب التعويضات السنية والجراحة · خبرة 15 عامًا. التخصص: الترميم الكامل للفم، قشور لامينا، تيجان الزركونيا.',
+        expertise: ['الترميم الكامل للفم', 'قشور لامينا', 'تيجان الزركونيا', 'ترميمات البورسلين'],
+      },
+    },
   },
 ];
 
 /** Builds a one-line specialty + years-of-experience-derived bio blurb for the Premium
- *  Proposal's minimal `Doctor` shape. Legacy `premiumDoctorCards()` printed specialty +
- *  a fixed set of treatment chips; this keeps the same tone in a single sentence. */
+ *  Proposal's minimal `Doctor` shape (English only — other languages use the doctor's own
+ *  pre-written `translations[language].bio`, since natural phrasing/word order differs too
+ *  much per language for safe fragment concatenation). Legacy `premiumDoctorCards()` printed
+ *  specialty + a fixed set of treatment chips; this keeps the same tone in a single sentence. */
 function bioFor(doctor: DoctorProfile): string {
   const focus = doctor.expertise?.slice(0, 3).join(', ') ?? doctor.treatments.slice(0, 3).join(', ');
   return `${doctor.specialty}${doctor.experience ? ` · ${doctor.experience} of experience` : ''}. Focus: ${focus}.`;
 }
 
 /** Adapts a full `DoctorProfile` to the minimal `Doctor` shape the Premium Proposal PDF
- *  generator (`src/lib/pdf/premium`) expects. */
-export function toPdfDoctor(doctor: DoctorProfile): { name: string; specialty: string; photoUrl: string; bio: string; expertise: string[] } {
+ *  generator (`src/lib/pdf/premium`) expects, in `language` — the same `QuotationLanguage`
+ *  driving every other string in that PDF (`data.patient.language`). Falls back to the base
+ *  English fields when `language` is English, or when this doctor has no translation entry
+ *  for the requested language yet (never a blank/missing card). `name` is never translated. */
+export function toPdfDoctor(
+  doctor: DoctorProfile,
+  language: 'English' | 'Russian' | 'French' | 'Spanish' | 'Arabic' = 'English',
+): { name: string; specialty: string; photoUrl: string; bio: string; expertise: string[] } {
+  const t = language !== 'English' ? doctor.translations?.[language] : undefined;
   return {
     name: doctor.name,
-    specialty: doctor.specialty,
+    specialty: t?.specialty ?? doctor.specialty,
     photoUrl: doctor.photoUrl,
-    bio: bioFor(doctor),
-    expertise: doctor.expertise ?? doctor.treatments,
+    bio: t?.bio ?? bioFor(doctor),
+    expertise: t?.expertise ?? doctor.expertise ?? doctor.treatments,
   };
 }

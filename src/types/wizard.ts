@@ -48,6 +48,14 @@ export interface WizardState {
   paymentMethod: PaymentMethod;
   options: OptionInput[];
   display: DisplaySettings;
+  /** Free-text notes printed near the end of both PDFs — see `QuotationPdfData.notes`. */
+  notes: string;
+  /** Uploaded patient images for the Premium Proposal's Implant Map section — data URLs,
+   *  resized client-side, never uploaded to a server. See `QuotationPdfData.patientPhotos`. */
+  patientPhotos: string[];
+  /** When true (and `patientPhotos` is non-empty), the uploaded photos replace the 3D
+   *  snapshot in the Premium Proposal instead of appearing alongside it. */
+  replaceImplantMapWithPhotos: boolean;
 }
 
 export function createInitialState(): WizardState {
@@ -59,5 +67,8 @@ export function createInitialState(): WizardState {
     paymentMethod: 'visit-payments',
     options: [],
     display: { currency: 'USD', fxRate: 1, showProductPrices: true, showHotelPrices: true, showUsdEquivalent: false },
+    notes: '',
+    patientPhotos: [],
+    replaceImplantMapWithPhotos: false,
   };
 }

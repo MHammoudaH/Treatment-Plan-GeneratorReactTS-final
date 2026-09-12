@@ -265,7 +265,7 @@ function hotelRoomLabel(hotel: HotelCatalogItem, roomType: string): string {
  *  a fallback conversion). */
 function calculateProduct(
   selection: ProductSelection,
-  catalog: { id: string; name: string; displayName?: string; price: PriceValue } | null,
+  catalog: { id: string; name: string; displayName?: string; origin?: string; price: PriceValue } | null,
   currency: Currency,
 ): TreatmentLineItem {
   const nativePrice = catalog ? priceFor(catalog.price, currency) : null;
@@ -277,6 +277,9 @@ function calculateProduct(
   return {
     id: catalog?.id ?? null,
     name: catalog ? (catalog.displayName ?? catalog.name) : null,
+    // Only implants carry a catalog `origin` (crowns/bridges have no such field) — passed
+    // through raw/untranslated; the PDF renderers translate and append it at render time.
+    origin: catalog?.origin ?? null,
     quantity: selection.count,
     baseUnitPrice: round2(baseUnitPrice),
     markupPercent: selection.markupPercent,

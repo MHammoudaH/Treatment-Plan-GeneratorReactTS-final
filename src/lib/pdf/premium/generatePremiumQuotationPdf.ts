@@ -19,8 +19,9 @@
  * Must run in a browser context: it calls `window.open`, `document.write` and
  * `window.print()`. Call it directly from a button's `onClick` handler.
  */
-import type { QuotationDisplayOptions, QuotationOption, QuotationPdfData, QuotationVisit } from '../types';
+import type { QuotationDisplayOptions, QuotationLanguage, QuotationOption, QuotationPdfData, QuotationVisit } from '../types';
 import { getPremiumLabels, type PremiumLabels } from './labels';
+import { withOrigin } from '../originLabels';
 
 /**
  * Minimal doctor profile for the "Your Dental Team" page. The real doctors data module lives
@@ -147,6 +148,7 @@ function treatmentRowsHtml(
   display: QuotationDisplayOptions,
   labels: PremiumLabels,
   rtl: boolean,
+  language: QuotationLanguage,
 ): string {
   const rows: string[] = [];
   const { implants, crowns, bridge, procedures } = option.treatment;
@@ -154,8 +156,9 @@ function treatmentRowsHtml(
     display.showProductPrices ? bidi(esc(money(value, display)), rtl) : esc(labels.included);
 
   if (implants.quantity) {
+    const implantName = withOrigin(implants.name, implants.origin, language);
     rows.push(
-      `<div class="treatment-row"><div><strong>${esc(labels.dentalImplants)}</strong><span>${esc(implants.name || '')}</span></div><strong>${bidi(implants.quantity, rtl)}</strong><strong>${totalText(implants.total)}</strong></div>`,
+      `<div class="treatment-row"><div><strong>${esc(labels.dentalImplants)}</strong><span>${esc(implantName)}</span></div><strong>${bidi(implants.quantity, rtl)}</strong><strong>${totalText(implants.total)}</strong></div>`,
     );
   }
 
@@ -263,6 +266,7 @@ const RTL_CSS = `
   [dir="rtl"] .summary-box ul { margin-left: 0; margin-right: 5mm; }
   [dir="rtl"] .summary-box li { unicode-bidi: plaintext; }
   [dir="rtl"] .important { text-align: right; }
+  [dir="rtl"] .notes-block { text-align: right; unicode-bidi: plaintext; }
   [dir="rtl"] .eyebrow,
   [dir="rtl"] .cover-footer,
   [dir="rtl"] .contact,
@@ -306,7 +310,7 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
 
         <div class="treatment-table">
           <div class="treatment-head"><span>${esc(labels.procedure)}</span><span>${esc(labels.qty)}</span><span>${esc(labels.total)}</span></div>
-          ${treatmentRowsHtml(option, display, labels, rtl)}
+          ${treatmentRowsHtml(option, display, labels, rtl, language)}
         </div>
 
         <div class="section-label">${esc(labels.accommodation)} — ${visitCount === 1 ? esc(labels.oneVisit) : esc(labels.twoVisits)}</div>
@@ -324,15 +328,31 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
     })
     .join('');
 
-  const implantMapPage = data.implantMap
-    ? `
+  // Three ways this page can look, driven by what was uploaded and the coordinator's toggle
+  // (`QuotationPdfData.replaceImplantMapWithPhotos`) — see the type's own doc comment:
+  //   no photos             -> the 3D snapshot alone (unchanged existing behaviour)
+  //   photos, toggle off    -> the 3D snapshot AND the photos, together
+  //   photos, toggle on     -> the photos REPLACE the 3D snapshot
+  // The implant/crown/bridge count legend always shows whenever a snapshot was rendered
+  // (`data.implantMap` exists), even when its image is visually replaced by photos — those
+  // counts are useful summary information independent of which image is shown.
+  const photos = data.patientPhotos ?? [];
+  const showSnapshot = Boolean(data.implantMap) && !(photos.length && data.replaceImplantMapWithPhotos);
+  const showPhotos = photos.length > 0;
+
+  const implantMapPage =
+    data.implantMap || showPhotos
+      ? `
 <section class="page">
   <div class="page-header"><span>${esc(labels.implantMap)}</span><strong>${esc(patientName)}</strong></div>
-  <div style="margin-top: 14mm">
+  <div class="page-body">
     <div class="kicker">02</div>
     <h2>${esc(labels.implantMap)}</h2>
     <p class="intro">${esc(labels.implantMapIntro)}</p>
-    <img class="implant-map-img" src="${data.implantMap.image}" alt="">
+    ${showSnapshot ? `<img class="implant-map-img" src="${data.implantMap!.image}" alt="">` : ''}
+    ${
+      data.implantMap
+        ? `
     <div class="implant-legend">
       <span><i class="dot dot-implant"></i>${esc(labels.implant)} · ${bidi(data.implantMap.implants, rtl)}</span>
       <span><i class="dot dot-crown"></i>${esc(labels.crown)} · ${bidi(data.implantMap.crowns, rtl)}</span>
@@ -341,10 +361,17 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
           ? `<span><i class="dot dot-bridge"></i>${esc(labels.bridge)} · ${bidi(data.implantMap.bridges, rtl)}</span>`
           : ''
       }
-    </div>
+    </div>`
+        : ''
+    }
+    ${
+      showPhotos
+        ? `<div class="patient-photo-gallery">${photos.map((src) => `<img src="${src}" alt="">`).join('')}</div>`
+        : ''
+    }
   </div>
 </section>`
-    : '';
+      : '';
 
   const selected = options[0] as QuotationOption | undefined;
   const visit1 = selected?.visits.visit1 ?? null;
@@ -375,6 +402,14 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
         })()
       : '';
 
+  // Folded into the bottom of the Experience/gallery page below (not its own dedicated page):
+  // notes are typically short, and a whole near-empty A4 page for a sentence or two is exactly
+  // the "empty gap" look this document should avoid. Omitted entirely when there's nothing to
+  // say. Still prints "near the end" as intended — this is the last content page before closing.
+  const notesSection = data.notes?.trim()
+    ? `<div class="section-label" style="margin-top: 10mm">${esc(labels.notes)}</div><div class="notes-block">${esc(data.notes.trim())}</div>`
+    : '';
+
   const htmlLang =
     language === 'Russian' ? 'ru' : language === 'French' ? 'fr' : language === 'Spanish' ? 'es' : rtl ? 'ar' : 'en';
 
@@ -389,8 +424,14 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; color: #18263d; background: #fff; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .page { width: 210mm; min-height: 297mm; padding: 18mm 17mm; position: relative; page-break-after: always; overflow: hidden; }
+  .page { width: 210mm; min-height: 297mm; padding: 18mm 17mm; position: relative; page-break-after: always; overflow: hidden; display: flex; flex-direction: column; }
   .page:last-child { page-break-after: auto; }
+  /* The running header always stays pinned at the very top; everything below it shares the
+     rest of the page's height and centers itself within that space — so a page whose content
+     doesn't fill a full A4 sheet (most single-topic pages) reads as a deliberately composed,
+     "full" layout instead of a short block stranded at the top with a large empty gap below
+     it, the way every non-cover/closing page looked before. */
+  .page-body { flex: 1; display: flex; flex-direction: column; justify-content: center; margin-top: 14mm; }
   .cover { color: #fff; background: linear-gradient(135deg, #061a3b 0%, #0c2d5f 62%, #071225 100%); padding: 0; }
   .cover-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .28; }
   .cover-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(3,13,31,.48), rgba(3,13,31,.88)); }
@@ -413,10 +454,10 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
   .intro { font-size: 11px; line-height: 1.75; color: #5c6674; }
   .summary-box { margin-top: 10mm; background: #f5f7fa; border-left: 4px solid #d8232a; border-radius: 5px; padding: 7mm; }
   .summary-box ul { margin: 3mm 0 0 5mm; padding: 0; line-height: 1.8; }
-  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin-top: 8mm; }
-  .feature { border: 1px solid #e0e4e9; border-radius: 6px; padding: 6mm; }
-  .feature strong { display: block; color: #09234a; margin-bottom: 2mm; }
-  .feature span { font-size: 10px; color: #667080; line-height: 1.5; }
+  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; margin-top: 10mm; }
+  .feature { border: 1px solid #e0e4e9; border-top: 3px solid #d8232a; border-radius: 6px; padding: 8mm 7mm; }
+  .feature strong { display: block; color: #09234a; margin-bottom: 3mm; font-size: 13px; }
+  .feature span { font-size: 10.5px; color: #667080; line-height: 1.65; }
   .treatment-table { border: 1px solid #e1e5ea; border-radius: 6px; overflow: hidden; margin-top: 7mm; }
   .treatment-head, .treatment-row { display: grid; grid-template-columns: 1fr 25mm 34mm; gap: 4mm; padding: 4mm 5mm; align-items: center; }
   .treatment-head { background: #09234a; color: #fff; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; }
@@ -432,11 +473,16 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
   .visit-line { font-size: 9px; line-height: 1.5; }
   .service-list { margin-top: 4mm; border-top: 1px solid #edf0f3; padding-top: 3mm; }
   .service-list div { font-size: 8.5px; padding: 1.5mm 0; color: #687282; }
-  .option-total-box { margin-top: 7mm; background: #09234a; color: #fff; border-radius: 6px; padding: 6mm; display: flex; justify-content: space-between; align-items: center; }
-  .option-total-box strong { font-size: 20px; }
-  .payment-box { margin-top: 8mm; border: 1px solid #dfe4ea; border-radius: 6px; padding: 6mm; }
-  .payment-box h3 { margin: 0 0 4mm; }
-  .payment-box > div { display: flex; justify-content: space-between; padding: 3mm 0; border-top: 1px solid #edf0f3; }
+  .option-total-box { margin-top: 8mm; background: #09234a; color: #fff; border-radius: 6px; padding: 8mm; display: flex; justify-content: space-between; align-items: center; }
+  .option-total-box span { font-size: 11px; letter-spacing: .5px; opacity: .85; }
+  .option-total-box strong { font-size: 24px; }
+  .payment-box { margin-top: 9mm; border: 1px solid #dfe4ea; border-radius: 6px; padding: 8mm; }
+  .payment-box h3 { margin: 0 0 5mm; font-size: 15px; }
+  .payment-box > div { display: flex; justify-content: space-between; padding: 4mm 0; border-top: 1px solid #edf0f3; font-size: 11px; }
+  .included-strip { margin-top: 9mm; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; }
+  .included-strip div { border: 1px solid #dfe4ea; border-radius: 6px; padding: 6mm; text-align: center; }
+  .included-strip span { display: block; font-size: 9px; color: #737c89; text-transform: uppercase; letter-spacing: 1px; }
+  .included-strip strong { display: block; margin-top: 2mm; color: #09234a; font-size: 12px; }
   .finance-box { margin-top: 6mm; display: grid; grid-template-columns: repeat(4,1fr); gap: 3mm; }
   .finance-box div { display: block; border: 1px solid #dfe4ea; border-radius: 5px; padding: 4mm; }
   .finance-box span { display: block; font-size: 8px; color: #737c89; }
@@ -446,12 +492,15 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
   .doctor-card h3 { margin: 1mm 0 2mm; font-size: 15px; }
   .doctor-card p { margin: 1mm 0; font-size: 9px; color: #667080; line-height: 1.5; }
   .doctor-card .doctor-specialty { color: #d8232a; font-weight: 700; }
-  .implant-map-img { width: 100%; height: 155mm; object-fit: contain; background: #0d1526; border-radius: 7px; margin-top: 7mm; }
+  .implant-map-img { width: 100%; height: 175mm; object-fit: contain; background: #0d1526; border-radius: 7px; margin-top: 8mm; }
   .implant-legend { display: flex; gap: 12mm; margin-top: 5mm; font-size: 10px; color: #5c6674; }
   .implant-legend .dot { display: inline-block; width: 3.4mm; height: 3.4mm; border-radius: 50%; margin-inline-end: 2mm; vertical-align: -0.4mm; }
   .implant-legend .dot-implant { background: #2f6bff; }
   .implant-legend .dot-crown { background: #e8a13a; }
   .implant-legend .dot-bridge { background: #2bb7a0; }
+  .patient-photo-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; margin-top: 7mm; }
+  .patient-photo-gallery img { width: 100%; height: 48mm; object-fit: cover; border-radius: 6px; display: block; background: #eef1f5; }
+  .notes-block { margin-top: 7mm; padding: 7mm 8mm; background: #f6f8fb; border: 1px solid #dde3ec; border-radius: 8px; white-space: pre-wrap; line-height: 1.7; color: #303c4e; font-size: 12px; }
   .clinic-gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin-top: 7mm; }
   .clinic-gallery img { width: 100%; height: 62mm; object-fit: cover; border-radius: 7px; display: block; background: #eef1f5; }
   .clinic-gallery img:first-child { grid-column: 1 / -1; height: 84mm; }
@@ -493,7 +542,7 @@ ${RTL_CSS}
 
 <section class="page">
   <div class="page-header"><span>${esc(labels.treatment)}</span><strong>${esc(patientName)}</strong></div>
-  <div style="margin-top: 14mm">
+  <div class="page-body">
     <div class="kicker">01</div>
     <h2>${esc(labels.treatment)}</h2>
     <p class="intro">${esc(labels.generated)}</p>
@@ -515,7 +564,7 @@ ${optionBlocks}
 
 <section class="page">
   <div class="page-header"><span>${esc(labels.investment)}</span><strong>${esc(patientName)}</strong></div>
-  <div style="margin-top: 14mm">
+  <div class="page-body">
     <div class="kicker">03</div>
     <h2>${esc(labels.investment)}</h2>
     ${
@@ -528,12 +577,17 @@ ${optionBlocks}
       ${paymentVisits.join('') || `<p class="intro">${esc(labels.paymentTBD)}</p>`}
     </div>
     ${financing}
+    <div class="included-strip">
+      <div><span>${esc(labels.transfer)}</span><strong>${esc(labels.included)}</strong></div>
+      <div><span>${esc(labels.prosthesis)}</span><strong>${esc(labels.included)}</strong></div>
+      <div><span>${esc(labels.translator)}</span><strong>${esc(labels.included)}</strong></div>
+    </div>
   </div>
 </section>
 
 <section class="page">
   <div class="page-header"><span>${esc(labels.team)}</span><strong>${esc(patientName)}</strong></div>
-  <div style="margin-top: 10mm">
+  <div class="page-body">
     <div class="kicker">04</div>
     <h2>${esc(labels.team)}</h2>
     ${doctorCardsHtml(doctors, labels) || `<p class="intro">${esc(labels.teamFallback)}</p>`}
@@ -542,13 +596,14 @@ ${optionBlocks}
 
 <section class="page">
   <div class="page-header"><span>${esc(labels.experience)}</span><strong>${esc(patientName)}</strong></div>
-  <div style="margin-top: 14mm">
+  <div class="page-body">
     <div class="kicker">05</div>
     <h2>${esc(labels.experience)}</h2>
     <p class="intro">${esc(labels.experienceIntro)}</p>
     <div class="clinic-gallery">
       ${CLINIC_IMAGES.map((src) => `<img src="${src}" alt="Duty Clinic Istanbul">`).join('')}
     </div>
+    ${notesSection}
   </div>
 </section>
 
