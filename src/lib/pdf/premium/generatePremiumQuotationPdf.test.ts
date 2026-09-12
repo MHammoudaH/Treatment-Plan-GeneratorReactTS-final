@@ -26,7 +26,7 @@ const PHOTO_B = 'data:image/jpeg;base64,PHOTOB';
 // the document's static <style> block regardless of what's rendered — assertions must look
 // for the actual opening tag (an element that USES the class), never the bare class name,
 // or a "this must NOT appear" check would false-fail against the stylesheet itself.
-const GALLERY_TAG = '<div class="patient-photo-gallery">';
+const GALLERY_TAG = 'class="patient-photo-gallery"'; // the div also carries an inline sizing style
 const NOTES_TAG = '<div class="notes-block">';
 const SNAPSHOT_IMG = `<img class="implant-map-img" src="${SNAPSHOT}"`;
 

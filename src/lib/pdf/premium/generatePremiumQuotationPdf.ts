@@ -231,6 +231,32 @@ function visitCardHtml(
   `;
 }
 
+/** Column count and per-image height for the uploaded-photo gallery, driven by how many
+ *  photos there are and whether they're the page's ONLY visual (`hero`, i.e. they replaced the
+ *  3D snapshot rather than sitting alongside it) — a fixed 3-column/48mm grid made every photo
+ *  tiny and hard to actually read regardless of context, which defeats the point of uploading
+ *  an X-ray or intraoral photo in the first place. */
+function photoGalleryLayout(count: number, hero: boolean): { cols: number; heightMm: number } {
+  const cols = count <= 1 ? 1 : count === 2 ? 2 : count <= 4 ? 2 : 3;
+  const heightByHero: Record<number, number> = hero ? { 1: 150, 2: 120, 3: 85 } : { 1: 110, 2: 85, 3: 62 };
+  return { cols, heightMm: heightByHero[cols] };
+}
+
+/** Renders the uploaded-photo grid at a size that actually reads as a photo, not a thumbnail
+ *  — see `photoGalleryLayout`. When 2 columns don't divide evenly, the odd photo out spans the
+ *  full row width instead of being stranded at half-width next to empty space. */
+function photoGalleryHtml(photos: string[], hero: boolean): string {
+  const { cols, heightMm } = photoGalleryLayout(photos.length, hero);
+  const spanLastFullWidth = cols === 2 && photos.length % 2 === 1;
+  const images = photos
+    .map((src, i) => {
+      const spanStyle = spanLastFullWidth && i === photos.length - 1 ? ' grid-column: 1 / -1;' : '';
+      return `<img src="${src}" alt="" style="height: ${heightMm}mm;${spanStyle}">`;
+    })
+    .join('');
+  return `<div class="patient-photo-gallery" style="grid-template-columns: repeat(${cols}, 1fr);">${images}</div>`;
+}
+
 /** Legacy source: `premiumDoctorCards()`. Caps at 4 cards. Names and bios are shown as
  *  supplied (proper nouns / free-text CVs); only the specialty fallback is localized. */
 function doctorCardsHtml(doctors: Doctor[], labels: PremiumLabels): string {
@@ -364,11 +390,7 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
     </div>`
         : ''
     }
-    ${
-      showPhotos
-        ? `<div class="patient-photo-gallery">${photos.map((src) => `<img src="${src}" alt="">`).join('')}</div>`
-        : ''
-    }
+    ${showPhotos ? photoGalleryHtml(photos, !showSnapshot) : ''}
   </div>
 </section>`
       : '';
@@ -498,8 +520,10 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
   .implant-legend .dot-implant { background: #2f6bff; }
   .implant-legend .dot-crown { background: #e8a13a; }
   .implant-legend .dot-bridge { background: #2bb7a0; }
-  .patient-photo-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; margin-top: 7mm; }
-  .patient-photo-gallery img { width: 100%; height: 48mm; object-fit: cover; border-radius: 6px; display: block; background: #eef1f5; }
+  /* Column count and per-image height are set inline per page (see photoGalleryHtml) —
+     they depend on how many photos there are and whether they're the page's only visual. */
+  .patient-photo-gallery { display: grid; gap: 5mm; margin-top: 8mm; }
+  .patient-photo-gallery img { width: 100%; object-fit: cover; border-radius: 7px; display: block; background: #eef1f5; }
   .notes-block { margin-top: 7mm; padding: 7mm 8mm; background: #f6f8fb; border: 1px solid #dde3ec; border-radius: 8px; white-space: pre-wrap; line-height: 1.7; color: #303c4e; font-size: 12px; }
   .clinic-gallery { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin-top: 7mm; }
   .clinic-gallery img { width: 100%; height: 62mm; object-fit: cover; border-radius: 7px; display: block; background: #eef1f5; }
