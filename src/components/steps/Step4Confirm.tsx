@@ -25,9 +25,14 @@ export function Step4Confirm() {
   }
 
   async function handlePhotosSelected(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
+    // `e.target.files` is a LIVE FileList tied to the input — resetting `e.target.value` below
+    // (so the same file can be re-selected later) clears that same list's contents too, not
+    // just the displayed value. Snapshotting into a plain array first, before the reset, is
+    // what makes the reset safe; capturing just the FileList reference was silently losing
+    // every upload (files.length back to 0 before resizeImageFiles ever ran, no error).
+    const files = e.target.files ? Array.from(e.target.files) : [];
     e.target.value = ''; // allow selecting the same file again later
-    if (!files || files.length === 0) return;
+    if (files.length === 0) return;
     setUploadingPhotos(true);
     try {
       const photos = await resizeImageFiles(files);
