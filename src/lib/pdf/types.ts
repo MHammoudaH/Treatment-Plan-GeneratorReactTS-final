@@ -209,11 +209,28 @@ export interface QuotationOption {
 }
 
 /** US/Canada installment financing terms. Legacy source: `DUTY_PRICING.financing`, surfaced via `quotation.payment.financing`. */
+/**
+ * Fully pre-computed by `calculateFinancing` (the pricing engine) — see that function's own
+ * doc comment for the formula. Renderers only ever print these fields directly; they must
+ * never re-derive the markup/cap math themselves (that duplication is exactly how this ended
+ * up computed three different, inconsistent ways across the two PDF generators before).
+ */
 export interface FinancingDetails {
-  /** Percentage markup applied to the option total to get the financed "package" price. */
+  /** Percentage markup — informational context for the `installmentAmount` figure below; it
+   *  was already applied to `installmentBase` to produce `installmentAmount`. */
   markupPercent: number;
-  /** Fixed installment amount collected up front, in USD. */
+  /** The financed portion's face value, BEFORE the markup — capped at the clinic's maximum
+   *  and never more than the treatment total; may be lower per patient. */
+  installmentBase: number;
+  /** `installmentBase` plus its markup — the amount actually collected as the installment. */
   installmentAmount: number;
+  /** What the patient pays in total under the plan: `installmentAmount` + the remaining cash
+   *  portion (at face value) — NOT the whole treatment total marked up. */
+  financedPackage: number;
+  /** The non-financed portion of the treatment total, paid in cash at face value. */
+  cashRemaining: number;
+  /** `cashRemaining` split evenly across the option's visits. */
+  cashPerVisit: number;
   /** Maximum financing term offered, in months (informational — not printed by either generator today). */
   maximumTermMonths: number;
 }

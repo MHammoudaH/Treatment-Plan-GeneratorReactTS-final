@@ -46,6 +46,12 @@ export interface WizardState {
   /** Per-tooth implant/crown plan, keyed by FDI number. Drives the 3D implant map. */
   toothPlan: Record<number, ToothMark>;
   paymentMethod: PaymentMethod;
+  /** Amount the coordinator is financing for this patient under the US/Canada installment
+   *  plan, in USD — the ONLY portion the plan's markup applies to (see `calculateFinancing`).
+   *  `null` defaults to the clinic maximum (`PRICING.financing.installmentAmount`, $3900); a
+   *  patient whose credit approval covers less can be financed for that lower amount instead.
+   *  Clamped to `[0, clinic maximum]` at calculation time regardless of what's typed here. */
+  installmentAmount: number | null;
   options: OptionInput[];
   display: DisplaySettings;
   /** Free-text notes printed near the end of both PDFs — see `QuotationPdfData.notes`. */
@@ -65,6 +71,7 @@ export function createInitialState(): WizardState {
     diagnosis: { rawText: '', editedText: '', parsed: null, confirmed: false },
     toothPlan: {},
     paymentMethod: 'visit-payments',
+    installmentAmount: null,
     options: [],
     display: { currency: 'USD', fxRate: 1, showProductPrices: true, showHotelPrices: true, showUsdEquivalent: false },
     notes: '',

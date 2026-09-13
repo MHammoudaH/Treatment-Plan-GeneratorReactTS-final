@@ -1,6 +1,7 @@
 import { useQuotation } from '../../context/QuotationContext';
 import { calculateFinancing, calculateOption } from '../../lib/pricing/engine';
 import { formatMoney } from '../../lib/formatMoney';
+import { PRICING } from '../../data/pricing';
 import { CURRENCY_META, type DisplayCurrency } from '../../types/wizard';
 import { OptionCard } from './OptionCard';
 import { NumberField } from '../NumberField';
@@ -108,39 +109,61 @@ export function Step3Options() {
       )}
 
       {state.paymentMethod === 'installments' && state.patient.country && ['United States', 'Canada'].includes(state.patient.country) && (
-        <div className="financing-summary">
-          {state.options.map((input) => {
-            const fxRate = display.currency === 'USD' ? 1 : display.fxRate;
-            const result = calculateOption(input, display.currency, fxRate);
-            const financing = calculateFinancing(result, state.patient.country, state.paymentMethod);
-            if (!financing.eligible) return null;
-            return (
-              <div className="financing-box" key={input.id}>
-                <h4>{input.name} — installment plan</h4>
-                <div className="summary-row">
-                  <span>Package + {20}%</span>
-                  <strong>{formatMoney(financing.financedPackage, display)}</strong>
+        <>
+          <div className="coordinator-control">
+            <label>Approved installment amount</label>
+            <NumberField
+              min={0}
+              max={PRICING.financing.installmentAmount}
+              step={50}
+              value={state.installmentAmount ?? PRICING.financing.installmentAmount}
+              onChange={(amount) => dispatch({ type: 'SET_INSTALLMENT_AMOUNT', amount })}
+            />
+            <small className="hint">
+              The clinic finances up to {formatMoney(PRICING.financing.installmentAmount, display)} — a lower amount may be
+              entered when a patient's US/CA credit check approves less. The {PRICING.financing.markupPercent}% financing fee
+              applies only to this amount, never to the whole treatment total.
+            </small>
+          </div>
+
+          <div className="financing-summary">
+            {state.options.map((input) => {
+              const fxRate = display.currency === 'USD' ? 1 : display.fxRate;
+              const result = calculateOption(input, display.currency, fxRate);
+              const financing = calculateFinancing(result, state.patient.country, state.paymentMethod, state.installmentAmount);
+              if (!financing.eligible) return null;
+              return (
+                <div className="financing-box" key={input.id}>
+                  <h4>{input.name} — installment plan</h4>
+                  <div className="summary-row">
+                    <span>Financed amount</span>
+                    <strong>{formatMoney(financing.installmentBase, display)}</strong>
+                  </div>
+                  <div className="summary-row">
+                    <span>Installment (incl. {PRICING.financing.markupPercent}% fee)</span>
+                    <strong>{formatMoney(financing.installment, display)}</strong>
+                  </div>
+                  <div className="summary-row">
+                    <span>Maximum term</span>
+                    <strong>{financing.maximumTermMonths} months</strong>
+                  </div>
+                  <div className="summary-row">
+                    <span>Remaining cash</span>
+                    <strong>{formatMoney(financing.cashRemaining, display)}</strong>
+                  </div>
+                  <div className="summary-row">
+                    <span>Cash per visit</span>
+                    <strong>{formatMoney(financing.cashPerVisit, display)}</strong>
+                  </div>
+                  <div className="summary-row">
+                    <span>Total (installment + cash)</span>
+                    <strong>{formatMoney(financing.financedPackage, display)}</strong>
+                  </div>
                 </div>
-                <div className="summary-row">
-                  <span>Installment</span>
-                  <strong>{formatMoney(financing.installment, display)}</strong>
-                </div>
-                <div className="summary-row">
-                  <span>Maximum term</span>
-                  <strong>{financing.maximumTermMonths} months</strong>
-                </div>
-                <div className="summary-row">
-                  <span>Remaining cash</span>
-                  <strong>{formatMoney(financing.cashRemaining, display)}</strong>
-                </div>
-                <div className="summary-row">
-                  <span>Cash per visit</span>
-                  <strong>{formatMoney(financing.cashPerVisit, display)}</strong>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       <div className="wizard-actions">

@@ -321,16 +321,14 @@ function flightTicketSummaryHtml(option: QuotationOption, labels: SimpleLabels, 
   return `<div class="visit-summary"><div class="visit-summary-title">${esc(labels.flightTicket)}</div><div class="visit-total"><span>${esc(labels.flightTicket)}</span><strong>${moneyHtml(option.totals.flightTicket, display)}</strong></div></div>`;
 }
 
-function installmentBlockHtml(data: QuotationPdfData, option: QuotationOption, labels: SimpleLabels, display: QuotationDisplayOptions): string {
+/** Prints the already-computed financing breakdown (`calculateFinancing`, the pricing engine)
+ *  — never re-derives the markup/cap math here. The `%` markup applies only to `installmentBase`
+ *  (up to the clinic maximum, or less per patient), not the whole treatment total. */
+function installmentBlockHtml(data: QuotationPdfData, labels: SimpleLabels, display: QuotationDisplayOptions): string {
   const financing = data.payment.financing;
   if (!data.payment.installmentEligible || !financing) return '';
 
-  const financedPackage = option.totals.total * (1 + financing.markupPercent / 100);
-  const installment = Math.min(financing.installmentAmount, financedPackage);
-  const remaining = Math.max(0, financedPackage - installment);
-  const perVisit = option.visits.count > 1 ? remaining / option.visits.count : remaining;
-
-  return `<section class="installment-box"><div class="section-kicker">${esc(labels.installment)}</div><div class="installment-grid"><div><span>${esc(labels.package)} ${financing.markupPercent}%</span><strong>${moneyHtml(financedPackage, display)}</strong></div><div><span>${esc(labels.installmentAmount)}</span><strong>${moneyHtml(installment, display)}</strong></div><div><span>${esc(labels.remainingCash)}</span><strong>${moneyHtml(remaining, display)}</strong></div><div><span>${esc(labels.cashPerVisit)}</span><strong>${moneyHtml(perVisit, display)}</strong></div></div></section>`;
+  return `<section class="installment-box"><div class="section-kicker">${esc(labels.installment)}</div><div class="installment-grid"><div><span>${esc(labels.package)}</span><strong>${moneyHtml(financing.financedPackage, display)}</strong></div><div><span>${esc(labels.installmentAmount)} (+${financing.markupPercent}%)</span><strong>${moneyHtml(financing.installmentAmount, display)}</strong></div><div><span>${esc(labels.remainingCash)}</span><strong>${moneyHtml(financing.cashRemaining, display)}</strong></div><div><span>${esc(labels.cashPerVisit)}</span><strong>${moneyHtml(financing.cashPerVisit, display)}</strong></div></div></section>`;
 }
 
 function optionHtml(option: QuotationOption, data: QuotationPdfData, labels: SimpleLabels, index: number, language: SimpleLatinLanguage, display: QuotationDisplayOptions): string {
@@ -346,7 +344,7 @@ function optionHtml(option: QuotationOption, data: QuotationPdfData, labels: Sim
   ${visit1 ? `<div class="visit-heading">${esc(labels.visit1)}</div><table class="proposal-table services-table"><thead><tr><th>${esc(labels.services)}</th><th>${esc(labels.details)}</th><th>${esc(labels.nights)}</th><th>${esc(labels.perNight)}</th><th>${esc(labels.total)}</th></tr></thead><tbody>${hotelRowsHtml(visit1, labels, display)}</tbody></table>` : ''}
   ${visit2 ? `<div class="visit-heading">${esc(labels.visit2)}</div><table class="proposal-table services-table"><thead><tr><th>${esc(labels.services)}</th><th>${esc(labels.details)}</th><th>${esc(labels.nights)}</th><th>${esc(labels.perNight)}</th><th>${esc(labels.total)}</th></tr></thead><tbody>${hotelRowsHtml(visit2, labels, display)}</tbody></table>` : ''}
   <div class="payment-section"><div class="section-kicker">${esc(labels.paymentByVisit)}</div>${visitSummaryHtml(option, labels, display)}${flightTicketSummaryHtml(option, labels, display)}<div class="grand-total"><span>${esc(labels.total)}</span><strong>${moneyHtml(option.totals.total, display)}</strong></div></div>
-  ${installmentBlockHtml(data, option, labels, display)}</section>`;
+  ${installmentBlockHtml(data, labels, display)}</section>`;
 }
 
 function buildLatinHtml(data: QuotationPdfData, language: SimpleLatinLanguage): string {
@@ -455,14 +453,11 @@ function arFlightTicketSummaryHtml(option: QuotationOption, display: QuotationDi
   return `<div class="visit-summary"><div class="visit-title">${ARABIC_LABELS.flightTicket}</div><div class="visit-total"><span>${ARABIC_LABELS.flightTicket}</span><strong>${arMoneyHtml(option.totals.flightTicket, display)}</strong></div></div>`;
 }
 
-function arInstallmentHtml(data: QuotationPdfData, option: QuotationOption, display: QuotationDisplayOptions): string {
+/** Prints the already-computed financing breakdown — see `installmentBlockHtml`'s comment. */
+function arInstallmentHtml(data: QuotationPdfData, display: QuotationDisplayOptions): string {
   const financing = data.payment.financing;
   if (!data.payment.installmentEligible || !financing) return '';
-  const financed = option.totals.total * (1 + financing.markupPercent / 100);
-  const installment = Math.min(financing.installmentAmount, financed);
-  const remaining = Math.max(0, financed - installment);
-  const perVisit = option.visits.count > 1 ? remaining / option.visits.count : remaining;
-  return `<section class="installment-box"><div class="section-title">${ARABIC_LABELS.installment}</div><div class="installment-grid"><div><span>${ARABIC_LABELS.package} ${financing.markupPercent}%</span><strong>${arMoneyHtml(financed, display)}</strong></div><div><span>${ARABIC_LABELS.installmentAmount}</span><strong>${arMoneyHtml(installment, display)}</strong></div><div><span>${ARABIC_LABELS.remainingCash}</span><strong>${arMoneyHtml(remaining, display)}</strong></div><div><span>${ARABIC_LABELS.cashPerVisit}</span><strong>${arMoneyHtml(perVisit, display)}</strong></div></div></section>`;
+  return `<section class="installment-box"><div class="section-title">${ARABIC_LABELS.installment}</div><div class="installment-grid"><div><span>${ARABIC_LABELS.package}</span><strong>${arMoneyHtml(financing.financedPackage, display)}</strong></div><div><span>${ARABIC_LABELS.installmentAmount} (+${financing.markupPercent}%)</span><strong>${arMoneyHtml(financing.installmentAmount, display)}</strong></div><div><span>${ARABIC_LABELS.remainingCash}</span><strong>${arMoneyHtml(financing.cashRemaining, display)}</strong></div><div><span>${ARABIC_LABELS.cashPerVisit}</span><strong>${arMoneyHtml(financing.cashPerVisit, display)}</strong></div></div></section>`;
 }
 
 function buildArabicHtml(data: QuotationPdfData): string {
@@ -510,7 +505,7 @@ function buildArabicHtml(data: QuotationPdfData): string {
       ${visit1 ? `<div class="visit-heading">${ARABIC_LABELS.visit1}</div><table class="proposal-table"><thead><tr><th>${ARABIC_LABELS.services}</th><th>${ARABIC_LABELS.details}</th><th>${ARABIC_LABELS.nights}</th><th>${ARABIC_LABELS.perNight}</th><th>${ARABIC_LABELS.total}</th></tr></thead><tbody>${arHotelRowsHtml(visit1, display)}</tbody></table>` : ''}
       ${visit2 ? `<div class="visit-heading">${ARABIC_LABELS.visit2}</div><table class="proposal-table"><thead><tr><th>${ARABIC_LABELS.services}</th><th>${ARABIC_LABELS.details}</th><th>${ARABIC_LABELS.nights}</th><th>${ARABIC_LABELS.perNight}</th><th>${ARABIC_LABELS.total}</th></tr></thead><tbody>${arHotelRowsHtml(visit2, display)}</tbody></table>` : ''}
       <div class="payment-section"><div class="section-title">${ARABIC_LABELS.paymentByVisit}</div>${arVisitSummaryHtml(option, display)}${arFlightTicketSummaryHtml(option, display)}<div class="grand-total"><span>${ARABIC_LABELS.total}</span><strong>${arMoneyHtml(option.totals.total, display)}</strong></div></div>
-      ${arInstallmentHtml(data, option, display)}</section>`;
+      ${arInstallmentHtml(data, display)}</section>`;
     })
     .join('');
 

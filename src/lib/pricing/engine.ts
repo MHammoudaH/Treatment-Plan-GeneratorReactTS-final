@@ -472,23 +472,64 @@ export function calculateOption(input: OptionInput, currency: Currency, fxRate: 
 
 export interface FinancingBreakdown {
   eligible: boolean;
+  /** What the patient pays in total under the plan: `installment` (already including its
+   *  markup) plus `cashRemaining` (at face value, no markup) — NOT the whole treatment total
+   *  marked up. See `installmentBase` for the pre-markup financed amount. */
   financedPackage: number;
+  /** The financed portion's face value, BEFORE the markup — capped at the clinic's maximum
+   *  (`PRICING.financing.installmentAmount`) and never more than the treatment total. May be
+   *  set lower per patient (e.g. a smaller amount their credit approval covers) — see
+   *  `calculateFinancing`'s `requestedInstallmentAmount` parameter. */
+  installmentBase: number;
+  /** `installmentBase` plus its markup — the amount actually collected as the installment. */
   installment: number;
   maximumTermMonths: number;
+  /** The NON-financed portion of the treatment total, paid in cash at face value — never
+   *  marked up. */
   cashRemaining: number;
   cashPerVisit: number;
 }
 
-export function calculateFinancing(option: QuotationOption, country: string, paymentMethod: string): FinancingBreakdown {
+/**
+ * US/Canada installment plan. The markup applies ONLY to the amount actually being financed
+ * (`installmentBase`, capped at the clinic's maximum — `PRICING.financing.installmentAmount`,
+ * currently $3900) — never to the whole treatment total. This was a real bug in an earlier
+ * version of this function (and independently duplicated, with the same bug, inside both PDF
+ * generators): `financedPackage` was computed as `total * 1.20` first, and only THEN was the
+ * $3900 cap applied to slice a piece off that already-inflated number — meaning a patient
+ * financing $3900 of a $10,000 treatment was effectively charged 20% on the full $10,000, not
+ * on the $3900 they were actually financing.
+ *
+ * `requestedInstallmentAmount` lets the coordinator finance LESS than the clinic maximum — e.g.
+ * a patient's credit approval only covers $2500. `null`/`undefined` (or anything above the
+ * maximum) falls back to the maximum; the result is always clamped to `[0, min(max, total)]`.
+ */
+export function calculateFinancing(
+  option: QuotationOption,
+  country: string,
+  paymentMethod: string,
+  requestedInstallmentAmount?: number | null,
+): FinancingBreakdown {
   const eligible = paymentMethod === 'installments' && PRICING.financing.eligibleCountries.includes(country);
   if (!eligible) {
-    return { eligible: false, financedPackage: 0, installment: 0, maximumTermMonths: PRICING.financing.maximumTermMonths, cashRemaining: 0, cashPerVisit: 0 };
+    return {
+      eligible: false,
+      financedPackage: 0,
+      installmentBase: 0,
+      installment: 0,
+      maximumTermMonths: PRICING.financing.maximumTermMonths,
+      cashRemaining: 0,
+      cashPerVisit: 0,
+    };
   }
-  const financedPackage = round2(option.totals.total * (1 + PRICING.financing.markupPercent / 100));
-  const installment = Math.min(PRICING.financing.installmentAmount, financedPackage);
-  const cashRemaining = round2(Math.max(0, financedPackage - installment));
+  const cap = PRICING.financing.installmentAmount;
+  const requested = hasOverride(requestedInstallmentAmount) ? requestedInstallmentAmount : cap;
+  const installmentBase = Math.min(requested, cap, option.totals.total);
+  const installment = round2(installmentBase * (1 + PRICING.financing.markupPercent / 100));
+  const cashRemaining = round2(Math.max(0, option.totals.total - installmentBase));
+  const financedPackage = round2(installment + cashRemaining);
   const cashPerVisit = option.visits.count > 1 ? round2(cashRemaining / option.visits.count) : cashRemaining;
-  return { eligible: true, financedPackage, installment, maximumTermMonths: PRICING.financing.maximumTermMonths, cashRemaining, cashPerVisit };
+  return { eligible: true, financedPackage, installmentBase: round2(installmentBase), installment, maximumTermMonths: PRICING.financing.maximumTermMonths, cashRemaining, cashPerVisit };
 }
 
 export { STANDARD_PROSTHESIS_USD, STANDARD_TRANSFER_USD };

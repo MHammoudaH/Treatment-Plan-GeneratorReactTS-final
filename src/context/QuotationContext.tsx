@@ -11,6 +11,7 @@ type Action =
   | { type: 'CLEAR_TEETH' }
   | { type: 'SUGGEST_TEETH_FROM_DIAGNOSIS' }
   | { type: 'SET_PAYMENT_METHOD'; method: PaymentMethod }
+  | { type: 'SET_INSTALLMENT_AMOUNT'; amount: number | null }
   | { type: 'SET_DISPLAY'; display: Partial<DisplaySettings> }
   | { type: 'ADD_OPTION' }
   | { type: 'PREFILL_OPTIONS_FROM_DIAGNOSIS' }
@@ -53,6 +54,8 @@ function reducer(state: WizardState, action: Action): WizardState {
     }
     case 'SET_PAYMENT_METHOD':
       return { ...state, paymentMethod: action.method };
+    case 'SET_INSTALLMENT_AMOUNT':
+      return { ...state, installmentAmount: action.amount };
     case 'SET_DISPLAY':
       return { ...state, display: { ...state.display, ...action.display } };
     case 'ADD_OPTION': {

@@ -18,8 +18,13 @@ export function buildQuotationPdfData(state: WizardState): QuotationPdfData {
 
   // Financing terms are the same for every option's markup%, so surface them once at the
   // quotation level using the first option (legacy showed a financing box per-option; this
-  // keeps the same numbers, just summarized once for the payment step).
-  const financing = installmentEligible && options[0] ? calculateFinancing(options[0], state.patient.country, state.paymentMethod) : null;
+  // keeps the same numbers, just summarized once for the payment step). Fully pre-computed
+  // here (the pricing engine, the one authoritative place this formula lives) — the PDF
+  // generators only print these fields, they never re-derive the markup/cap math themselves.
+  const financing =
+    installmentEligible && options[0]
+      ? calculateFinancing(options[0], state.patient.country, state.paymentMethod, state.installmentAmount)
+      : null;
 
   return {
     generatedAt: new Date().toISOString(),
@@ -35,7 +40,15 @@ export function buildQuotationPdfData(state: WizardState): QuotationPdfData {
       method: state.paymentMethod,
       installmentEligible,
       financing: financing
-        ? { markupPercent: PRICING.financing.markupPercent, installmentAmount: PRICING.financing.installmentAmount, maximumTermMonths: PRICING.financing.maximumTermMonths }
+        ? {
+            markupPercent: PRICING.financing.markupPercent,
+            installmentBase: financing.installmentBase,
+            installmentAmount: financing.installment,
+            financedPackage: financing.financedPackage,
+            cashRemaining: financing.cashRemaining,
+            cashPerVisit: financing.cashPerVisit,
+            maximumTermMonths: PRICING.financing.maximumTermMonths,
+          }
         : null,
     },
     options,

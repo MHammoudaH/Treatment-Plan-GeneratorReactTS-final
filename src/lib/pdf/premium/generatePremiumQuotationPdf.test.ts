@@ -80,6 +80,33 @@ describe('generatePremiumQuotationHtml — implant map / photos', () => {
   });
 });
 
+describe('generatePremiumQuotationHtml — financing', () => {
+  it('prints the pre-computed breakdown as-is — never recomputes/re-derives it from the treatment total', () => {
+    // Deliberately mismatched with the option's own $1,000 total (2 x $500 implants, see
+    // baseData) — the point is that the renderer must print exactly these numbers regardless
+    // of what the option total is, proving it isn't secretly recalculating `total * 1.20`
+    // itself (the bug this whole feature fixes).
+    const html = generatePremiumQuotationHtml(
+      baseData({
+        payment: {
+          method: 'installments',
+          installmentEligible: true,
+          financing: { markupPercent: 20, installmentBase: 3900, installmentAmount: 4680, financedPackage: 10780, cashRemaining: 6100, cashPerVisit: 6100, maximumTermMonths: 24 },
+        },
+      }),
+    );
+    expect(html).toContain('$10,780'); // financedPackage
+    expect(html).toContain('$4,680'); // installmentAmount (3900 + 20%)
+    expect(html).toContain('$6,100'); // cashRemaining / cashPerVisit
+    expect(html).not.toContain('$12,000'); // what the old (buggy) "whole total * 1.20" would print for a $10,000 base
+  });
+
+  it('omits the financing box entirely when not eligible', () => {
+    const html = generatePremiumQuotationHtml(baseData({ payment: { method: 'visit-payments', installmentEligible: false, financing: null } }));
+    expect(html).not.toContain('<div class="finance-box">');
+  });
+});
+
 describe('generatePremiumQuotationHtml — notes', () => {
   it('renders the notes page when notes is non-empty', () => {
     const html = generatePremiumQuotationHtml(baseData({ notes: 'Patient prefers morning appointments.' }));

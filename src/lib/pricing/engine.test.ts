@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PRICING } from '../../data/pricing';
-import { calculateOption, createOptionInput, emptyVisitInput, type OptionInput } from './engine';
+import { calculateFinancing, calculateOption, createOptionInput, emptyVisitInput, type OptionInput } from './engine';
 
 function baseOption(overrides: Partial<OptionInput> = {}): OptionInput {
   return { ...createOptionInput('opt-1', 'Test Option'), ...overrides };
@@ -322,6 +322,84 @@ describe('bridge pricing (§2 previously, still applicable)', () => {
 // ===========================================================================
 // Implant country-of-origin passthrough (for the PDF brand/origin display)
 // ===========================================================================
+
+// ===========================================================================
+// US/Canada installment financing — the markup applies ONLY to the financed amount
+// (installmentBase, capped at PRICING.financing.installmentAmount / $3900), never to the
+// whole treatment total. See calculateFinancing's own doc comment for the bug this fixes.
+// ===========================================================================
+
+describe('calculateFinancing', () => {
+  it('not eligible (wrong country or payment method) -> everything zero', () => {
+    const option = calculateOption(treatmentOption({ implants: 1, crowns: 0, implantUnitPrice: 10000 }), 'USD', 1);
+    expect(calculateFinancing(option, 'France', 'installments').eligible).toBe(false);
+    expect(calculateFinancing(option, 'United States', 'visit-payments').eligible).toBe(false);
+    expect(calculateFinancing(option, 'France', 'installments')).toMatchObject({ financedPackage: 0, installmentBase: 0, installment: 0, cashRemaining: 0, cashPerVisit: 0 });
+  });
+
+  it('CRITICAL: the markup applies ONLY to the financed amount (capped at $3900), never the whole treatment total', () => {
+    const option = calculateOption(treatmentOption({ implants: 1, crowns: 0, implantUnitPrice: 10000 }), 'USD', 1);
+    const f = calculateFinancing(option, 'United States', 'installments');
+
+    expect(PRICING.financing.installmentAmount).toBe(3900); // the clinic maximum this test assumes
+    expect(PRICING.financing.markupPercent).toBe(20);
+
+    expect(f.installmentBase).toBe(3900); // no explicit request -> defaults to the clinic max
+    expect(f.installment).toBe(4680); // 3900 * 1.20 — the markup on the FINANCED amount only
+    expect(f.cashRemaining).toBe(6100); // 10000 - 3900, at face value, no markup
+    expect(f.financedPackage).toBe(10780); // 4680 + 6100
+    expect(f.financedPackage).not.toBe(12000); // the old (wrong) 10000 * 1.20 behaviour
+  });
+
+  it('a patient approved for less than the clinic max finances that lower amount instead', () => {
+    const option = calculateOption(treatmentOption({ implants: 1, crowns: 0, implantUnitPrice: 10000 }), 'USD', 1);
+    const f = calculateFinancing(option, 'Canada', 'installments', 2500);
+    expect(f.installmentBase).toBe(2500);
+    expect(f.installment).toBe(3000); // 2500 * 1.20
+    expect(f.cashRemaining).toBe(7500); // 10000 - 2500
+    expect(f.financedPackage).toBe(10500);
+  });
+
+  it('a requested amount above the clinic max is clamped down to the max, never honoured as-is', () => {
+    const option = calculateOption(treatmentOption({ implants: 1, crowns: 0, implantUnitPrice: 10000 }), 'USD', 1);
+    const f = calculateFinancing(option, 'United States', 'installments', 6000);
+    expect(f.installmentBase).toBe(3900);
+    expect(f.installment).toBe(4680);
+  });
+
+  it('cannot finance more than the treatment actually costs, even under the clinic max', () => {
+    const option = calculateOption(treatmentOption({ implants: 1, crowns: 0, implantUnitPrice: 2000 }), 'USD', 1);
+    const f = calculateFinancing(option, 'United States', 'installments'); // defaults to the $3900 max
+    expect(f.installmentBase).toBe(2000); // clamped to the total, not 3900
+    expect(f.installment).toBe(2400); // 2000 * 1.20
+    expect(f.cashRemaining).toBe(0);
+    expect(f.financedPackage).toBe(2400);
+  });
+
+  it('an invalid/negative requested amount falls back to the clinic max, not to 0', () => {
+    const option = calculateOption(treatmentOption({ implants: 1, crowns: 0, implantUnitPrice: 10000 }), 'USD', 1);
+    expect(calculateFinancing(option, 'United States', 'installments', -500).installmentBase).toBe(3900);
+    expect(calculateFinancing(option, 'United States', 'installments', null).installmentBase).toBe(3900);
+  });
+
+  it('cashRemaining splits evenly across visits; a single visit gets it all', () => {
+    const twoVisit = baseOption({
+      visits: 2,
+      implant: { itemId: null, count: 1, markupPercent: 0, finalUnitPriceOverride: 10000 },
+      visit1CrownCount: 0,
+      visit1: { ...emptyVisitInput(), overrideTotal: null },
+      visit2: { ...emptyVisitInput(), overrideTotal: null },
+    });
+    const result = calculateOption(twoVisit, 'USD', 1);
+    const f = calculateFinancing(result, 'United States', 'installments');
+    expect(f.cashRemaining).toBe(6100);
+    expect(f.cashPerVisit).toBe(3050); // split across 2 visits
+
+    const oneVisit = calculateOption(treatmentOption({ implants: 1, crowns: 0, implantUnitPrice: 10000 }), 'USD', 1);
+    const f2 = calculateFinancing(oneVisit, 'United States', 'installments');
+    expect(f2.cashPerVisit).toBe(f2.cashRemaining);
+  });
+});
 
 describe('implant origin passthrough', () => {
   it('a selected implant carries its catalog origin', () => {

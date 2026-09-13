@@ -405,20 +405,20 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
     paymentVisits.push(`<div><span>${esc(labels.flightTicket)}</span><strong>${m(selected.totals.flightTicket)}</strong></div>`);
   }
 
+  // Prints the already-computed financing breakdown (`calculateFinancing`, the pricing
+  // engine) — never re-derives the markup/cap math here. The markup applies only to the
+  // financed amount itself (`installmentBase`, up to the clinic maximum or less per patient),
+  // never to the whole treatment total.
   const financing =
-    data.payment.installmentEligible && data.payment.financing && selected
+    data.payment.installmentEligible && data.payment.financing
       ? (() => {
           const f = data.payment.financing!;
-          const packageTotal = (Number(selected.totals.total) || 0) * (1 + f.markupPercent / 100);
-          const installmentAmount = Number(f.installmentAmount) || 0;
-          const remaining = Math.max(0, packageTotal - installmentAmount);
-          const visitCount = Number(selected.visits.count) || 1;
           return `
           <div class="finance-box">
-            <div><span>${esc(labels.packagePlus)} ${bidi(`${f.markupPercent}%`, rtl)}</span><strong>${m(packageTotal)}</strong></div>
-            <div><span>${esc(labels.installmentAmount)}</span><strong>${m(installmentAmount)}</strong></div>
-            <div><span>${esc(labels.remainingCash)}</span><strong>${m(remaining)}</strong></div>
-            <div><span>${esc(labels.cashPerVisit)}</span><strong>${m(remaining / visitCount)}</strong></div>
+            <div><span>${esc(labels.packagePlus)}</span><strong>${m(f.financedPackage)}</strong></div>
+            <div><span>${esc(labels.installmentAmount)} ${bidi(`(+${f.markupPercent}%)`, rtl)}</span><strong>${m(f.installmentAmount)}</strong></div>
+            <div><span>${esc(labels.remainingCash)}</span><strong>${m(f.cashRemaining)}</strong></div>
+            <div><span>${esc(labels.cashPerVisit)}</span><strong>${m(f.cashPerVisit)}</strong></div>
           </div>
         `;
         })()
