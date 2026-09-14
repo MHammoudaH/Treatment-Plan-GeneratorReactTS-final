@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useReducer, type Dispatch, type ReactNode } from 'react';
-import { createOptionInput, type OptionInput } from '../lib/pricing/engine';
+import { cloneOptionForNewOption, createOptionInput, type OptionInput } from '../lib/pricing/engine';
 import { countMarks, cycleMark, suggestPlan } from '../lib/dental/teeth';
 import { createInitialState, type DiagnosisInfo, type DisplaySettings, type PatientInfo, type PaymentMethod, type WizardState } from '../types/wizard';
 
@@ -60,7 +60,13 @@ function reducer(state: WizardState, action: Action): WizardState {
       return { ...state, display: { ...state.display, ...action.display } };
     case 'ADD_OPTION': {
       const nextNumber = state.options.length + 1;
-      const option = createOptionInput(`option-${Date.now()}-${nextNumber}`, `Option ${nextNumber}`);
+      const id = `option-${Date.now()}-${nextNumber}`;
+      const name = `Option ${nextNumber}`;
+      // Once at least one option exists, the next one starts as a brand/price variant of the
+      // LAST one — same quantities/hotel/nights/transfer, blank brand choices and overrides —
+      // rather than a fully blank template. See cloneOptionForNewOption's own doc comment.
+      const lastOption = state.options[state.options.length - 1];
+      const option = lastOption ? cloneOptionForNewOption(lastOption, id, name) : createOptionInput(id, name);
       return { ...state, options: [...state.options, option] };
     }
     case 'PREFILL_OPTIONS_FROM_DIAGNOSIS': {
