@@ -1,10 +1,15 @@
 /**
  * Premium Proposal PDF for the Plastic Surgery module — a branded, multi-page
- * document (cover · procedure & investment · before-after gallery · closing),
+ * document (cover · procedures & investment · before-after gallery · closing),
  * mirroring the dental Premium Proposal's look.
  *
+ * Supports COMBINING several procedures into one quotation (`items`, plural) — the
+ * coordinator picks as many as the patient wants in one visit, and this renders every one
+ * of them with its own overview card plus one shared investment breakdown for the whole
+ * combined plan (hotel/transfer/markup apply once, to the visit as a whole, not per procedure).
+ *
  * The before-after gallery page is decorative showcase material ("just for the
- * canvas"): photos are auto-matched to the selected procedure's category by
+ * canvas"): photos are auto-matched to each selected procedure's category by
  * `galleryForItem()` and captioned as illustrative, not patient-specific.
  *
  * Must run in a browser: calls `window.open`, `document.write`, `window.print()`.
@@ -16,7 +21,8 @@ import type { PlasticSurgeryItem } from '../../../data/plasticSurgery';
 export type PlasticCurrency = 'EUR' | 'USD' | 'AUD';
 
 export interface PlasticPremiumInput {
-  item: PlasticSurgeryItem;
+  /** One or more procedures combined into this single quotation. */
+  items: PlasticSurgeryItem[];
   patientName: string;
   language: QuotationLanguage;
   currency: PlasticCurrency;
@@ -31,7 +37,9 @@ export interface PlasticPremiumInput {
   markupPercent: number;
   /** All amounts already converted to `currency`. */
   amounts: {
-    surgery: number;
+    /** One priced line per selected procedure — printed as its own row in the investment
+     *  table, e.g. so a 2-procedure quote shows two "Surgery" lines, not one combined figure. */
+    surgeryItems: { name: string; amount: number }[];
     hotel: number;
     transfer: number;
     /** Markup amount (not percent). */
@@ -256,26 +264,43 @@ const RTL_CSS = `
 
 /** Builds the complete Premium Proposal HTML for `input`, in `input.language`. */
 export function generatePlasticPremiumHtml(input: PlasticPremiumInput): string {
-  const { item, currency } = input;
+  const { items, currency } = input;
   const language: QuotationLanguage = input.language in LABELS ? input.language : 'English';
   const labels = LABELS[language];
   const rtl = language === 'Arabic';
   const patientName = esc(input.patientName) || esc(labels.preparedFor);
+  const combinedTitle = esc(items.map((item) => item.name).join(' + '));
   const date = formatDate(input.travelDate);
   const generatedOn = new Date().toLocaleDateString('en-GB');
   const m = (amount: number) => money(amount, currency);
 
-  const facts: Array<[string, string]> = [
-    [labels.category, esc(item.category)],
-    [labels.stay, esc(item.stay)],
-    [labels.hospitalStay, esc(item.hospitalStay)],
-  ];
-  if (date) facts.push([labels.preferredDate, date]);
-  facts.push([labels.doctor, input.doctorName ? esc(input.doctorName) : esc(labels.pending)]);
+  // One overview card per selected procedure — its own name, note and category/stay/hospital
+  // facts — followed by ONE shared fact-grid for the whole visit (date, doctor), since those
+  // apply once regardless of how many procedures are combined into this quotation.
+  const procedureCards = items
+    .map(
+      (item) => `
+    <div class="procedure-card">
+      <strong>${esc(item.name)}</strong>
+      ${item.note ? `<p class="intro">${esc(item.note)}</p>` : ''}
+      <div class="fact-grid fact-grid-compact">
+        <div class="fact"><span>${esc(labels.category)}</span><strong>${esc(item.category)}</strong></div>
+        <div class="fact"><span>${esc(labels.stay)}</span><strong>${esc(item.stay)}</strong></div>
+        <div class="fact"><span>${esc(labels.hospitalStay)}</span><strong>${esc(item.hospitalStay)}</strong></div>
+      </div>
+    </div>`,
+    )
+    .join('');
 
-  const investmentRows: string[] = [
-    `<div class="line"><span>${esc(labels.surgery)} — ${esc(item.name)}</span><strong>${m(input.amounts.surgery)}</strong></div>`,
-  ];
+  const visitFacts: Array<[string, string]> = [];
+  if (date) visitFacts.push([labels.preferredDate, date]);
+  visitFacts.push([labels.doctor, input.doctorName ? esc(input.doctorName) : esc(labels.pending)]);
+
+  // One investment row per selected procedure, so a combined quote shows exactly what each
+  // procedure costs rather than a single opaque "Surgery" figure.
+  const investmentRows: string[] = input.amounts.surgeryItems.map(
+    (surgery) => `<div class="line"><span>${esc(labels.surgery)} — ${esc(surgery.name)}</span><strong>${m(surgery.amount)}</strong></div>`,
+  );
   if (input.hotelName && input.hotelNights > 0) {
     investmentRows.push(
       `<div class="line"><span>${esc(labels.hotel)} — ${esc(input.hotelName)} · ${input.hotelNights} ${esc(labels.nights)}</span><strong>${m(input.amounts.hotel)}</strong></div>`,
@@ -349,6 +374,13 @@ export function generatePlasticPremiumHtml(input: PlasticPremiumInput): string {
   .fineprint { font-size: 8.5px; line-height: 1.6; color: #8a929e; margin-top: 6mm; }
   .fact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin: 8mm 0; }
   .fact { border: 1px solid #e0e4e9; border-radius: 6px; padding: 5mm; }
+  .procedure-cards { display: flex; flex-direction: column; gap: 4mm; margin-top: 6mm; }
+  .procedure-card { border: 1px solid #e0e4e9; border-left: 3px solid #b3392c; border-radius: 6px; padding: 5mm 6mm; }
+  .procedure-card > strong { display: block; color: #102b4f; font-size: 13px; }
+  .procedure-card .fact-grid-compact { grid-template-columns: repeat(3, 1fr); margin: 4mm 0 0; }
+  .procedure-card .fact-grid-compact .fact { padding: 3mm; }
+  .procedure-card .fact-grid-compact span { font-size: 7px; }
+  .procedure-card .fact-grid-compact strong { font-size: 10px; }
   .fact span { display: block; font-size: 8px; text-transform: uppercase; letter-spacing: 1px; color: #8a929e; margin-bottom: 2mm; }
   .fact strong { color: #102b4f; font-size: 12px; }
   .fact-box { margin-top: 7mm; background: #f5f7fa; border-left: 4px solid #b3392c; border-radius: 5px; padding: 6mm; }
@@ -390,7 +422,7 @@ ${RTL_CSS}
       </div>
     </div>
     <div class="cover-footer">
-      <strong>${esc(item.name)}</strong><br>
+      <strong>${combinedTitle}</strong><br>
       Istanbul, Türkiye • +90 536 779 07 91 • dutyclinic.com<br>
       ${esc(generatedOn)}
     </div>
@@ -401,10 +433,10 @@ ${RTL_CSS}
   <div class="page-header"><span>${esc(labels.procedure)}</span><strong>${patientName}</strong></div>
   <div class="page-body">
     <div class="kicker">01</div>
-    <h2>${esc(item.name)}</h2>
-    ${item.note ? `<p class="intro">${esc(item.note)}</p>` : ''}
+    <h2>${esc(labels.overview)}</h2>
+    <div class="procedure-cards">${procedureCards}</div>
     <div class="fact-grid">
-      ${facts.map(([k, v]) => `<div class="fact"><span>${esc(k)}</span><strong>${v}</strong></div>`).join('')}
+      ${visitFacts.map(([k, v]) => `<div class="fact"><span>${esc(k)}</span><strong>${v}</strong></div>`).join('')}
     </div>
     <div class="kicker">${esc(labels.investment)}</div>
     <div class="invoice">${investmentRows.join('')}</div>

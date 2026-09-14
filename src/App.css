@@ -236,6 +236,21 @@
   box-shadow: 0 4px 12px -4px rgba(11, 31, 58, 0.4);
 }
 
+.plastic-card-check {
+  position: absolute;
+  z-index: 1;
+  right: 10px;
+  top: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: var(--red);
+  box-shadow: 0 4px 12px -4px rgba(11, 31, 58, 0.5);
+}
+
 .plastic-card-body {
   display: flex;
   flex-direction: column;
@@ -370,6 +385,44 @@
 .plastic-quote-banner span {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.8);
+}
+
+.plastic-quote-banner-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.plastic-quote-banner-info .plastic-note {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+}
+
+.plastic-quote-banner .remove-item {
+  flex-shrink: 0;
+}
+
+/* Multi-select list of chosen procedures (page 1) */
+.plastic-selected-list {
+  margin: 4px 0 12px;
+}
+
+.plastic-selected-list > .eyebrow {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+}
+
+.plastic-combined-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fff8ef;
+  border: 1px dashed #e6cf9e;
+  font-weight: 700;
+  color: var(--navy);
 }
 
 .coordinator-pricing {
