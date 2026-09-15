@@ -279,7 +279,12 @@ function treatmentRowsHtml(option: QuotationOption, labels: SimpleLabels, langua
   }
   for (const p of procedures) {
     const unit = p.unit ? ` / ${esc(p.unit)}` : '';
-    rows.push(`<tr><td>${esc(translateProcedureName(p.name, language))}</td><td>${p.quantity}${unit}</td><td>${moneyHtml(p.unitPrice, display)}</td><td>${moneyHtml(p.total, display)}</td></tr>`);
+    // A procedure with no configured price (no catalog price for this currency AND no
+    // coordinator override — e.g. an unpriced Plastic/Bariatric entry the coordinator forgot
+    // to price) must never print as $0/€0 — see `ProcedureLineItem.priceConfigured`.
+    const priceCell = p.priceConfigured ? moneyHtml(p.unitPrice, display) : esc(labels.priceTbd);
+    const totalCell = p.priceConfigured ? moneyHtml(p.total, display) : esc(labels.priceTbd);
+    rows.push(`<tr><td>${esc(translateProcedureName(p.name, language))}</td><td>${p.quantity}${unit}</td><td>${priceCell}</td><td>${totalCell}</td></tr>`);
   }
   return rows.length ? rows.join('') : '<tr><td colspan="4">—</td></tr>';
 }
@@ -493,8 +498,11 @@ function buildArabicHtml(data: QuotationPdfData): string {
         );
       }
       for (const p of procedures) {
+        // See the Latin-template equivalent above: never print $0/€0 for an unconfigured price.
+        const priceCell = p.priceConfigured ? arMoneyHtml(p.unitPrice, display) : esc(ARABIC_LABELS.priceTbd);
+        const totalCell = p.priceConfigured ? arMoneyHtml(p.total, display) : esc(ARABIC_LABELS.priceTbd);
         rows.push(
-          `<tr><td>${esc(arTranslateProcedureName(p.name))}</td><td><bdi class="ltr-number">${p.quantity}${p.unit ? ` / ${esc(p.unit)}` : ''}</bdi></td><td>${arMoneyHtml(p.unitPrice, display)}</td><td>${arMoneyHtml(p.total, display)}</td></tr>`,
+          `<tr><td>${esc(arTranslateProcedureName(p.name))}</td><td><bdi class="ltr-number">${p.quantity}${p.unit ? ` / ${esc(p.unit)}` : ''}</bdi></td><td>${priceCell}</td><td>${totalCell}</td></tr>`,
         );
       }
 

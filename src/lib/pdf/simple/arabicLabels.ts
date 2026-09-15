@@ -50,6 +50,9 @@ export interface ArabicLabels {
   roomDouble: string;
   /** Section title for the coordinator's free-text notes block — omitted entirely when empty. */
   notes: string;
+  /** Printed instead of a $0/€0 amount for a procedure whose price was never actually
+   *  configured (no catalog price for the display currency AND no coordinator override). */
+  priceTbd: string;
 }
 
 /** Legacy source: `arPdfLabels()`. */
@@ -98,4 +101,5 @@ export const ARABIC_LABELS: ArabicLabels = {
   roomSingle: 'مفردة',
   roomDouble: 'مزدوجة',
   notes: 'ملاحظات',
+  priceTbd: 'السعر يُحدَّد لاحقًا',
 };

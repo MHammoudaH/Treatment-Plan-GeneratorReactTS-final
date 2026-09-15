@@ -616,6 +616,36 @@
   white-space: nowrap;
 }
 
+.procedure-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 8px;
+}
+
+.procedure-tab {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--navy);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.procedure-tab.active {
+  background: var(--navy);
+  color: #fff;
+  border-color: var(--navy);
+}
+
+.procedure-search {
+  display: block;
+  margin: 0 0 10px;
+  width: 100%;
+  max-width: 320px;
+}
+
 .procedure-list {
   display: grid;
   gap: 10px;
@@ -626,6 +656,17 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 8px 10px;
+}
+
+.procedure-item.procedure-unavailable {
+  opacity: 0.6;
+  background: #f6f7f8;
+}
+
+.procedure-note {
+  margin: 4px 0 0 24px;
+  color: #596572;
+  font-size: 12.5px;
 }
 
 .check-item {

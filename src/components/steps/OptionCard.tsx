@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { PRICING, markupPresetsForPrice, priceFor, type Currency, type PriceValue } from '../../data/pricing';
+import { useMemo, useState } from 'react';
+import { PRICING, markupPresetsForPrice, priceFor, type Currency, type PriceValue, type ProcedureCatalogItem, type ProcedureCategory } from '../../data/pricing';
 import { formatMoney } from '../../lib/formatMoney';
 import {
   calculateOption,
@@ -30,11 +30,30 @@ function overrideFromInput(value: string): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
+/** Tabs shown above the procedure catalog, in display order. Every `PRICING.procedures` entry
+ *  falls into exactly one of these (defaulting to 'Dental' when `category` is omitted). */
+const PROCEDURE_CATEGORIES: ProcedureCategory[] = ['Dental', 'Bariatric', 'Plastic'];
+const PROCEDURE_CATEGORY_LABELS: Record<ProcedureCategory, string> = {
+  Dental: 'Dental',
+  Bariatric: 'Bariatric',
+  Plastic: 'Plastic / Aesthetic',
+};
+
+function categoryOf(proc: ProcedureCatalogItem): ProcedureCategory {
+  return proc.category ?? 'Dental';
+}
+
 export function OptionCard({ option, onChange, onRemove, display, removable }: Props) {
   const fxRate = display.currency === 'USD' ? 1 : display.fxRate;
   const result = useMemo(() => calculateOption(option, display.currency, fxRate), [option, display.currency, fxRate]);
   const implantCatalog = PRICING.implants.find((i) => i.id === option.implant.itemId) ?? null;
   const crownCatalog = PRICING.crowns.find((c) => c.id === option.crown.itemId) ?? null;
+
+  // Additional-procedures browser: category tab + free-text filter, kept local to this card so
+  // the 86-entry catalog (10 dental + 76 bariatric/plastic) never renders as one giant list —
+  // see OptionCard's "Additional procedures" section below.
+  const [procedureCategory, setProcedureCategory] = useState<ProcedureCategory>('Dental');
+  const [procedureSearch, setProcedureSearch] = useState('');
 
   function patch(partial: Partial<OptionInput>) {
     onChange({ ...option, ...partial });
@@ -50,6 +69,8 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
   }
 
   function toggleProcedure(procedureId: string, checked: boolean) {
+    const catalog = PRICING.procedures.find((p) => p.id === procedureId);
+    if (catalog?.available === false) return; // not currently offered — never selectable
     if (checked) {
       const next: ProcedureSelection = { procedureId, quantity: 1, finalUnitPriceOverride: null };
       patch({ procedures: [...option.procedures, next] });
@@ -67,6 +88,25 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
     const v = priceFor(price, display.currency);
     return v === null ? `${display.currency} price not configured` : money(v);
   };
+  /** Reference/status text shown next to a procedure that has no price configured for the
+   *  current display currency — never a $0/blank line. Prefers the clinic's quoted EUR range
+   *  when one exists (e.g. "Gastric Balloon"), otherwise the literal "Price set by coordinator"
+   *  wording, matching how a genuinely uncatalogued procedure (e.g. "Arm Lifting") is presented. */
+  const unpricedLabel = (proc: ProcedureCatalogItem) =>
+    proc.priceRange ? `Reference: €${proc.priceRange.min.toLocaleString()}–€${proc.priceRange.max.toLocaleString()} (coordinator sets final price)` : 'Price set by coordinator';
+
+  const proceduresByCategory = useMemo(() => {
+    const q = procedureSearch.trim().toLowerCase();
+    return PRICING.procedures.filter((p) => categoryOf(p) === procedureCategory && (!q || p.name.toLowerCase().includes(q)));
+  }, [procedureCategory, procedureSearch]);
+  const selectedCountByCategory = useMemo(() => {
+    const counts: Record<ProcedureCategory, number> = { Dental: 0, Bariatric: 0, Plastic: 0 };
+    for (const selection of option.procedures) {
+      const catalog = PRICING.procedures.find((p) => p.id === selection.procedureId);
+      if (catalog) counts[categoryOf(catalog)] += 1;
+    }
+    return counts;
+  }, [option.procedures]);
 
   return (
     <article className="quotation-option">
@@ -227,21 +267,48 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
         </p>
       )}
 
-      {/* PROCEDURES */}
+      {/* PROCEDURES — dental add-ons plus the Bariatric / Plastic-Aesthetic catalog, grouped
+          into tabs (never one flat 86-entry list) with a search filter for the larger
+          categories. Every selection still goes through the same ProcedureSelection /
+          calculateOption() pipeline as the original dental-only procedures. */}
       <h4>Additional procedures</h4>
+      <div className="procedure-tabs">
+        {PROCEDURE_CATEGORIES.map((cat) => (
+          <button
+            key={cat}
+            type="button"
+            className={`procedure-tab${procedureCategory === cat ? ' active' : ''}`}
+            onClick={() => setProcedureCategory(cat)}
+          >
+            {PROCEDURE_CATEGORY_LABELS[cat]}
+            {selectedCountByCategory[cat] > 0 ? ` (${selectedCountByCategory[cat]})` : ''}
+          </button>
+        ))}
+      </div>
+      {(procedureCategory === 'Bariatric' || procedureCategory === 'Plastic') && (
+        <input
+          type="search"
+          className="procedure-search"
+          placeholder={`Search ${PROCEDURE_CATEGORY_LABELS[procedureCategory].toLowerCase()} procedures…`}
+          value={procedureSearch}
+          onChange={(e) => setProcedureSearch(e.target.value)}
+        />
+      )}
       <div className="procedure-list">
-        {PRICING.procedures.map((proc) => {
+        {proceduresByCategory.map((proc) => {
           const selection = option.procedures.find((p) => p.procedureId === proc.id);
           const checked = Boolean(selection);
           const configured = priceFor(proc.price, display.currency) !== null;
+          const unavailable = proc.available === false;
           return (
-            <div className="procedure-item" key={proc.id}>
+            <div className={`procedure-item${unavailable ? ' procedure-unavailable' : ''}`} key={proc.id}>
               <label className="check-item">
-                <input type="checkbox" checked={checked} onChange={(e) => toggleProcedure(proc.id, e.target.checked)} />
-                {proc.name} — {priceLabel(proc.price)}
+                <input type="checkbox" checked={checked} disabled={unavailable} onChange={(e) => toggleProcedure(proc.id, e.target.checked)} />
+                {proc.name} — {configured ? priceLabel(proc.price) : unavailable ? 'Not currently offered' : unpricedLabel(proc)}
                 {proc.unit ? ` / ${proc.unit}` : ''}
               </label>
-              {checked && selection && (
+              {proc.note && <p className="procedure-note">{proc.note}</p>}
+              {checked && selection && !unavailable && (
                 <div className="procedure-quantity">
                   {proc.unit && (
                     <>
@@ -255,7 +322,11 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
                     </>
                   )}
                   {!configured && selection.finalUnitPriceOverride === null && (
-                    <p className="config-warning">{display.currency} price not configured — enter an override below.</p>
+                    <p className="config-warning">
+                      {proc.priceRange
+                        ? `${display.currency} price not configured — the clinic's reference range is €${proc.priceRange.min.toLocaleString()}–€${proc.priceRange.max.toLocaleString()}; enter the exact final price below.`
+                        : `${display.currency} price not configured — enter an override below.`}
+                    </p>
                   )}
                   <label>Final price override ({display.currency}) — optional</label>
                   <input
@@ -270,6 +341,7 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
             </div>
           );
         })}
+        {proceduresByCategory.length === 0 && <p className="hint">No procedures match your search.</p>}
       </div>
 
       {/* VISIT PLAN */}

@@ -107,6 +107,46 @@ describe('generatePremiumQuotationHtml — financing', () => {
   });
 });
 
+describe('generatePremiumQuotationHtml — unpriced procedures never print €0/$0', () => {
+  it('a procedure with no configured price (e.g. an unpriced Plastic/Bariatric catalog entry) prints "Price to be confirmed", never $0', () => {
+    const option = createOptionInput('opt-1', 'Option 1');
+    // 'arm_lifting' has no predefined price in any currency and no coordinator override here.
+    option.procedures = [{ procedureId: 'arm_lifting', quantity: 1, finalUnitPriceOverride: null }];
+    const calculated = calculateOption(option, 'USD', 1);
+    expect(calculated.treatment.procedures[0].priceConfigured).toBe(false);
+
+    const html = generatePremiumQuotationHtml(baseData({ options: [calculated] }));
+    expect(html).toContain('Arm Lifting');
+    expect(html).toContain('Price to be confirmed');
+    expect(html).not.toMatch(/Arm Lifting[\s\S]{0,200}\$0(?!\d)/);
+  });
+
+  it('a coordinator-priced procedure prints the actual entered price, not the TBD label', () => {
+    const option = createOptionInput('opt-1', 'Option 1');
+    option.procedures = [{ procedureId: 'arm_lifting', quantity: 1, finalUnitPriceOverride: 2200 }];
+    const calculated = calculateOption(option, 'USD', 1);
+    expect(calculated.treatment.procedures[0].priceConfigured).toBe(true);
+
+    const html = generatePremiumQuotationHtml(baseData({ options: [calculated] }));
+    expect(html).toContain('$2,200');
+    expect(html).not.toContain('Price to be confirmed');
+  });
+
+  it('a catalog-priced procedure (Gastric Sleeve, EUR) prints its EUR price with no override needed', () => {
+    const option = createOptionInput('opt-1', 'Option 1');
+    option.procedures = [{ procedureId: 'gastric_sleeve', quantity: 1, finalUnitPriceOverride: null }];
+    const calculated = calculateOption(option, 'EUR', 1);
+    expect(calculated.treatment.procedures[0].priceConfigured).toBe(true);
+    expect(calculated.treatment.procedures[0].total).toBe(2700);
+
+    const html = generatePremiumQuotationHtml(
+      baseData({ options: [calculated], display: { currency: 'EUR', usdToCurrencyRate: 1, showProductPrices: true, showHotelPrices: true } }),
+    );
+    expect(html).toContain('Gastric Sleeve');
+    expect(html).toContain('€2,700');
+  });
+});
+
 describe('generatePremiumQuotationHtml — notes', () => {
   it('renders the notes page when notes is non-empty', () => {
     const html = generatePremiumQuotationHtml(baseData({ notes: 'Patient prefers morning appointments.' }));

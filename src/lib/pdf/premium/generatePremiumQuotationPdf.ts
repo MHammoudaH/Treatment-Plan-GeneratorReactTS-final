@@ -175,8 +175,12 @@ function treatmentRowsHtml(
   }
 
   for (const procedure of procedures) {
+    // A procedure with no configured price (no catalog price for this currency AND no
+    // coordinator override — e.g. an unpriced Plastic/Bariatric entry) must never print as
+    // $0/€0, regardless of `showProductPrices` — there is nothing to hide, it was never set.
+    const procedureTotalText = procedure.priceConfigured ? totalText(procedure.total) : esc(labels.priceTbd);
     rows.push(
-      `<div class="treatment-row"><div><strong>${esc(procedure.name)}</strong><span>${procedure.unit ? `${bidi(procedure.quantity, rtl)} ${esc(procedure.unit)}` : ''}</span></div><strong>${bidi(procedure.quantity, rtl)}</strong><strong>${totalText(procedure.total)}</strong></div>`,
+      `<div class="treatment-row"><div><strong>${esc(procedure.name)}</strong><span>${procedure.unit ? `${bidi(procedure.quantity, rtl)} ${esc(procedure.unit)}` : ''}</span></div><strong>${bidi(procedure.quantity, rtl)}</strong><strong>${procedureTotalText}</strong></div>`,
     );
   }
 

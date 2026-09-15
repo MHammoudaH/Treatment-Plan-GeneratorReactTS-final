@@ -47,6 +47,9 @@ export interface PremiumLabels {
   dentalCrowns: string;
   dentalBridge: string;
   included: string;
+  /** Printed instead of a $0/€0 amount for a procedure line whose `priceConfigured` is false
+   *  (no catalog price for the display currency AND no coordinator override). */
+  priceTbd: string;
   // Visits & services
   visit1: string;
   visit2: string;
@@ -106,6 +109,7 @@ const EN: PremiumLabels = {
   dentalCrowns: 'Dental crowns',
   dentalBridge: 'Full-arch dental bridge',
   included: 'Included',
+  priceTbd: 'Price to be confirmed',
   visit1: 'Visit 1',
   visit2: 'Visit 2',
   flightTicket: 'Flight ticket',
@@ -169,6 +173,7 @@ const RU: PremiumLabels = {
   dentalCrowns: 'Зубные коронки',
   dentalBridge: 'Полный мостовидный протез',
   included: 'Включено',
+  priceTbd: 'Цена уточняется',
   visit1: 'Первый визит',
   visit2: 'Второй визит',
   flightTicket: 'Авиабилет',
@@ -231,6 +236,7 @@ const FR: PremiumLabels = {
   dentalCrowns: 'Couronnes dentaires',
   dentalBridge: 'Bridge complet sur arcade',
   included: 'Inclus',
+  priceTbd: 'Prix à confirmer',
   visit1: 'Première visite',
   visit2: 'Deuxième visite',
   flightTicket: 'Billet d’avion',
@@ -294,6 +300,7 @@ const ES: PremiumLabels = {
   dentalCrowns: 'Coronas dentales',
   dentalBridge: 'Puente dental de arco completo',
   included: 'Incluido',
+  priceTbd: 'Precio por confirmar',
   visit1: 'Primera visita',
   visit2: 'Segunda visita',
   flightTicket: 'Billete de avión',
@@ -357,6 +364,7 @@ const AR: PremiumLabels = {
   dentalCrowns: 'تيجان الأسنان',
   dentalBridge: 'الجسر التعويضي الكامل',
   included: 'مشمول',
+  priceTbd: 'السعر يُحدَّد لاحقًا',
   visit1: 'الزيارة الأولى',
   visit2: 'الزيارة الثانية',
   flightTicket: 'تذكرة الطيران',
