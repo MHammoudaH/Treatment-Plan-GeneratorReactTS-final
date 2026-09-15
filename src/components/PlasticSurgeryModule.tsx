@@ -49,6 +49,11 @@ export function PlasticSurgeryModule({ onBack }: Props) {
   const [manualTotal, setManualTotal] = useState('');
   const [page, setPage] = useState<1 | 2>(1);
   const [submitted, setSubmitted] = useState(false);
+  // Per-item final price for procedures with no catalog price (`priceEur === null`) — entered
+  // directly in the quotation's selected `currency`, keyed by procedure id. Never defaults to
+  // €0/$0: an unpriced item without an entry here contributes nothing to the total AND blocks
+  // proposal generation (see `unpricedWithoutOverride` below).
+  const [priceOverrides, setPriceOverrides] = useState<Record<string, string>>({});
 
   const cards = useMemo(() => {
     const list = category === 'All' ? PLASTIC_SURGERIES : PLASTIC_SURGERIES.filter((item) => item.category === category);
@@ -60,6 +65,7 @@ export function PlasticSurgeryModule({ onBack }: Props) {
   const isSelected = (id: string) => selectedItems.some((item) => item.id === id);
 
   function toggleSurgery(item: PlasticSurgeryItem) {
+    if (item.available === false) return; // not currently offered — never selectable
     setSelectedItems((prev) => (prev.some((p) => p.id === item.id) ? prev.filter((p) => p.id !== item.id) : [...prev, item]));
     setSubmitted(false);
   }
@@ -67,6 +73,19 @@ export function PlasticSurgeryModule({ onBack }: Props) {
   function removeSurgery(id: string) {
     setSelectedItems((prev) => prev.filter((p) => p.id !== id));
   }
+
+  /** A positive, coordinator-entered override for an unpriced item, in `currency` — or null
+   *  when nothing valid has been entered yet. */
+  function priceOverrideFor(itemId: string): number | null {
+    const raw = priceOverrides[itemId];
+    if (raw === undefined || raw.trim() === '') return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  /** True once every selected procedure has either a catalog price or a valid coordinator
+   *  override — gates proposal generation so an unpriced item can never silently bill as 0. */
+  const allSelectedPriced = selectedItems.every((item) => item.priceEur !== null || priceOverrideFor(item.id) !== null);
 
   // Pre-fill the hotel stay with the LONGEST recommended stay across every selected
   // procedure (the patient needs to be in Istanbul for however long the slowest-recovery one
@@ -86,7 +105,12 @@ export function PlasticSurgeryModule({ onBack }: Props) {
   function quotationTotals() {
     const rates = { EUR: 1, USD: 1.09, AUD: 1.67 };
     const displayRate = currency === 'EUR' ? 1 / 1.09 : rates[currency];
-    const surgeryItems = selectedItems.map((item) => ({ name: item.name, amount: item.priceEur * rates[currency] }));
+    // Catalog EUR prices are converted with `rates`; a coordinator override (for an unpriced
+    // item) was already typed directly in `currency`, so it is used as-is, never converted.
+    const surgeryItems = selectedItems.map((item) => ({
+      name: item.name,
+      amount: item.priceEur !== null ? item.priceEur * rates[currency] : (priceOverrideFor(item.id) ?? 0),
+    }));
     const surgeryTotal = surgeryItems.reduce((sum, s) => sum + s.amount, 0);
     // Hotels are quoted on top of the operation price(s). The coordinator can override the
     // computed hotel cost (catalog nightly rate × nights) with a negotiated figure.
@@ -102,7 +126,7 @@ export function PlasticSurgeryModule({ onBack }: Props) {
   }
 
   function generateProposal() {
-    if (selectedItems.length === 0) return;
+    if (selectedItems.length === 0 || !allSelectedPriced) return;
     const hotel = PRICING.hotels.find((item) => item.id === hotelId);
     const totals = quotationTotals();
     const total = totals.finalTotal;
@@ -176,15 +200,22 @@ export function PlasticSurgeryModule({ onBack }: Props) {
         </p>
         <div className="plastic-grid">
           {cards.map(({ item, image }) => (
-            <button type="button" className={`plastic-card${isSelected(item.id) ? ' selected' : ''}`} key={item.id} onClick={() => toggleSurgery(item)}>
+            <button
+              type="button"
+              className={`plastic-card${isSelected(item.id) ? ' selected' : ''}${item.available === false ? ' unavailable' : ''}`}
+              key={item.id}
+              disabled={item.available === false}
+              onClick={() => toggleSurgery(item)}
+            >
               <span className="plastic-card-media" style={{ backgroundImage: `url("${image}")` }}>
-                <span className="plastic-card-price">€{item.priceEur.toLocaleString('en-US')}</span>
+                <span className="plastic-card-price">{item.priceEur !== null ? `€${item.priceEur.toLocaleString('en-US')}` : item.available === false ? 'Not offered' : 'Price on request'}</span>
                 {isSelected(item.id) && <span className="plastic-card-check">✓ Added</span>}
               </span>
               <span className="plastic-card-body">
                 <span className="plastic-category">{item.category}</span>
                 <strong>{item.name}</strong>
                 <small>{item.stay} · Hospital: {item.hospitalStay}</small>
+                {item.note && <small className="plastic-card-note">{item.note}</small>}
               </span>
             </button>
           ))}
@@ -205,7 +236,7 @@ export function PlasticSurgeryModule({ onBack }: Props) {
                 <span className="thumb" style={{ backgroundImage: `url("${heroImageForItem(item)}")` }} />
                 <div className="plastic-quote-banner-info">
                   <strong>{item.name}</strong><br />
-                  <span>€{item.priceEur.toLocaleString('en-US')} · {item.stay} · {item.category}</span>
+                  <span>{item.priceEur !== null ? `€${item.priceEur.toLocaleString('en-US')}` : 'Price set by coordinator'} · {item.stay} · {item.category}</span>
                   {item.note && <p className="plastic-note">{item.note}</p>}
                 </div>
                 <button type="button" className="secondary remove-item" onClick={() => removeSurgery(item.id)} aria-label={`Remove ${item.name}`}>
@@ -215,8 +246,8 @@ export function PlasticSurgeryModule({ onBack }: Props) {
             ))}
             {selectedItems.length > 1 && (
               <div className="plastic-combined-total">
-                <span>Combined surgery price</span>
-                <strong>€{selectedItems.reduce((sum, i) => sum + i.priceEur, 0).toLocaleString('en-US')}</strong>
+                <span>Combined surgery price{selectedItems.some((i) => i.priceEur === null) ? ' (priced items only — some prices are set by the coordinator)' : ''}</span>
+                <strong>€{selectedItems.reduce((sum, i) => sum + (i.priceEur ?? 0), 0).toLocaleString('en-US')}</strong>
               </div>
             )}
           </div>
@@ -259,6 +290,7 @@ export function PlasticSurgeryModule({ onBack }: Props) {
                 setTransferIncluded(true);
                 setMarkupPercent(0);
                 setManualTotal('');
+                setPriceOverrides({});
                 setSubmitted(false);
                 setPage(1);
               }}>
@@ -279,10 +311,35 @@ export function PlasticSurgeryModule({ onBack }: Props) {
               <span className="thumb" style={{ backgroundImage: `url("${heroImageForItem(item)}")` }} />
               <div>
                 <strong>{item.name}</strong><br />
-                <span>Base price €{item.priceEur.toLocaleString('en-US')} · {item.stay} · {item.category}</span>
+                {item.priceEur !== null ? (
+                  <span>Base price €{item.priceEur.toLocaleString('en-US')} · {item.stay} · {item.category}</span>
+                ) : (
+                  <>
+                    <span>No catalog price · {item.stay} · {item.category}</span>
+                    <div className="plastic-price-override">
+                      <label htmlFor={`plastic-price-${item.id}`}>Final price ({currency}) — required</label>
+                      <input
+                        id={`plastic-price-${item.id}`}
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={priceOverrides[item.id] ?? ''}
+                        onChange={(e) => setPriceOverrides((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                        placeholder="Enter final price"
+                      />
+                    </div>
+                  </>
+                )}
+                {item.note && <p className="plastic-note">{item.note}</p>}
               </div>
             </div>
           ))}
+          {!allSelectedPriced && (
+            <p className="config-warning">
+              One or more selected procedures have no catalog price — enter a final price above for each before generating the
+              proposal.
+            </p>
+          )}
           <div className="grid-2">
             <div>
               <label htmlFor="plastic-currency">Quotation currency</label>
@@ -354,7 +411,7 @@ export function PlasticSurgeryModule({ onBack }: Props) {
           <textarea id="plastic-final-note" rows={3} value={coordinatorNote} onChange={(e) => setCoordinatorNote(e.target.value)} />
           <div className="wizard-actions">
             <button type="button" className="secondary" onClick={() => setPage(1)}>Back to appointment</button>
-            <button type="button" onClick={generateProposal}>Generate Premium Proposal PDF</button>
+            <button type="button" disabled={!allSelectedPriced} onClick={generateProposal}>Generate Premium Proposal PDF</button>
           </div>
         </section>
       ) : null}

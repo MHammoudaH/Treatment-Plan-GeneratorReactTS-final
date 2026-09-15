@@ -218,6 +218,17 @@
   box-shadow: 0 0 0 2px var(--red), 0 18px 40px -20px rgba(179, 57, 44, 0.4);
 }
 
+.plastic-card.unavailable {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.plastic-card.unavailable:hover {
+  transform: none;
+  border-color: var(--border);
+  box-shadow: none;
+}
+
 .plastic-card-media {
   position: relative;
   display: block;
@@ -277,6 +288,23 @@
 .plastic-card-body small {
   color: var(--muted);
   font-size: 12px;
+}
+
+.plastic-card-body small.plastic-card-note {
+  color: var(--red);
+  font-style: italic;
+}
+
+.plastic-price-override {
+  margin: 6px 0 2px;
+  padding: 8px 10px;
+  border: 1px dashed #cfd7e1;
+  border-radius: 6px;
+  background: #fafbfd;
+}
+
+.plastic-price-override label {
+  font-size: 12.5px;
 }
 
 .plastic-category {

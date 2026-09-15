@@ -2,10 +2,17 @@ export interface PlasticSurgeryItem {
   id: string;
   name: string;
   category: 'Face' | 'Breast' | 'Body' | 'Intimate' | 'Men' | 'Packages' | 'Bariatric';
-  priceEur: number;
+  /** Fixed EUR catalog price, or `null` when the clinic has no predefined price and the
+   *  coordinator must enter one manually on the quotation step (see PlasticSurgeryModule's
+   *  per-item "Final price" override) — never treated as €0. */
+  priceEur: number | null;
   stay: string;
   hospitalStay: string;
   note?: string;
+  /** False for procedures the clinic does not currently perform (e.g. Cat Eyes / Fox Eyes,
+   *  Lip Lifting) — kept as a catalog entry for completeness but must never be selectable.
+   *  Defaults to true (selectable) when omitted. */
+  available?: boolean;
 }
 
 export const PLASTIC_SURGERIES: PlasticSurgeryItem[] = [
@@ -21,7 +28,11 @@ export const PLASTIC_SURGERIES: PlasticSurgeryItem[] = [
   { id: 'face-neck-lift', name: 'Face & Neck Lift', category: 'Face', priceEur: 5000, stay: '8 nights - 9 days', hospitalStay: '1 night', note: 'Patient age must be over 50. Combined with blepharoplasty. Not performed for men. Price is for face + neck lift; blepharoplasty and other additions are quoted on top.' },
   { id: 'jaw-silicone', name: 'Jaw Silicone', category: 'Face', priceEur: 1600, stay: '8 nights - 9 days', hospitalStay: '1 night' },
   { id: 'jaw-line', name: 'Jaw Line (Jaw Silicone + 4 ml Filler)', category: 'Face', priceEur: 2500, stay: '8 nights - 9 days', hospitalStay: '1 night' },
+  { id: 'otoplasty', name: 'Otoplasty (Ear Reshaping)', category: 'Face', priceEur: null, stay: '—', hospitalStay: '—' },
+  { id: 'bichectomy', name: 'Bichectomy (Buccal Fat Removal)', category: 'Face', priceEur: null, stay: '—', hospitalStay: '—' },
+  { id: 'eyebrow-lift', name: 'Eyebrow Lift', category: 'Face', priceEur: null, stay: '—', hospitalStay: '—' },
   { id: 'breast-nipple', name: 'Breast Nipple Correction', category: 'Breast', priceEur: 1100, stay: '5 nights - 6 days', hospitalStay: '-' },
+  { id: 'breast-reduction', name: 'Breast Reduction', category: 'Breast', priceEur: null, stay: '—', hospitalStay: '—' },
   { id: 'breast-lift', name: 'Breast Lifting Without Silicone', category: 'Breast', priceEur: 2900, stay: '7 nights - 8 days', hospitalStay: '1 night' },
   { id: 'silimed-round', name: 'Breast Augmentation - Silimed Circular Silicone', category: 'Breast', priceEur: 2950, stay: '6 nights - 7 days', hospitalStay: '1 night' },
   { id: 'silimed-lift-round', name: 'Breast Silicone + Lifting - Silimed Circular', category: 'Breast', priceEur: 3500, stay: '6 nights - 7 days', hospitalStay: '1 night' },
@@ -38,11 +49,23 @@ export const PLASTIC_SURGERIES: PlasticSurgeryItem[] = [
   { id: 'cereform-lift-round', name: 'Breast Silicone + Lifting - Cereform Circular', category: 'Breast', priceEur: 4900, stay: '6 nights - 7 days', hospitalStay: '1 night' },
   { id: 'cereform-lift-teardrop', name: 'Breast Silicone + Lifting - Cereform Teardrop', category: 'Breast', priceEur: 5000, stay: '6 nights - 7 days', hospitalStay: '1 night' },
   { id: 'lifting-only', name: 'Only Lifting Without Liposuction', category: 'Breast', priceEur: 2500, stay: '6 nights - 7 days', hospitalStay: '2 nights', note: 'Each additional lifting zone: +1,000 EUR.' },
+  { id: 'abdominoplasty', name: 'Abdominoplasty (Tummy Tuck)', category: 'Body', priceEur: null, stay: '—', hospitalStay: '—' },
+  { id: 'arm-lifting', name: 'Arm Lifting (Brachioplasty)', category: 'Body', priceEur: null, stay: '—', hospitalStay: '—' },
+  { id: 'thigh-lifting', name: 'Thigh Lifting', category: 'Body', priceEur: null, stay: '—', hospitalStay: '—' },
+  { id: 'vaser-lipo-4d', name: 'Vaser Liposuction 4D', category: 'Body', priceEur: null, stay: '—', hospitalStay: '—' },
+  { id: 'bbl-fat-transfer', name: 'BBL (Brazilian Butt Lift by Fat Transfer)', category: 'Body', priceEur: null, stay: '—', hospitalStay: '—' },
+  { id: 'varicose-veins', name: 'Varicose Veins (Endovenous Ablation)', category: 'Body', priceEur: null, stay: '—', hospitalStay: '—' },
+  { id: 'fat-injection-hands', name: 'Fat Injection into Hands', category: 'Body', priceEur: null, stay: '—', hospitalStay: '—' },
+  { id: 'umbilical-hernia', name: 'Umbilical Hernia', category: 'Body', priceEur: null, stay: '—', hospitalStay: '—', note: 'No standalone price — quoted together with the combined procedure.' },
+  { id: 'j-plasma', name: 'J-Plasma', category: 'Body', priceEur: null, stay: '—', hospitalStay: '—', note: 'Must be combined with liposuction — see "1-3 Areas Liposuction + 1-3 Areas J-Plasma" for the priced combination.' },
   { id: 'three-area-lipo', name: '3 Areas Liposuction', category: 'Body', priceEur: 2500, stay: '6 nights - 7 days', hospitalStay: '1 night', note: 'Each extra liposuction area: +300 EUR. Each lifting zone: +1,000 EUR.' },
   { id: 'three-area-lipo-bbl', name: '3 Areas Liposuction + BBL', category: 'Packages', priceEur: 3500, stay: '7 nights - 8 days', hospitalStay: '1 night', note: 'Each extra liposuction area: +300 EUR. Each lifting zone: +1,000 EUR.' },
   { id: 'three-area-lipo-breast-bbl', name: '3 Areas Lipo + Breast Silicone +/- Lifting + BBL', category: 'Packages', priceEur: 5500, stay: '8 nights - 9 days', hospitalStay: '2 nights' },
   { id: 'three-area-lipo-rhinoplasty', name: '3 Areas Lipo + Rhinoplasty', category: 'Packages', priceEur: 4100, stay: '8 nights - 9 days', hospitalStay: '2 nights' },
   { id: 'three-area-lipo-breast-rhinoplasty', name: '3 Areas Lipo + Breast Silicone +/- Lifting + Rhinoplasty', category: 'Packages', priceEur: 6500, stay: '8 nights - 9 days', hospitalStay: '2 nights' },
+  { id: 'three-area-lipo-motiva-round-no-lift', name: '3 Areas Lipo + Motiva Circular Breast Silicone (Without Lifting)', category: 'Packages', priceEur: 4700, stay: '8 nights - 9 days', hospitalStay: '2 nights' },
+  { id: 'three-area-lipo-motiva-round-lift', name: '3 Areas Lipo + Motiva Circular Breast Silicone (With Lifting)', category: 'Packages', priceEur: 5200, stay: '8 nights - 9 days', hospitalStay: '2 nights' },
+  { id: 'mommy-makeover', name: 'Mommy Makeover', category: 'Packages', priceEur: null, stay: '—', hospitalStay: '—', note: 'Combined procedure (typically tummy tuck + breast + liposuction) — final price set by the surgeon based on the chosen combination.' },
   { id: 'six-pack', name: 'Six Pack Surgery (Abdominal Etching and Sculpting)', category: 'Body', priceEur: 3200, stay: '6 nights - 7 days', hospitalStay: '2 nights' },
   { id: 'gynecomastia', name: 'Gynecomastia', category: 'Men', priceEur: 2900, stay: '6 nights - 7 days', hospitalStay: '2 nights' },
   { id: 'lipo-jplasma', name: '1-3 Areas Liposuction + 1-3 Areas J-Plasma', category: 'Body', priceEur: 3600, stay: '5 nights - 6 days', hospitalStay: '2 nights', note: 'J-Plasma requires liposuction. Extra lipo area: +300 EUR; extra lipo + J-Plasma area: +400 EUR; BBL: +1,000 EUR.' },
@@ -71,6 +94,12 @@ export const PLASTIC_SURGERIES: PlasticSurgeryItem[] = [
   { id: 'gastric-bypass-sadis', name: 'Gastric Bypass SADI-S', category: 'Bariatric', priceEur: 3600, stay: '6 nights - 7 days', hospitalStay: '2 nights', note: 'Sleeve gastrectomy + single-anastomosis duodeno-ileal bypass. Considered irreversible; lifelong supplementation required.' },
   { id: 'gastric-plication', name: 'Gastric Plication', category: 'Bariatric', priceEur: 3000, stay: '5 nights - 7 days', hospitalStay: '2 nights', note: 'Stomach folded and stitched, no tissue removed; reversible. Typical range EUR 3,000-5,000 depending on the surgeon.' },
   { id: 'bari-clip', name: 'Gastric Bari-Clip', category: 'Bariatric', priceEur: 7000, stay: '7 nights - 8 days', hospitalStay: '2 nights', note: 'Silicone clip reshapes the stomach without cutting; reversible and can remain in place up to 20 years.' },
+  { id: 'gastric-band', name: 'Gastric Band', category: 'Bariatric', priceEur: null, stay: '—', hospitalStay: '—', note: 'No predefined price — depends on band type and surgeon; reversible/adjustable.' },
+
+  // Not currently performed by the clinic — kept as catalog entries for completeness;
+  // `available: false` means PlasticSurgeryModule must never let these be selected.
+  { id: 'cat-eyes-fox-eyes', name: 'Cat Eyes / Fox Eyes (surgical)', category: 'Face', priceEur: null, stay: '—', hospitalStay: '—', available: false, note: 'Not currently offered by the clinic.' },
+  { id: 'lip-lifting', name: 'Lip Lifting', category: 'Face', priceEur: null, stay: '—', hospitalStay: '—', available: false, note: 'Not currently offered by the clinic.' },
 ];
 
 export const PLASTIC_CATEGORIES = ['All', 'Face', 'Breast', 'Body', 'Packages', 'Intimate', 'Men', 'Bariatric'] as const;
