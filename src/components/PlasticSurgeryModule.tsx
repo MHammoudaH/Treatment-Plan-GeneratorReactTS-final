@@ -32,6 +32,7 @@ function combinedGallery(items: PlasticSurgeryItem[]): string[] {
 
 export function PlasticSurgeryModule({ onBack }: Props) {
   const [category, setCategory] = useState<(typeof PLASTIC_CATEGORIES)[number]>('All');
+  const [search, setSearch] = useState('');
   const [selectedItems, setSelectedItems] = useState<PlasticSurgeryItem[]>([]);
   const [patientName, setPatientName] = useState('');
   const [language, setLanguage] = useState<QuotationLanguage>('English');
@@ -51,8 +52,10 @@ export function PlasticSurgeryModule({ onBack }: Props) {
 
   const cards = useMemo(() => {
     const list = category === 'All' ? PLASTIC_SURGERIES : PLASTIC_SURGERIES.filter((item) => item.category === category);
-    return list.map((item) => ({ item, image: heroImageForItem(item) }));
-  }, [category]);
+    const q = search.trim().toLowerCase();
+    const filtered = q ? list.filter((item) => item.name.toLowerCase().includes(q)) : list;
+    return filtered.map((item) => ({ item, image: heroImageForItem(item) }));
+  }, [category, search]);
 
   const isSelected = (id: string) => selectedItems.some((item) => item.id === id);
 
@@ -153,9 +156,19 @@ export function PlasticSurgeryModule({ onBack }: Props) {
               confirmed by the medical team.
             </p>
           </div>
-          <select aria-label="Filter plastic surgery category" value={category} onChange={(e) => setCategory(e.target.value as (typeof PLASTIC_CATEGORIES)[number])}>
-            {PLASTIC_CATEGORIES.map((item) => <option key={item}>{item}</option>)}
-          </select>
+          <div className="plastic-toolbar-controls">
+            <input
+              type="search"
+              className="plastic-search"
+              aria-label="Search procedures"
+              placeholder="Search procedures…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <select aria-label="Filter plastic surgery category" value={category} onChange={(e) => setCategory(e.target.value as (typeof PLASTIC_CATEGORIES)[number])}>
+              {PLASTIC_CATEGORIES.map((item) => <option key={item}>{item}</option>)}
+            </select>
+          </div>
         </div>
         <p className="rule-note">
           <strong>Hotel stays are not included</strong> in the operation prices below. On the quotation step the
@@ -175,6 +188,7 @@ export function PlasticSurgeryModule({ onBack }: Props) {
               </span>
             </button>
           ))}
+          {cards.length === 0 && <p className="hint">No procedures match your search.</p>}
         </div>
       </section> : null}
 

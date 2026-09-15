@@ -178,6 +178,16 @@
   max-width: 220px;
 }
 
+.plastic-toolbar-controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.plastic-search {
+  min-width: 220px;
+}
+
 .plastic-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -468,6 +478,16 @@
 
   .plastic-toolbar select {
     max-width: none;
+  }
+
+  .plastic-toolbar-controls {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .plastic-search {
+    min-width: 0;
+    width: 100%;
   }
 
   .plastic-grid {
