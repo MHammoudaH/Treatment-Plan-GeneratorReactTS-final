@@ -7,7 +7,6 @@ import { ZohoDealsPanel } from './components/ZohoDealsPanel';
 import { Stepper } from './components/Stepper';
 import { Step1Patient } from './components/steps/Step1Patient';
 import { Step2Diagnosis } from './components/steps/Step2Diagnosis';
-import { StepImplantMap } from './components/steps/StepImplantMap';
 import { Step3Options } from './components/steps/Step3Options';
 import { Step4Confirm } from './components/steps/Step4Confirm';
 import { PlasticSurgeryModule } from './components/PlasticSurgeryModule';
@@ -83,9 +82,8 @@ function WizardShell({ onChangeModule }: { onChangeModule: () => void }) {
       <main>
         {state.step === 0 && <Step1Patient />}
         {state.step === 1 && <Step2Diagnosis />}
-        {state.step === 2 && <StepImplantMap />}
-        {state.step === 3 && <Step3Options />}
-        {state.step === 4 && <Step4Confirm />}
+        {state.step === 2 && <Step3Options />}
+        {state.step === 3 && <Step4Confirm />}
       </main>
     </div>
   );

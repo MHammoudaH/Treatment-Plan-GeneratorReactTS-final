@@ -4,7 +4,6 @@ import { useQuotation } from '../../context/QuotationContext';
 import { formatMoney } from '../../lib/formatMoney';
 import { buildQuotationPdfData } from '../../lib/pricing/buildQuotationPdfData';
 import { calculateOption } from '../../lib/pricing/engine';
-import { countMarks } from '../../lib/dental/teeth';
 import { generateSimpleQuotationPdf } from '../../lib/pdf/simple/generateSimpleQuotationPdf';
 import { generatePremiumQuotationPdf } from '../../lib/pdf/premium/generatePremiumQuotationPdf';
 import { resizeImageFiles } from '../../lib/pdf/imageUtils';
@@ -12,10 +11,8 @@ import { resizeImageFiles } from '../../lib/pdf/imageUtils';
 export function Step4Confirm() {
   const { state, dispatch } = useQuotation();
   const { display } = state;
-  const [buildingPremium, setBuildingPremium] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [selectedDoctorIds, setSelectedDoctorIds] = useState<number[]>([]);
-  const marks = countMarks(state.toothPlan);
   const hasPhotos = state.patientPhotos.length > 0;
 
   function handleSimplePdf() {
@@ -42,37 +39,15 @@ export function Step4Confirm() {
     }
   }
 
-  async function handlePremiumPdf() {
+  function handlePremiumPdf() {
     const chosen = DOCTORS.filter((doctor) => selectedDoctorIds.includes(doctor.id));
     const doctors = (chosen.length > 0 ? chosen : DOCTORS).map((doctor) => toPdfDoctor(doctor, state.patient.language));
     const pdfData = buildQuotationPdfData(state);
     if (state.notes.trim()) pdfData.notes = state.notes.trim();
-    if (hasPhotos) {
-      pdfData.patientPhotos = state.patientPhotos;
-      pdfData.replaceImplantMapWithPhotos = state.replaceImplantMapWithPhotos;
-    }
-
-    if (marks.implants || marks.crowns) {
-      setBuildingPremium(true);
-      try {
-        // Prefer the GLB-backed snapshot (see DENTAL_MODEL_ASSET.md); while no asset exists,
-        // this rejects immediately and we fall back to the existing procedural snapshot — same
-        // deterministic presentation camera contract either way, never a random leftover angle.
-        let image: string;
-        try {
-          const { renderDentalMapSnapshot } = await import('../../lib/dental/gltf/DentalMapSnapshot');
-          image = await renderDentalMapSnapshot(state.toothPlan);
-        } catch {
-          const { renderImplantMapSnapshot } = await import('../../lib/dental/implantMapSnapshot');
-          image = await renderImplantMapSnapshot(state.toothPlan);
-        }
-        pdfData.implantMap = { image, implants: marks.implants, crowns: marks.crowns, bridges: marks.bridges };
-      } catch {
-        // Snapshot failed (e.g. no WebGL) — issue the proposal without the implant map.
-      } finally {
-        setBuildingPremium(false);
-      }
-    }
+    // No more 3D implant map — the Photos section is built entirely from whatever the
+    // coordinator uploaded here; the PDF omits the section altogether when nothing was
+    // uploaded (see generatePremiumQuotationPdf.ts).
+    if (hasPhotos) pdfData.patientPhotos = state.patientPhotos;
 
     generatePremiumQuotationPdf(pdfData, doctors);
   }
@@ -128,43 +103,27 @@ export function Step4Confirm() {
         ))}
       </select>
 
-      <h3>Implant map</h3>
+      <h3>Photos (Premium Proposal)</h3>
       <p className="hint">
-        {marks.implants || marks.crowns
-          ? `${marks.implants} implant(s) and ${marks.crowns} crown(s) planned — a 3D snapshot is added to the Premium Proposal.`
-          : 'No teeth marked on the implant map — the Premium Proposal will omit the 3D map.'}
-      </p>
-
-      <h3>Additional photos (Premium Proposal)</h3>
-      <p className="hint">
-        Upload X-rays, intraoral photos, or scans to include alongside — or in place of — the 3D implant map. Nothing is
-        uploaded to a server; photos are embedded directly into the generated PDF.
+        <strong>Note for the coordinator:</strong> you may upload before &amp; after photos, X-rays, intraoral photos, or
+        scans here — they'll be added as their own page in the Premium Proposal PDF. Nothing is uploaded to a server;
+        photos are embedded directly into the generated PDF. Leave empty to omit this page.
       </p>
       <label htmlFor="patient-photos">Photos</label>
       <input id="patient-photos" type="file" accept="image/*" multiple onChange={handlePhotosSelected} disabled={uploadingPhotos} />
       {uploadingPhotos && <p className="hint">Processing photo(s)…</p>}
 
       {hasPhotos && (
-        <>
-          <div className="photo-thumb-grid">
-            {state.patientPhotos.map((photo, index) => (
-              <div className="photo-thumb" key={index}>
-                <img src={photo} alt={`Upload ${index + 1}`} />
-                <button type="button" className="photo-thumb-remove" onClick={() => dispatch({ type: 'REMOVE_PATIENT_PHOTO', index })} aria-label="Remove photo">
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-          <label className="inline-check">
-            <input
-              type="checkbox"
-              checked={state.replaceImplantMapWithPhotos}
-              onChange={(e) => dispatch({ type: 'SET_REPLACE_IMPLANT_MAP_WITH_PHOTOS', value: e.target.checked })}
-            />
-            Replace the 3D map with these photos (uncheck to show both together)
-          </label>
-        </>
+        <div className="photo-thumb-grid">
+          {state.patientPhotos.map((photo, index) => (
+            <div className="photo-thumb" key={index}>
+              <img src={photo} alt={`Upload ${index + 1}`} />
+              <button type="button" className="photo-thumb-remove" onClick={() => dispatch({ type: 'REMOVE_PATIENT_PHOTO', index })} aria-label="Remove photo">
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
       )}
 
       <h3>Notes</h3>
@@ -177,14 +136,14 @@ export function Step4Confirm() {
       />
 
       <div className="wizard-actions">
-        <button type="button" className="secondary" onClick={() => dispatch({ type: 'SET_STEP', step: 3 })}>
+        <button type="button" className="secondary" onClick={() => dispatch({ type: 'SET_STEP', step: 2 })}>
           Back
         </button>
         <button type="button" onClick={handleSimplePdf}>
           Generate Simple Quotation PDF
         </button>
-        <button type="button" disabled={buildingPremium} onClick={handlePremiumPdf}>
-          {buildingPremium ? 'Rendering implant map…' : 'Generate Premium Proposal PDF'}
+        <button type="button" onClick={handlePremiumPdf}>
+          Generate Premium Proposal PDF
         </button>
       </div>
     </section>

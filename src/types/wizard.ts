@@ -39,11 +39,13 @@ export interface DisplaySettings {
 }
 
 export interface WizardState {
-  /** 0 Patient · 1 Diagnosis · 2 Implant map · 3 Options · 4 Confirmation */
-  step: 0 | 1 | 2 | 3 | 4;
+  /** 0 Patient · 1 Diagnosis · 2 Options · 3 Confirmation */
+  step: 0 | 1 | 2 | 3;
   patient: PatientInfo;
   diagnosis: DiagnosisInfo;
-  /** Per-tooth implant/crown plan, keyed by FDI number. Drives the 3D implant map. */
+  /** Per-tooth implant/crown plan, keyed by FDI number. No wizard step currently marks teeth
+   *  on it (the 3D implant map step was removed from the app) — kept only so the 3D map
+   *  source files and their reducer actions still compile if reintroduced later. */
   toothPlan: Record<number, ToothMark>;
   paymentMethod: PaymentMethod;
   /** Amount the coordinator is financing for this patient under the US/Canada installment
@@ -56,11 +58,14 @@ export interface WizardState {
   display: DisplaySettings;
   /** Free-text notes printed near the end of both PDFs — see `QuotationPdfData.notes`. */
   notes: string;
-  /** Uploaded patient images for the Premium Proposal's Implant Map section — data URLs,
-   *  resized client-side, never uploaded to a server. See `QuotationPdfData.patientPhotos`. */
+  /** Uploaded before/after, X-ray, intraoral or scan photos for the Premium Proposal's Photos
+   *  section — data URLs, resized client-side, never uploaded to a server. See
+   *  `QuotationPdfData.patientPhotos`. This is now the section's only content — the 3D implant
+   *  map step was removed from the wizard. */
   patientPhotos: string[];
-  /** When true (and `patientPhotos` is non-empty), the uploaded photos replace the 3D
-   *  snapshot in the Premium Proposal instead of appearing alongside it. */
+  /** No longer settable from the wizard (the "replace the 3D map with photos" toggle was
+   *  removed along with the 3D map step) — kept only for `QuotationPdfData` shape
+   *  compatibility; always false in practice. */
   replaceImplantMapWithPhotos: boolean;
 }
 

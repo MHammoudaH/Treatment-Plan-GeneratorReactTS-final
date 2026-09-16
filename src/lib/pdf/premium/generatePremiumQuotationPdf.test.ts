@@ -78,6 +78,20 @@ describe('generatePremiumQuotationHtml — implant map / photos', () => {
     expect(html).not.toContain(GALLERY_TAG);
     expect(html).not.toContain(SNAPSHOT_IMG);
   });
+
+  it('photos with no 3D snapshot (the app\'s only path today, the 3D map step was removed): the page reads "Photos", not "Implant Map"', () => {
+    const html = generatePremiumQuotationHtml(baseData({ patientPhotos: [PHOTO_A] }));
+    expect(html).toContain('<h2>Photos</h2>');
+    expect(html).toContain('Before &amp; after, X-ray, intraoral or scan photos provided for your treatment.');
+    expect(html).not.toContain('<h2>Implant Map</h2>');
+    expect(html).not.toContain('Planned implant and crown positions');
+  });
+
+  it('a real 3D snapshot (still supported for shape/back-compat) keeps the "Implant Map" title', () => {
+    const html = generatePremiumQuotationHtml(baseData({ implantMap: { image: SNAPSHOT, implants: 2, crowns: 0 } }));
+    expect(html).toContain('<h2>Implant Map</h2>');
+    expect(html).not.toContain('<h2>Photos</h2>');
+  });
 });
 
 describe('generatePremiumQuotationHtml — financing', () => {

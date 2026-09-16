@@ -358,27 +358,26 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
     })
     .join('');
 
-  // Three ways this page can look, driven by what was uploaded and the coordinator's toggle
-  // (`QuotationPdfData.replaceImplantMapWithPhotos`) — see the type's own doc comment:
-  //   no photos             -> the 3D snapshot alone (unchanged existing behaviour)
-  //   photos, toggle off    -> the 3D snapshot AND the photos, together
-  //   photos, toggle on     -> the photos REPLACE the 3D snapshot
-  // The implant/crown/bridge count legend always shows whenever a snapshot was rendered
-  // (`data.implantMap` exists), even when its image is visually replaced by photos — those
-  // counts are useful summary information independent of which image is shown.
+  // The app no longer produces a 3D implant-map snapshot (that wizard step was removed) — this
+  // page is now driven entirely by `patientPhotos`, whatever the coordinator uploaded on the
+  // confirmation step. `data.implantMap` stays supported here for shape/back-compat (and the
+  // three-way logic below still holds if it's ever populated again) but is never set by the
+  // app today, so the headline/intro fall back to the generic "Photos" copy in that case.
   const photos = data.patientPhotos ?? [];
   const showSnapshot = Boolean(data.implantMap) && !(photos.length && data.replaceImplantMapWithPhotos);
   const showPhotos = photos.length > 0;
+  const pageTitle = data.implantMap ? labels.implantMap : labels.photos;
+  const pageIntro = data.implantMap ? labels.implantMapIntro : labels.photosIntro;
 
   const implantMapPage =
     data.implantMap || showPhotos
       ? `
 <section class="page">
-  <div class="page-header"><span>${esc(labels.implantMap)}</span><strong>${esc(patientName)}</strong></div>
+  <div class="page-header"><span>${esc(pageTitle)}</span><strong>${esc(patientName)}</strong></div>
   <div class="page-body">
     <div class="kicker">02</div>
-    <h2>${esc(labels.implantMap)}</h2>
-    <p class="intro">${esc(labels.implantMapIntro)}</p>
+    <h2>${esc(pageTitle)}</h2>
+    <p class="intro">${esc(pageIntro)}</p>
     ${showSnapshot ? `<img class="implant-map-img" src="${data.implantMap!.image}" alt="">` : ''}
     ${
       data.implantMap

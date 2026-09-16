@@ -167,10 +167,10 @@ export function Step3Options() {
       )}
 
       <div className="wizard-actions">
-        <button type="button" className="secondary" onClick={() => dispatch({ type: 'SET_STEP', step: 2 })}>
+        <button type="button" className="secondary" onClick={() => dispatch({ type: 'SET_STEP', step: 1 })}>
           Back
         </button>
-        <button type="button" disabled={state.options.length === 0} onClick={() => dispatch({ type: 'SET_STEP', step: 4 })}>
+        <button type="button" disabled={state.options.length === 0} onClick={() => dispatch({ type: 'SET_STEP', step: 3 })}>
           Continue to confirmation
         </button>
       </div>

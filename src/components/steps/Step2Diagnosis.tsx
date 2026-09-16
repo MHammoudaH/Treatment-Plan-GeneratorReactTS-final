@@ -77,7 +77,7 @@ export function Step2Diagnosis() {
                 dispatch({ type: 'SET_STEP', step: 2 });
               }}
             >
-              Continue to implant map
+              Continue to quotation options
             </button>
           </div>
         </div>

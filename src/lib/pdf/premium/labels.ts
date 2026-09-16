@@ -36,6 +36,10 @@ export interface PremiumLabels {
   payment: string;
   implantMap: string;
   implantMapIntro: string;
+  /** Page title/intro used instead of `implantMap`/`implantMapIntro` when the Photos page has
+   *  no 3D snapshot — which is always, today (the 3D implant map step was removed). */
+  photos: string;
+  photosIntro: string;
   implant: string;
   crown: string;
   bridge: string;
@@ -99,6 +103,8 @@ const EN: PremiumLabels = {
   payment: 'Payment by Visit',
   implantMap: 'Implant Map',
   implantMapIntro: 'Planned implant and crown positions for your treatment.',
+  photos: 'Photos',
+  photosIntro: 'Before & after, X-ray, intraoral or scan photos provided for your treatment.',
   implant: 'Implant',
   crown: 'Crown',
   bridge: 'Bridge',
@@ -163,6 +169,8 @@ const RU: PremiumLabels = {
   payment: 'Оплата по визитам',
   implantMap: 'Карта имплантации',
   implantMapIntro: 'Запланированные позиции имплантов и коронок для вашего лечения.',
+  photos: 'Фотографии',
+  photosIntro: 'Фотографии до и после лечения, рентген, снимки полости рта — предоставлены для вашего лечения.',
   implant: 'Имплант',
   crown: 'Коронка',
   bridge: 'Мост',
@@ -226,6 +234,8 @@ const FR: PremiumLabels = {
   payment: 'Paiement par visite',
   implantMap: 'Carte implantaire',
   implantMapIntro: 'Positions prévues des implants et des couronnes pour votre traitement.',
+  photos: 'Photos',
+  photosIntro: 'Photos avant/après, radiographies, photos intra-orales ou scans fournis pour votre traitement.',
   implant: 'Implant',
   crown: 'Couronne',
   bridge: 'Bridge',
@@ -290,6 +300,8 @@ const ES: PremiumLabels = {
   payment: 'Pago por visita',
   implantMap: 'Mapa de implantes',
   implantMapIntro: 'Posiciones previstas de implantes y coronas para su tratamiento.',
+  photos: 'Fotos',
+  photosIntro: 'Fotos de antes y después, radiografías, fotos intraorales o escaneos proporcionados para su tratamiento.',
   implant: 'Implante',
   crown: 'Corona',
   bridge: 'Puente',
@@ -354,6 +366,8 @@ const AR: PremiumLabels = {
   payment: 'الدفع حسب الزيارة',
   implantMap: 'خريطة الزرع',
   implantMapIntro: 'المواضع المخططة للزرعات والتيجان لعلاجك.',
+  photos: 'الصور',
+  photosIntro: 'صور ما قبل وبعد العلاج، وصور الأشعة، وصور داخل الفم المقدمة لعلاجك.',
   implant: 'زرعة',
   crown: 'تاج',
   bridge: 'جسر',

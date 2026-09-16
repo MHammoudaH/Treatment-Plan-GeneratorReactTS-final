@@ -1,6 +1,6 @@
 import { useQuotation } from '../context/QuotationContext';
 
-const STEPS = ['Patient', 'Diagnosis', 'Implant Map', 'Options', 'Confirmation'];
+const STEPS = ['Patient', 'Diagnosis', 'Options', 'Confirmation'];
 
 export function Stepper() {
   const { state } = useQuotation();
