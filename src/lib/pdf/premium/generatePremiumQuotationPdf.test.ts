@@ -161,6 +161,48 @@ describe('generatePremiumQuotationHtml — unpriced procedures never print €0/
   });
 });
 
+describe('generatePremiumQuotationHtml — showHotelPrices hides transfer/prosthesis prices too', () => {
+  function optionWithServices() {
+    const option = createOptionInput('opt-1', 'Option 1');
+    option.implant = { itemId: null, count: 2, markupPercent: 0, finalUnitPriceOverride: 500 };
+    option.visit1 = {
+      ...option.visit1,
+      transfer: { selectedUsd: 150, finalPriceOverride: null },
+      prosthesis: { selectedUsd: 200, finalPriceOverride: null },
+    };
+    return calculateOption(option, 'USD', 1);
+  }
+
+  it('showHotelPrices=false: a priced VIP transfer and prosthesis print "Included", never their amount', () => {
+    const html = generatePremiumQuotationHtml(
+      baseData({
+        options: [optionWithServices()],
+        display: { currency: 'USD', usdToCurrencyRate: 1, showProductPrices: true, showHotelPrices: false },
+      }),
+    );
+    expect(html).not.toContain('$150');
+    expect(html).not.toContain('$200');
+    expect((html.match(/>Included</g) ?? []).length).toBeGreaterThanOrEqual(2); // transfer + prosthesis (translator always says Included too)
+  });
+
+  it('showHotelPrices=true (default): the same priced transfer and prosthesis print their real amounts', () => {
+    const html = generatePremiumQuotationHtml(baseData({ options: [optionWithServices()] }));
+    expect(html).toContain('$150');
+    expect(html).toContain('$200');
+  });
+
+  it('a genuinely free ($0) service still prints "Included" regardless of the toggle', () => {
+    const option = createOptionInput('opt-1', 'Option 1');
+    option.implant = { itemId: null, count: 2, markupPercent: 0, finalUnitPriceOverride: 500 };
+    // Default visit1 transfer/prosthesis are already selectedUsd: 0 / unset — free.
+    const calculated = calculateOption(option, 'USD', 1);
+    const html = generatePremiumQuotationHtml(
+      baseData({ options: [calculated], display: { currency: 'USD', usdToCurrencyRate: 1, showProductPrices: true, showHotelPrices: true } }),
+    );
+    expect(html).toContain('>Included<');
+  });
+});
+
 describe('generatePremiumQuotationHtml — notes', () => {
   it('renders the notes page when notes is non-empty', () => {
     const html = generatePremiumQuotationHtml(baseData({ notes: 'Patient prefers morning appointments.' }));

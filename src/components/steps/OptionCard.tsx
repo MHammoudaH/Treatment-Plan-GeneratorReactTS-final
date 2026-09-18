@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { PRICING, markupPresetsForPrice, priceFor, type Currency, type PriceValue, type ProcedureCatalogItem, type ProcedureCategory } from '../../data/pricing';
 import { formatMoney } from '../../lib/formatMoney';
 import {
@@ -30,30 +30,22 @@ function overrideFromInput(value: string): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
-/** Tabs shown above the procedure catalog, in display order. Every `PRICING.procedures` entry
- *  falls into exactly one of these (defaulting to 'Dental' when `category` is omitted). */
-const PROCEDURE_CATEGORIES: ProcedureCategory[] = ['Dental', 'Bariatric', 'Plastic'];
-const PROCEDURE_CATEGORY_LABELS: Record<ProcedureCategory, string> = {
-  Dental: 'Dental',
-  Bariatric: 'Bariatric',
-  Plastic: 'Plastic / Aesthetic',
-};
-
 function categoryOf(proc: ProcedureCatalogItem): ProcedureCategory {
   return proc.category ?? 'Dental';
 }
+
+/** The dental option builder only offers DENTAL add-on procedures — the Bariatric and Plastic /
+ *  Aesthetic catalog entries (added to `PRICING.procedures` for a possible future dental-side
+ *  use) belong to their own dedicated Plastic Surgery module (`PlasticSurgeryModule.tsx`, with
+ *  its own richer catalog in `src/data/plasticSurgery.ts`) and must never appear here — showing
+ *  them in the dental quotation was confusing/redundant with that module. */
+const DENTAL_PROCEDURES = PRICING.procedures.filter((p) => categoryOf(p) === 'Dental');
 
 export function OptionCard({ option, onChange, onRemove, display, removable }: Props) {
   const fxRate = display.currency === 'USD' ? 1 : display.fxRate;
   const result = useMemo(() => calculateOption(option, display.currency, fxRate), [option, display.currency, fxRate]);
   const implantCatalog = PRICING.implants.find((i) => i.id === option.implant.itemId) ?? null;
   const crownCatalog = PRICING.crowns.find((c) => c.id === option.crown.itemId) ?? null;
-
-  // Additional-procedures browser: category tab + free-text filter, kept local to this card so
-  // the 86-entry catalog (10 dental + 76 bariatric/plastic) never renders as one giant list —
-  // see OptionCard's "Additional procedures" section below.
-  const [procedureCategory, setProcedureCategory] = useState<ProcedureCategory>('Dental');
-  const [procedureSearch, setProcedureSearch] = useState('');
 
   function patch(partial: Partial<OptionInput>) {
     onChange({ ...option, ...partial });
@@ -94,19 +86,6 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
    *  wording, matching how a genuinely uncatalogued procedure (e.g. "Arm Lifting") is presented. */
   const unpricedLabel = (proc: ProcedureCatalogItem) =>
     proc.priceRange ? `Reference: €${proc.priceRange.min.toLocaleString()}–€${proc.priceRange.max.toLocaleString()} (coordinator sets final price)` : 'Price set by coordinator';
-
-  const proceduresByCategory = useMemo(() => {
-    const q = procedureSearch.trim().toLowerCase();
-    return PRICING.procedures.filter((p) => categoryOf(p) === procedureCategory && (!q || p.name.toLowerCase().includes(q)));
-  }, [procedureCategory, procedureSearch]);
-  const selectedCountByCategory = useMemo(() => {
-    const counts: Record<ProcedureCategory, number> = { Dental: 0, Bariatric: 0, Plastic: 0 };
-    for (const selection of option.procedures) {
-      const catalog = PRICING.procedures.find((p) => p.id === selection.procedureId);
-      if (catalog) counts[categoryOf(catalog)] += 1;
-    }
-    return counts;
-  }, [option.procedures]);
 
   return (
     <article className="quotation-option">
@@ -267,35 +246,11 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
         </p>
       )}
 
-      {/* PROCEDURES — dental add-ons plus the Bariatric / Plastic-Aesthetic catalog, grouped
-          into tabs (never one flat 86-entry list) with a search filter for the larger
-          categories. Every selection still goes through the same ProcedureSelection /
-          calculateOption() pipeline as the original dental-only procedures. */}
+      {/* PROCEDURES — dental add-ons only. Bariatric/Plastic-Aesthetic procedures belong to the
+          dedicated Plastic Surgery module, not the dental quotation. */}
       <h4>Additional procedures</h4>
-      <div className="procedure-tabs">
-        {PROCEDURE_CATEGORIES.map((cat) => (
-          <button
-            key={cat}
-            type="button"
-            className={`procedure-tab${procedureCategory === cat ? ' active' : ''}`}
-            onClick={() => setProcedureCategory(cat)}
-          >
-            {PROCEDURE_CATEGORY_LABELS[cat]}
-            {selectedCountByCategory[cat] > 0 ? ` (${selectedCountByCategory[cat]})` : ''}
-          </button>
-        ))}
-      </div>
-      {(procedureCategory === 'Bariatric' || procedureCategory === 'Plastic') && (
-        <input
-          type="search"
-          className="procedure-search"
-          placeholder={`Search ${PROCEDURE_CATEGORY_LABELS[procedureCategory].toLowerCase()} procedures…`}
-          value={procedureSearch}
-          onChange={(e) => setProcedureSearch(e.target.value)}
-        />
-      )}
       <div className="procedure-list">
-        {proceduresByCategory.map((proc) => {
+        {DENTAL_PROCEDURES.map((proc) => {
           const selection = option.procedures.find((p) => p.procedureId === proc.id);
           const checked = Boolean(selection);
           const configured = priceFor(proc.price, display.currency) !== null;
@@ -341,7 +296,6 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
             </div>
           );
         })}
-        {proceduresByCategory.length === 0 && <p className="hint">No procedures match your search.</p>}
       </div>
 
       {/* VISIT PLAN */}

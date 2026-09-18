@@ -187,8 +187,12 @@ function treatmentRowsHtml(
   return rows.join('');
 }
 
-/** Legacy source: `premiumVisitCard()`. `showHotelPrices=false` prints the localized
- *  "Included" for the hotel line only. */
+/** Legacy source: `premiumVisitCard()`. `showHotelPrices=false` hides the price for every line
+ *  in the accommodation & services card — hotel, VIP transfer and prosthesis alike — printing
+ *  the localized "Included" instead. (Previously only the hotel row honoured the toggle; a
+ *  priced transfer/prosthesis still printed its amount regardless, which defeated the point of
+ *  turning hotel prices off.) A genuinely free ($0) transfer/prosthesis still shows "Included"
+ *  either way — the toggle only ever hides a real price, never fabricates one. */
 function visitCardHtml(
   visit: QuotationVisit | null,
   label: string,
@@ -200,16 +204,13 @@ function visitCardHtml(
 
   const { hotel, services } = visit;
   const m = (v: number) => bidi(esc(money(v, display)), rtl);
+  const serviceTotalText = (total: number) => (display.showHotelPrices && total ? m(total) : esc(labels.included));
   const serviceRows: string[] = [];
   if (services.transfer) {
-    serviceRows.push(
-      `<div><span>${esc(serviceLabel(services.transfer.name, labels))}</span><strong>${services.transfer.total ? m(services.transfer.total) : esc(labels.included)}</strong></div>`,
-    );
+    serviceRows.push(`<div><span>${esc(serviceLabel(services.transfer.name, labels))}</span><strong>${serviceTotalText(services.transfer.total)}</strong></div>`);
   }
   if (services.prosthesis) {
-    serviceRows.push(
-      `<div><span>${esc(serviceLabel(services.prosthesis.name, labels))}</span><strong>${services.prosthesis.total ? m(services.prosthesis.total) : esc(labels.included)}</strong></div>`,
-    );
+    serviceRows.push(`<div><span>${esc(serviceLabel(services.prosthesis.name, labels))}</span><strong>${serviceTotalText(services.prosthesis.total)}</strong></div>`);
   }
   if (services.translator) {
     serviceRows.push(`<div><span>${esc(labels.translator)}</span><strong>${esc(labels.included)}</strong></div>`);
