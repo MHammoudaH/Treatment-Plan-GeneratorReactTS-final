@@ -8,6 +8,7 @@ DOM — see `types.ts` for the full input contract (`QuotationPdfData`).
 ```
 src/lib/pdf/
   types.ts                          shared input types (QuotationPdfData and friends)
+  contentTranslations.ts            option / crown & veneer / procedure / room-type names, all 5 languages
   simple/
     labels.ts                       RU/EN/FR/ES label + translation dictionaries
     transliteration.ts              Cyrillic patient-name transliteration (Russian)
@@ -95,8 +96,8 @@ fire, not deliberate simplifications:
   case-sensitive, so the lookup always misses and always fell through to the raw, lowercased
   English name — in *every* language, including Russian. (`pdfProcedureLabel`, by contrast, has
   already-lowercase keys and genuinely worked.) This port's `translateOptionName()` /
-  `translateProductName()` (`simple/generateSimpleQuotationPdf.ts`) do a case-insensitive
-  match, so option and product names now actually render in the target language, and fall back
+  `translateProductName()` (now shared in `contentTranslations.ts`, used by both PDFs) do a
+  case-insensitive match, so option and product names now actually render in the target language, and fall back
   to the *original-cased* name (not a lowercased one) when untranslated.
 
 Preserved as-is, because they read as consistent, intentional simplifications rather than

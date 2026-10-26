@@ -7,7 +7,7 @@
  *   - Western (0-9), Arabic-Indic (٠-٩) and Persian (۰-۹) digits
  *   - numbers spelled out in English, French, Spanish, Italian, German, Russian, Turkish
  *     or Arabic
- *   - implant / crown / upper-jaw / lower-jaw vocabulary in those languages
+ *   - implant / crown / veneer / upper-jaw / lower-jaw vocabulary in those languages
  *   - ranges written many ways: "6-8", "6 to 8", "de 6 a 8", "от 6 до 8", "من 6 إلى 8",
  *     "all-on-4" ...
  *
@@ -75,6 +75,8 @@ function toInt(token: string): number | null {
 // --- vocabulary ------------------------------------------------------------------
 
 const IMPLANT_RE = /(implant|implante|implantat|impiant|имплан|غرس|زرع|زراع)/iu;
+// Checked before CROWN_RE — a veneer clause never counts as crowns or implants.
+const VENEER_RE = /(veneer|facette|carilla|faccett|furnier|lamina|lamine|винир|فينير|قشور|قشرة|لامينيت)/iu;
 const CROWN_RE = /(crown|couronne|coron|krone|kron|коронк|коронок|تاج|تيجان|تلبيس)/iu;
 const UPPER_RE = /(upper|maxill|superior|superieur|supérieur|superiore|верхн|علوي|فوقي|oberkiefer|ober|üst|\btop\b)/iu;
 const LOWER_RE = /(lower|mandib|inferior|inferieur|inférieur|inferiore|нижн|سفلي|تحتي|unterkiefer|unter|\balt\b|\bbottom\b)/iu;
@@ -143,6 +145,13 @@ export function parseTreatmentData(raw: string): PatientTreatmentData {
   };
 
   for (const clause of clauses) {
+    const veneerKw = clause.match(VENEER_RE);
+    if (veneerKw) {
+      const v = countNear(clause, veneerKw);
+      if (v) data.veneers = (data.veneers ?? 0) + v.max;
+      continue;
+    }
+
     const allOn = clause.match(ALL_ON_RE);
     const implantKw = clause.match(IMPLANT_RE);
     const crownKw = clause.match(CROWN_RE);

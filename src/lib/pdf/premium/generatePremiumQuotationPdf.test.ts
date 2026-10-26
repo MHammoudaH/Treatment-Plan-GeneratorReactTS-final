@@ -223,3 +223,47 @@ describe('generatePremiumQuotationHtml — notes', () => {
     expect(html).toContain('&lt;script&gt;');
   });
 });
+
+describe('generatePremiumQuotationHtml — veneers and translated content', () => {
+  function optionWith(build: (o: ReturnType<typeof createOptionInput>) => void) {
+    const option = createOptionInput('opt-1', 'German');
+    build(option);
+    return calculateOption(option, 'USD', 1);
+  }
+
+  it('prints a veneers-only option as a Veneers row, with no implant or crown row', () => {
+    const option = optionWith((o) => {
+      o.veneer = { itemId: 'veneers', count: 10, markupPercent: 0, finalUnitPriceOverride: null };
+    });
+    const html = generatePremiumQuotationHtml(baseData({ options: [option] }));
+    expect(html).toContain('<strong>Veneers</strong>');
+    expect(html).not.toContain('<strong>Dental implants</strong>');
+    expect(html).not.toContain('<strong>Dental crowns</strong>');
+  });
+
+  it('Arabic: option name, crown material, procedure and room type are translated', () => {
+    const option = optionWith((o) => {
+      o.implant = { itemId: 'medigma', count: 4, markupPercent: 0, finalUnitPriceOverride: null };
+      o.crown = { itemId: 'ivoclar-zirconia', count: 4, markupPercent: 0, finalUnitPriceOverride: null };
+      o.procedures = [{ procedureId: 'root-canal', quantity: 1, finalUnitPriceOverride: null }];
+      o.visit1.hotel = { hotelId: 'tryp-wyndham-topkapi', roomType: 'single', nights: 5, nightlyPriceOverride: null };
+    });
+    const base = baseData({ options: [option] });
+    const html = generatePremiumQuotationHtml({ ...base, patient: { ...base.patient, language: 'Arabic' } });
+    expect(html).toContain('النظام الألماني');
+    expect(html).toContain('تيجان زركونيا Ivoclar (ألمانية)');
+    expect(html).toContain('علاج قناة الجذر');
+    expect(html).toContain('غرفة مفردة');
+    expect(html).not.toContain('Zirconium Crowns Ivoclar German');
+    expect(html).not.toContain('>Root Canal<');
+  });
+
+  it('a coordinator-typed option name is never altered', () => {
+    const option = optionWith((o) => {
+      o.name = 'Option 2 - План врача';
+    });
+    const base = baseData({ options: [option] });
+    const html = generatePremiumQuotationHtml({ ...base, patient: { ...base.patient, language: 'Russian' } });
+    expect(html).toContain('Option 2 - План врача');
+  });
+});

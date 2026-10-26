@@ -23,18 +23,12 @@ import type {
   QuotationVisit,
   QuotationVisitServices,
 } from '../types';
-import {
-  getSimpleLabels,
-  OPTION_NAME_TRANSLATIONS,
-  PRODUCT_LABEL_TRANSLATIONS,
-  PROCEDURE_LABEL_TRANSLATIONS,
-  type SimpleLabels,
-  type SimpleLatinLanguage,
-} from './labels';
+import { getSimpleLabels, type SimpleLabels, type SimpleLatinLanguage } from './labels';
 import { transliteratePatientName } from './transliteration';
 import { ARABIC_LABELS } from './arabicLabels';
 import { transliterateArabicPatientName } from './arabicTransliteration';
 import { translateOrigin, withOrigin } from '../originLabels';
+import { translateOptionName, translateProcedureName, translateProcedureUnit, translateProductName } from '../contentTranslations';
 
 const DEFAULT_DISPLAY: QuotationDisplayOptions = {
   currency: 'USD',
@@ -126,58 +120,11 @@ function optionsCountWord(language: SimpleLatinLanguage, count: number): string 
   return count === 1 ? 'option' : 'options';
 }
 
-/** Legacy source: `pdfOptionName()`. */
-function translateOptionName(name: string, language: SimpleLatinLanguage): string {
-  const value = String(name || '').trim().toLowerCase();
-  const table = OPTION_NAME_TRANSLATIONS[language];
-  if (!table) return name;
-  for (const [key, translated] of Object.entries(table)) {
-    if (key.toLowerCase() === value) return translated;
-  }
-  return name;
-}
-
-/** Legacy source: `arPdfOptionName()`. */
-function arTranslateOptionName(name: string): string {
-  const value = String(name || '').trim();
-  const key = value.toLowerCase();
-  if (key === 'german' || key.includes('german')) {
-    const withoutGerman = value.replace(/german/gi, '').trim();
-    return withoutGerman ? `تركيب ${withoutGerman}` : 'تركيب ألماني';
-  }
-  return value;
-}
-
-/** Legacy source: `pdfProductLabel()`. Falls back to the original (not lowercased) name when
- *  no translation is found — see `src/lib/pdf/README.md` for why this differs from the
- *  legacy fallback. */
-function translateProductName(name: string, language: SimpleLatinLanguage): string {
-  const key = String(name || '').trim().toLowerCase();
-  return PRODUCT_LABEL_TRANSLATIONS[language]?.[key] || name;
-}
-
-/** Legacy source: `arPdfCrownName()`. */
-function arTranslateCrownName(name: string): string {
-  const value = String(name || '').trim();
-  if (!value) return '';
-  return value
-    .replace(/Zirconium Crowns/gi, 'تيجان الزركونيا')
-    .replace(/German/gi, 'الألمانية')
-    .replace(/\bIvoclar\b/gi, 'Ivoclar');
-}
-
-/** Legacy source: `pdfProcedureLabel()`. */
-function translateProcedureName(name: string, language: SimpleLatinLanguage): string {
-  const key = String(name || '').toLowerCase();
-  return PROCEDURE_LABEL_TRANSLATIONS[language]?.[key] || name;
-}
-
-/** Legacy source: `arPdfProcedureName()`. */
-function arTranslateProcedureName(name: string): string {
-  const key = String(name || '').toLowerCase();
-  if (key.includes('bone graft')) return 'تطعيم العظم';
-  return name || '';
-}
+// Option names, crown/veneer materials and procedure names are translated by the shared
+// `contentTranslations.ts` (also used by the Premium Proposal). Legacy sources:
+// `pdfOptionName()` / `pdfProductLabel()` / `pdfProcedureLabel()` and their Arabic
+// counterparts — the Arabic ones only ever knew "German" and "bone graft", so most Arabic
+// content printed in English.
 
 /** Legacy source: `pdfServiceLabel()`. */
 function translateServiceLabel(name: string, labels: SimpleLabels): string {
@@ -231,6 +178,11 @@ function translateTreatmentPlan(data: QuotationPdfData, language: SimpleLatinLan
     if (crowns) lines.push(`• ${crowns} ${crownWord}.`);
   }
 
+  if (d.veneers) {
+    const veneerWord = { Russian: 'виниров', French: 'facettes', Spanish: 'carillas', English: 'veneers' }[language] || 'veneers';
+    lines.push(`• ${d.veneers} ${veneerWord}.`);
+  }
+
   return lines.join('\n') || data.patient.diagnosis || '';
 }
 
@@ -246,6 +198,7 @@ function arTranslateTreatmentPlan(data: QuotationPdfData): string {
     lines.push(`<li><bdi class="ltr-number">${esc(range)}</bdi> زرعة في الفك السفلي في المنطقة الأمامية، وفقاً للفحص السريري.</li>`);
   }
   if (d.crowns) lines.push(`<li><bdi class="ltr-number">${d.crowns}</bdi> تيجان الزركونيا.</li>`);
+  if (d.veneers) lines.push(`<li><bdi class="ltr-number">${d.veneers}</bdi> قشور (فينير).</li>`);
   return lines.join('');
 }
 
@@ -259,17 +212,24 @@ function activeServices(services: QuotationVisitServices): QuotationServiceItem[
 
 function treatmentRowsHtml(option: QuotationOption, labels: SimpleLabels, language: SimpleLatinLanguage, display: QuotationDisplayOptions): string {
   const rows: string[] = [];
-  const { implants, crowns, bridge, procedures } = option.treatment;
+  const { implants, crowns, veneers, bridge, procedures } = option.treatment;
 
   if (implants.quantity > 0) {
-    const implantName = withOrigin(translateProductName(implants.name || '', language), implants.origin, language);
+    const implantName = withOrigin(implants.name || '', implants.origin, language);
     rows.push(
       `<tr><td>${esc(labels.implants)} — ${esc(implantName)}</td><td>${implants.quantity}</td><td>${moneyHtml(implants.finalUnitPrice, display)}</td><td>${moneyHtml(implants.total, display)}</td></tr>`,
     );
   }
   if (crowns.quantity > 0) {
     rows.push(
-      `<tr><td>${esc(labels.crowns)} — ${esc(translateProductName(crowns.name || '', language))}</td><td>${crowns.quantity}</td><td>${moneyHtml(crowns.finalUnitPrice, display)}</td><td>${moneyHtml(crowns.total, display)}</td></tr>`,
+      `<tr><td>${esc(labels.crowns)} — ${esc(translateProductName(crowns.name, language))}</td><td>${crowns.quantity}</td><td>${moneyHtml(crowns.finalUnitPrice, display)}</td><td>${moneyHtml(crowns.total, display)}</td></tr>`,
+    );
+  }
+  if (veneers.quantity > 0) {
+    // The catalog's generic "Veneers" item would only repeat the row label.
+    const material = veneers.name && veneers.name.toLowerCase() !== 'veneers' ? ` — ${esc(translateProductName(veneers.name, language))}` : '';
+    rows.push(
+      `<tr><td>${esc(labels.veneers)}${material}</td><td>${veneers.quantity}</td><td>${moneyHtml(veneers.finalUnitPrice, display)}</td><td>${moneyHtml(veneers.total, display)}</td></tr>`,
     );
   }
   if (bridge.quantity > 0) {
@@ -278,7 +238,7 @@ function treatmentRowsHtml(option: QuotationOption, labels: SimpleLabels, langua
     );
   }
   for (const p of procedures) {
-    const unit = p.unit ? ` / ${esc(p.unit)}` : '';
+    const unit = p.unit ? ` / ${esc(translateProcedureUnit(p.unit, language))}` : '';
     // A procedure with no configured price (no catalog price for this currency AND no
     // coordinator override — e.g. an unpriced Plastic/Bariatric entry the coordinator forgot
     // to price) must never print as $0/€0 — see `ProcedureLineItem.priceConfigured`.
@@ -474,7 +434,7 @@ function buildArabicHtml(data: QuotationPdfData): string {
   const optionsHtml = data.options
     .map((option, index) => {
       const { visit1, visit2, count: visitCount } = option.visits;
-      const { implants, crowns, bridge, procedures } = option.treatment;
+      const { implants, crowns, veneers, bridge, procedures } = option.treatment;
       const rows: string[] = [];
 
       if (implants.quantity > 0) {
@@ -489,7 +449,14 @@ function buildArabicHtml(data: QuotationPdfData): string {
       }
       if (crowns.quantity > 0) {
         rows.push(
-          `<tr><td>${ARABIC_LABELS.crowns} — <bdi class="mixed-label">${esc(arTranslateCrownName(crowns.name || ''))}</bdi></td><td><bdi class="ltr-number">${crowns.quantity}</bdi></td><td>${arMoneyHtml(crowns.finalUnitPrice, display)}</td><td>${arMoneyHtml(crowns.total, display)}</td></tr>`,
+          `<tr><td>${ARABIC_LABELS.crowns} — <bdi class="mixed-label">${esc(translateProductName(crowns.name, 'Arabic'))}</bdi></td><td><bdi class="ltr-number">${crowns.quantity}</bdi></td><td>${arMoneyHtml(crowns.finalUnitPrice, display)}</td><td>${arMoneyHtml(crowns.total, display)}</td></tr>`,
+        );
+      }
+      if (veneers.quantity > 0) {
+        const material =
+          veneers.name && veneers.name.toLowerCase() !== 'veneers' ? ` — <bdi class="mixed-label">${esc(translateProductName(veneers.name, 'Arabic'))}</bdi>` : '';
+        rows.push(
+          `<tr><td>${ARABIC_LABELS.veneers}${material}</td><td><bdi class="ltr-number">${veneers.quantity}</bdi></td><td>${arMoneyHtml(veneers.finalUnitPrice, display)}</td><td>${arMoneyHtml(veneers.total, display)}</td></tr>`,
         );
       }
       if (bridge.quantity > 0) {
@@ -502,11 +469,11 @@ function buildArabicHtml(data: QuotationPdfData): string {
         const priceCell = p.priceConfigured ? arMoneyHtml(p.unitPrice, display) : esc(ARABIC_LABELS.priceTbd);
         const totalCell = p.priceConfigured ? arMoneyHtml(p.total, display) : esc(ARABIC_LABELS.priceTbd);
         rows.push(
-          `<tr><td>${esc(arTranslateProcedureName(p.name))}</td><td><bdi class="ltr-number">${p.quantity}${p.unit ? ` / ${esc(p.unit)}` : ''}</bdi></td><td>${priceCell}</td><td>${totalCell}</td></tr>`,
+          `<tr><td>${esc(translateProcedureName(p.name, 'Arabic'))}</td><td><bdi class="ltr-number">${p.quantity}</bdi>${p.unit ? ` / ${esc(translateProcedureUnit(p.unit, 'Arabic'))}` : ''}</td><td>${priceCell}</td><td>${totalCell}</td></tr>`,
         );
       }
 
-      return `<section class="option-block"><div class="option-header"><div><div class="option-number">${ARABIC_LABELS.option} ${index + 1}</div><h2>${esc(arTranslateOptionName(option.name))}</h2></div></div>
+      return `<section class="option-block"><div class="option-header"><div><div class="option-number">${ARABIC_LABELS.option} ${index + 1}</div><h2>${esc(translateOptionName(option.name, 'Arabic'))}</h2></div></div>
       <div class="section-title">${ARABIC_LABELS.treatmentPlan}</div>
       <table class="proposal-table"><thead><tr><th>${ARABIC_LABELS.treatment}</th><th>${ARABIC_LABELS.quantity}</th><th>${ARABIC_LABELS.unitPrice}</th><th>${ARABIC_LABELS.total}</th></tr></thead><tbody>${rows.join('')}</tbody></table>
       <div class="section-title">${ARABIC_LABELS.accommodation} — ${visitCount === 1 ? ARABIC_LABELS.oneVisit : ARABIC_LABELS.twoVisits}</div>

@@ -424,10 +424,12 @@ describe('cloneOptionForNewOption', () => {
       name: 'Option 1',
       implant: { itemId: 'straumann', count: 4, markupPercent: 30, finalUnitPriceOverride: 700 },
       crown: { itemId: 'ivoclar-zirconia', count: 24, markupPercent: 30, finalUnitPriceOverride: 120 },
+      veneer: { itemId: 'veneers', count: 8, markupPercent: 20, finalUnitPriceOverride: 160 },
       bridge: { itemId: 'full-arch-bridge', count: 1, markupPercent: 15, finalUnitPriceOverride: 900 },
       procedures: [{ procedureId: 'bone-graft', quantity: 2, finalUnitPriceOverride: 300 }],
       visits: 2,
       visit1CrownCount: 12,
+      visit1VeneerCount: 3,
       visit1: {
         hotel: { hotelId: 'hotel-a', roomType: 'double', nights: 5, nightlyPriceOverride: 85 },
         transfer: { selectedUsd: 150, finalPriceOverride: 100 },
@@ -448,6 +450,8 @@ describe('cloneOptionForNewOption', () => {
     const clone = cloneOptionForNewOption(fullyLoadedOption(), 'opt-2', 'Option 2');
     expect(clone.implant.count).toBe(4);
     expect(clone.crown.count).toBe(24);
+    expect(clone.veneer.count).toBe(8);
+    expect(clone.visit1VeneerCount).toBe(3);
     expect(clone.bridge.count).toBe(1);
     expect(clone.visits).toBe(2);
     expect(clone.visit1CrownCount).toBe(12);
@@ -466,6 +470,8 @@ describe('cloneOptionForNewOption', () => {
     expect(clone.implant.finalUnitPriceOverride).toBeNull();
     expect(clone.crown.itemId).toBeNull();
     expect(clone.crown.finalUnitPriceOverride).toBeNull();
+    expect(clone.veneer.itemId).toBeNull();
+    expect(clone.veneer.finalUnitPriceOverride).toBeNull();
     expect(clone.bridge.itemId).toBeNull();
     expect(clone.bridge.finalUnitPriceOverride).toBeNull();
     expect(clone.visit1.hotel.nightlyPriceOverride).toBeNull();
@@ -715,5 +721,66 @@ describe('Bariatric + Plastic/Aesthetic catalog', () => {
     expect(priceFor(rhino.price, 'EUR')).toBe(2900);
     expect(priceFor(rhino.price, 'USD')).toBeNull();
     expect(priceFor(rhino.price, 'AUD')).toBeNull();
+  });
+});
+
+// ===========================================================================
+// Veneers — an independent line, so crowns-only / veneers-only plans need no implants
+// ===========================================================================
+
+describe('veneers', () => {
+  it('a veneers-only option prices veneers with no implants or crowns', () => {
+    const option = baseOption({
+      visits: 1,
+      veneer: { itemId: 'veneers', count: 10, markupPercent: 0, finalUnitPriceOverride: null },
+      visit1: emptyVisitInput(),
+      visit2: null,
+    });
+    const result = calculateOption(option, 'USD', 1);
+    expect(result.treatment.implants.quantity).toBe(0);
+    expect(result.treatment.crowns.quantity).toBe(0);
+    expect(result.treatment.veneers.quantity).toBe(10);
+    expect(result.treatment.veneers.total).toBe(1500); // catalog $150 each
+    expect(result.totals.total).toBe(1500);
+  });
+
+  it('a crowns-only option needs no implants', () => {
+    const result = calculateOption(treatmentOption({ implants: 0, crowns: 20, crownUnitPrice: 100 }), 'USD', 1);
+    expect(result.treatment.veneers.quantity).toBe(0);
+    expect(result.totals.total).toBe(2000);
+  });
+
+  it('crowns and veneers are priced independently in the same option', () => {
+    const option = baseOption({
+      visits: 1,
+      crown: { itemId: null, count: 4, markupPercent: 0, finalUnitPriceOverride: 120 },
+      veneer: { itemId: null, count: 6, markupPercent: 0, finalUnitPriceOverride: 200 },
+      visit1: emptyVisitInput(),
+      visit2: null,
+    });
+    const result = calculateOption(option, 'USD', 1);
+    expect(result.treatment.crowns.total).toBe(480);
+    expect(result.treatment.veneers.total).toBe(1200);
+    expect(result.visits.visit1.dentalTotal).toBe(1680);
+  });
+
+  it('two visits: veneers split by visit1VeneerCount, remainder billed on visit 2', () => {
+    const option = baseOption({
+      visits: 2,
+      veneer: { itemId: null, count: 10, markupPercent: 0, finalUnitPriceOverride: 100 },
+      visit1VeneerCount: 4,
+      visit1: emptyVisitInput(),
+      visit2: emptyVisitInput(),
+    });
+    const result = calculateOption(option, 'USD', 1);
+    expect(result.visits.visit1.veneers).toBe(4);
+    expect(result.visits.visit2!.veneers).toBe(6);
+    expect(result.visits.visit1.dentalTotal).toBe(400);
+    expect(result.visits.visit2!.dentalTotal).toBe(600);
+  });
+
+  it('veneers are no longer offered as a crown material', () => {
+    expect(PRICING.crowns.some((c) => c.id === 'veneers')).toBe(false);
+    expect(PRICING.veneers.map((v) => v.id)).toEqual(['veneers']);
   });
 });

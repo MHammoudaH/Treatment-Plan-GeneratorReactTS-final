@@ -22,6 +22,7 @@
 import type { QuotationDisplayOptions, QuotationLanguage, QuotationOption, QuotationPdfData, QuotationVisit } from '../types';
 import { getPremiumLabels, type PremiumLabels } from './labels';
 import { withOrigin } from '../originLabels';
+import { translateOptionName, translateProcedureName, translateProcedureUnit, translateProductName, translateRoomType } from '../contentTranslations';
 
 /**
  * Minimal doctor profile for the "Your Dental Team" page. The real doctors data module lives
@@ -126,6 +127,10 @@ function treatmentSummaryItems(data: QuotationPdfData, labels: PremiumLabels): s
     lines.push(labels.summary.crowns(d.crowns, d.crownMaterial === 'zirconia'));
   }
 
+  if (d.veneers) {
+    lines.push(labels.summary.veneers(d.veneers));
+  }
+
   if (!lines.length && data.patient.diagnosis) lines.push(data.patient.diagnosis);
 
   return lines.map((line) => `<li>${esc(line)}</li>`).join('');
@@ -142,7 +147,8 @@ function serviceLabel(name: string, labels: PremiumLabels): string {
 }
 
 /** Legacy source: `premiumTreatmentRows()`. `showProductPrices=false` prints the localized
- *  "Included" instead of the price. */
+ *  "Included" instead of the price. Crown/veneer materials and procedure names are translated
+ *  via `contentTranslations.ts`; implant brand names are proper nouns and stay as-is. */
 function treatmentRowsHtml(
   option: QuotationOption,
   display: QuotationDisplayOptions,
@@ -151,7 +157,7 @@ function treatmentRowsHtml(
   language: QuotationLanguage,
 ): string {
   const rows: string[] = [];
-  const { implants, crowns, bridge, procedures } = option.treatment;
+  const { implants, crowns, veneers, bridge, procedures } = option.treatment;
   const totalText = (value: number) =>
     display.showProductPrices ? bidi(esc(money(value, display)), rtl) : esc(labels.included);
 
@@ -164,7 +170,16 @@ function treatmentRowsHtml(
 
   if (crowns.quantity) {
     rows.push(
-      `<div class="treatment-row"><div><strong>${esc(labels.dentalCrowns)}</strong><span>${esc(crowns.name || '')}</span></div><strong>${bidi(crowns.quantity, rtl)}</strong><strong>${totalText(crowns.total)}</strong></div>`,
+      `<div class="treatment-row"><div><strong>${esc(labels.dentalCrowns)}</strong><span>${esc(translateProductName(crowns.name, language))}</span></div><strong>${bidi(crowns.quantity, rtl)}</strong><strong>${totalText(crowns.total)}</strong></div>`,
+    );
+  }
+
+  if (veneers.quantity) {
+    // The catalog's generic "Veneers" item would just repeat the row label — only a specific
+    // material gets its own sub-line.
+    const material = veneers.name && veneers.name.toLowerCase() !== 'veneers' ? translateProductName(veneers.name, language) : '';
+    rows.push(
+      `<div class="treatment-row"><div><strong>${esc(labels.dentalVeneers)}</strong><span>${esc(material)}</span></div><strong>${bidi(veneers.quantity, rtl)}</strong><strong>${totalText(veneers.total)}</strong></div>`,
     );
   }
 
@@ -180,7 +195,7 @@ function treatmentRowsHtml(
     // $0/€0, regardless of `showProductPrices` — there is nothing to hide, it was never set.
     const procedureTotalText = procedure.priceConfigured ? totalText(procedure.total) : esc(labels.priceTbd);
     rows.push(
-      `<div class="treatment-row"><div><strong>${esc(procedure.name)}</strong><span>${procedure.unit ? `${bidi(procedure.quantity, rtl)} ${esc(procedure.unit)}` : ''}</span></div><strong>${bidi(procedure.quantity, rtl)}</strong><strong>${procedureTotalText}</strong></div>`,
+      `<div class="treatment-row"><div><strong>${esc(translateProcedureName(procedure.name, language))}</strong><span>${procedure.unit ? `${bidi(procedure.quantity, rtl)} ${esc(translateProcedureUnit(procedure.unit, language))}` : ''}</span></div><strong>${bidi(procedure.quantity, rtl)}</strong><strong>${procedureTotalText}</strong></div>`,
     );
   }
 
@@ -199,6 +214,7 @@ function visitCardHtml(
   display: QuotationDisplayOptions,
   labels: PremiumLabels,
   rtl: boolean,
+  language: QuotationLanguage,
 ): string {
   if (!visit) return '';
 
@@ -225,7 +241,7 @@ function visitCardHtml(
         hotel
           ? `
         <div class="visit-line">
-          <span><strong>${esc(hotel.name)}</strong><br>${esc(hotel.roomLabel || hotel.roomType)} • ${bidi(hotel.nights, rtl)} ${esc(labels.nights)}</span>
+          <span><strong>${esc(hotel.name)}</strong><br>${esc(translateRoomType(hotel.roomLabel || hotel.roomType, language))} • ${bidi(hotel.nights, rtl)} ${esc(labels.nights)}</span>
           <strong>${hotelTotalText}</strong>
         </div>
       `
@@ -337,7 +353,7 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
         </div>
 
         <div class="option-kicker">${esc(labels.option)} ${bidi(index + 1, rtl)}</div>
-        <h2>${esc(option.name || `${labels.option} ${index + 1}`)}</h2>
+        <h2>${esc(translateOptionName(option.name, language) || `${labels.option} ${index + 1}`)}</h2>
 
         <div class="treatment-table">
           <div class="treatment-head"><span>${esc(labels.procedure)}</span><span>${esc(labels.qty)}</span><span>${esc(labels.total)}</span></div>
@@ -346,8 +362,8 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
 
         <div class="section-label">${esc(labels.accommodation)} — ${visitCount === 1 ? esc(labels.oneVisit) : esc(labels.twoVisits)}</div>
         <div class="visit-grid">
-          ${visitCardHtml(visit1, labels.visit1, display, labels, rtl)}
-          ${visitCardHtml(visit2, labels.visit2, display, labels, rtl)}
+          ${visitCardHtml(visit1, labels.visit1, display, labels, rtl, language)}
+          ${visitCardHtml(visit2, labels.visit2, display, labels, rtl, language)}
         </div>
 
         <div class="option-total-box">
@@ -513,8 +529,11 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
   .finance-box div { display: block; border: 1px solid #dfe4ea; border-radius: 5px; padding: 4mm; }
   .finance-box span { display: block; font-size: 8px; color: #737c89; }
   .finance-box strong { display: block; margin-top: 2mm; font-size: 12px; color: #09234a; }
-  .doctor-card { display: grid; grid-template-columns: 38mm 1fr; gap: 5mm; border: 1px solid #e0e4e9; border-radius: 6px; padding: 4mm; margin-bottom: 4mm; min-height: 44mm; }
-  .doctor-card img { width: 38mm; height: 44mm; object-fit: cover; border-radius: 4px; background: #eef1f5; }
+  /* Sized so the maximum of 4 cards (see doctorCardsHtml) always fits on the one team page —
+     at 44mm photos the 4th card spilled onto a page of its own. A card never splits across
+     pages either way. */
+  .doctor-card { display: grid; grid-template-columns: 32mm 1fr; gap: 5mm; border: 1px solid #e0e4e9; border-radius: 6px; padding: 3.5mm; margin-bottom: 3.5mm; break-inside: avoid; page-break-inside: avoid; }
+  .doctor-card img { width: 32mm; height: 38mm; object-fit: cover; object-position: top; border-radius: 4px; background: #eef1f5; }
   .doctor-card h3 { margin: 1mm 0 2mm; font-size: 15px; }
   .doctor-card p { margin: 1mm 0; font-size: 9px; color: #667080; line-height: 1.5; }
   .doctor-card .doctor-specialty { color: #d8232a; font-weight: 700; }
@@ -597,7 +616,7 @@ ${optionBlocks}
     <h2>${esc(labels.investment)}</h2>
     ${
       selected
-        ? `<div class="option-total-box"><span>${esc(selected.name || labels.selectedOption)}</span><strong>${m(selected.totals.total)}</strong></div>`
+        ? `<div class="option-total-box"><span>${esc(translateOptionName(selected.name, language) || labels.selectedOption)}</span><strong>${m(selected.totals.total)}</strong></div>`
         : ''
     }
     <div class="payment-box">

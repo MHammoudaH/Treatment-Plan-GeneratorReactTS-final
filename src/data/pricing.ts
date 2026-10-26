@@ -142,8 +142,13 @@ export interface FinancingRules {
   maximumTermMonths: number;
 }
 
+/** Veneers share the crown item shape (no origin) but are a separate catalog/line — an option
+ *  can carry crowns, veneers, both, or neither, independently of implants. */
+export type VeneerCatalogItem = CrownCatalogItem;
+
 export interface PricingCatalog {
   crowns: CrownCatalogItem[];
+  veneers: VeneerCatalogItem[];
   implants: ImplantCatalogItem[];
   procedures: ProcedureCatalogItem[];
   bridges: BridgeCatalogItem[];
@@ -158,6 +163,8 @@ export const PRICING: PricingCatalog = {
     { id: 'monolithic', name: 'Zirconium Crowns Monolithic', price: usdOnly(170) },
     { id: 'multilayer', name: 'Zirconium Crowns Multilayer', price: usdOnly(170) },
     { id: 'straumann-zirconia', name: 'Zirconium Crowns Straumann', displayName: 'Straumann Zirconia', price: usdOnly(170) },
+  ],
+  veneers: [
     { id: 'veneers', name: 'Veneers', price: usdOnly(150) },
   ],
   implants: [

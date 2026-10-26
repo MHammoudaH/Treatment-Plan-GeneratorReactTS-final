@@ -43,9 +43,11 @@
  * otherwise used only to print an optional "≈ $X USD" reference line (see
  * `src/lib/formatMoney.ts`), never to compute a treatment price.
  *
- * TREATMENT COMPOSITION: implant, crown and bridge quantities are entered independently by
- * the coordinator — there is no automatic "All-on-X" derivation, no 1-crown-per-implant
- * coupling, and bridge quantity is never inferred from implant/crown counts. The coordinator
+ * TREATMENT COMPOSITION: implant, crown, veneer and bridge quantities are entered
+ * independently by the coordinator — there is no automatic "All-on-X" derivation, no
+ * 1-crown-per-implant coupling, and bridge quantity is never inferred from implant/crown
+ * counts. Any of them may be zero, so a crowns-only or veneers-only plan is just as valid as
+ * an implant plan. The coordinator
  * builds the plan from the doctor's confirmed treatment directly.
  *
  * FLIGHT TICKET: an optional, plan-level, manually entered cost (never calculated, never
@@ -63,6 +65,7 @@ import {
   type HotelCatalogItem,
   type ImplantCatalogItem,
   type PriceValue,
+  type VeneerCatalogItem,
 } from '../../data/pricing';
 import type {
   ProcedureLineItem,
@@ -147,6 +150,9 @@ export interface OptionInput {
   /** Crown quantity, material and pricing — entered independently of implant/bridge quantity.
    *  There is no 1-crown-per-implant rule; the coordinator enters the actual count. */
   crown: ProductSelection;
+  /** Veneer quantity, material and pricing — an independent line like crowns, so an option can
+   *  be crowns-only, veneers-only, both, or combined with implants. */
+  veneer: ProductSelection;
   /** Full-arch prosthetic bridge — an ordinary priced line like implant/crown (unit price
    *  × quantity), independent of currency AND independent of implant/crown quantity. The
    *  coordinator adds/removes it manually; it is never inferred from implants being present. */
@@ -155,6 +161,8 @@ export interface OptionInput {
   visits: 1 | 2;
   /** Crowns completed during visit 1 when `visits === 2`. Remaining crowns are assigned to visit 2. */
   visit1CrownCount: number;
+  /** Veneers completed during visit 1 when `visits === 2`. Remaining veneers are assigned to visit 2. */
+  visit1VeneerCount: number;
   visit1: VisitInput;
   /** Required when `visits === 2`; ignored (treated as absent) when `visits === 1`. */
   visit2: VisitInput | null;
@@ -184,10 +192,12 @@ export function createOptionInput(id: string, name: string): OptionInput {
     name,
     implant: { itemId: null, count: 0, markupPercent: 25, finalUnitPriceOverride: null },
     crown: { itemId: null, count: 0, markupPercent: 25, finalUnitPriceOverride: null },
+    veneer: { itemId: null, count: 0, markupPercent: 25, finalUnitPriceOverride: null },
     bridge: emptyProductSelection(),
     procedures: [],
     visits: 2,
     visit1CrownCount: 0,
+    visit1VeneerCount: 0,
     visit1: { ...emptyVisitInput(), transfer: { selectedUsd: STANDARD_TRANSFER_USD, finalPriceOverride: null } },
     visit2: emptyVisitInput(),
     flightTicket: emptyFlightTicket(),
@@ -195,7 +205,7 @@ export function createOptionInput(id: string, name: string): OptionInput {
 }
 
 /**
- * Builds a new option pre-filled from `source`'s copyable fields — implant/crown/bridge
+ * Builds a new option pre-filled from `source`'s copyable fields — implant/crown/veneer/bridge
  * QUANTITIES, visit structure, hotel selection + nights, transfer/prosthesis selections — while
  * resetting every brand/material choice (`itemId`) and every manual price override
  * (`finalUnitPriceOverride`, `nightlyPriceOverride`, `finalPriceOverride`, `overrideTotal`) to
@@ -221,10 +231,12 @@ export function cloneOptionForNewOption(source: OptionInput, id: string, name: s
     name,
     implant: cloneProduct(source.implant),
     crown: cloneProduct(source.crown),
+    veneer: cloneProduct(source.veneer),
     bridge: cloneProduct(source.bridge),
     procedures: [],
     visits: source.visits,
     visit1CrownCount: source.visit1CrownCount,
+    visit1VeneerCount: source.visit1VeneerCount,
     visit1: cloneVisit(source.visit1),
     visit2: source.visit2 ? cloneVisit(source.visit2) : null,
     flightTicket: emptyFlightTicket(),
@@ -234,7 +246,7 @@ export function cloneOptionForNewOption(source: OptionInput, id: string, name: s
 // ---------------------------------------------------------------------------------------
 // Auto-naming an option after its implant brand's country of origin (e.g. "Straumann" ->
 // "Swiss", "Medigma" -> "German") — matches the per-language dictionaries already built for
-// this exact convention (`OPTION_NAME_TRANSLATIONS` / `arTranslateOptionName`), which expect
+// this exact convention (`translateOptionName` in `src/lib/pdf/contentTranslations.ts`), which expects
 // the option's `name` to be exactly one of these bare origin words.
 // ---------------------------------------------------------------------------------------
 
@@ -287,6 +299,10 @@ function findImplant(id: string | null): ImplantCatalogItem | null {
 
 function findCrown(id: string | null): CrownCatalogItem | null {
   return id ? PRICING.crowns.find((item) => item.id === id) ?? null : null;
+}
+
+function findVeneer(id: string | null): VeneerCatalogItem | null {
+  return id ? PRICING.veneers.find((item) => item.id === id) ?? null : null;
 }
 
 function findBridge(id: string | null): BridgeCatalogItem | null {
@@ -422,10 +438,12 @@ export function calculateOption(input: OptionInput, currency: Currency, fxRate: 
 
   const implantCatalog = findImplant(input.implant.itemId);
   const crownCatalog = findCrown(input.crown.itemId);
+  const veneerCatalog = findVeneer(input.veneer.itemId);
   const bridgeCatalog = findBridge(input.bridge.itemId);
 
   const implantLine = calculateProduct(input.implant, implantCatalog, currency);
   const crownLine = calculateProduct(input.crown, crownCatalog, currency);
+  const veneerLine = calculateProduct(input.veneer, veneerCatalog, currency);
   const bridgeLine = calculateProduct(input.bridge, bridgeCatalog, currency);
 
   const procedures = input.procedures
@@ -439,11 +457,18 @@ export function calculateOption(input: OptionInput, currency: Currency, fxRate: 
   const visit1CrownTotal = round2(visit1CrownCount * crownLine.finalUnitPrice);
   const visit2CrownTotal = round2(visit2CrownCount * crownLine.finalUnitPrice);
 
+  // Veneers follow the same rule as crowns: the coordinator sets how many are finished in
+  // visit 1, the remainder goes to visit 2.
+  const visit1VeneerCount = input.visits === 2 ? Math.min(Math.max(0, input.visit1VeneerCount), input.veneer.count) : input.veneer.count;
+  const visit2VeneerCount = input.visits === 2 ? input.veneer.count - visit1VeneerCount : 0;
+  const visit1VeneerTotal = round2(visit1VeneerCount * veneerLine.finalUnitPrice);
+  const visit2VeneerTotal = round2(visit2VeneerCount * veneerLine.finalUnitPrice);
+
   // All implants, the bridge and additional procedures are billed on visit 1 (legacy
   // behaviour, preserved: these have no per-visit split in the source data model — a
   // bridge is a discrete per-arch unit, not something to fraction across visits).
-  const visit1DentalTotal = round2(implantLine.total + bridgeLine.total + visit1CrownTotal + proceduresTotal);
-  const visit2DentalTotal = round2(visit2CrownTotal);
+  const visit1DentalTotal = round2(implantLine.total + bridgeLine.total + visit1CrownTotal + visit1VeneerTotal + proceduresTotal);
+  const visit2DentalTotal = round2(visit2CrownTotal + visit2VeneerTotal);
 
   const visit1Hotel = calculateHotel(input.visit1.hotel, effectiveFxRate);
   const visit1Transfer = calculateService('VIP transfer', input.visit1.transfer, effectiveFxRate);
@@ -460,6 +485,7 @@ export function calculateOption(input: OptionInput, currency: Currency, fxRate: 
 
   const visit1: QuotationVisit = {
     crowns: visit1CrownCount,
+    veneers: visit1VeneerCount,
     hotel: visit1Hotel,
     services: visit1Services,
     dentalTotal: visit1DentalTotal,
@@ -485,6 +511,7 @@ export function calculateOption(input: OptionInput, currency: Currency, fxRate: 
     const visit2FinalTotal = visit2OverrideTotal ?? visit2CalculatedTotal;
     visit2 = {
       crowns: visit2CrownCount,
+      veneers: visit2VeneerCount,
       hotel: visit2Hotel,
       services: visit2Services,
       dentalTotal: visit2DentalTotal,
@@ -517,7 +544,7 @@ export function calculateOption(input: OptionInput, currency: Currency, fxRate: 
     total: finalTotal,
   };
 
-  const treatment: QuotationTreatment = { implants: implantLine, crowns: crownLine, bridge: bridgeLine, procedures };
+  const treatment: QuotationTreatment = { implants: implantLine, crowns: crownLine, veneers: veneerLine, bridge: bridgeLine, procedures };
 
   return {
     id: input.id,

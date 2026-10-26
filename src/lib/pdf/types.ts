@@ -88,6 +88,9 @@ export interface ProcedureLineItem {
 export interface QuotationTreatment {
   implants: TreatmentLineItem;
   crowns: TreatmentLineItem;
+  /** Veneers — an independent line like crowns (quantity 0 when the option has none;
+   *  renderers skip a zero-quantity row). */
+  veneers: TreatmentLineItem;
   /** Full-arch prosthetic bridge line (`unit price × quantity`, e.g. 1 per arch treated).
    *  `quantity` is 0 when the option has no bridge — the line is still present so PDFs can
    *  render a consistent shape; renderers should skip a zero-quantity bridge row. */
@@ -144,6 +147,8 @@ export interface QuotationVisitServices {
 export interface QuotationVisit {
   /** Number of crowns fitted during this specific visit (legacy `calculateOption()`'s `visit1Crowns`/`visit2Crowns`). */
   crowns: number;
+  /** Number of veneers fitted during this specific visit (same split rule as `crowns`). */
+  veneers: number;
   /** Hotel booked for this visit, or null when no accommodation is included. */
   hotel: QuotationHotelDetails | null;
   services: QuotationVisitServices;
@@ -199,7 +204,7 @@ export interface QuotationOptionTotals {
 export interface QuotationOption {
   /** Stable id for the option (legacy `card.dataset.optionId` or `option-{n}`). */
   id: string;
-  /** Option display name, e.g. "German Implant System" or a coordinator-typed custom name. Some translations are applied at render time (see `OPTION_NAME_TRANSLATIONS`). */
+  /** Option display name, e.g. "German Implant System" or a coordinator-typed custom name. Some translations are applied at render time (see `translateOptionName` in `contentTranslations.ts`). */
   name: string;
   treatment: QuotationTreatment;
   visits: QuotationVisits;
@@ -260,6 +265,8 @@ export interface PatientTreatmentData {
   lowerImplantsMax?: number;
   /** Number of crowns planned. */
   crowns?: number;
+  /** Number of veneers planned. */
+  veneers?: number;
   /** Crown material, e.g. "zirconia" (only affects the English/Premium wording today). */
   crownMaterial?: string;
 }

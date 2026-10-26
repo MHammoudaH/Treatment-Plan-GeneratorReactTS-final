@@ -70,7 +70,7 @@ function reducer(state: WizardState, action: Action): WizardState {
       return { ...state, options: [...state.options, option] };
     }
     case 'PREFILL_OPTIONS_FROM_DIAGNOSIS': {
-      // Ensure Option 1 exists, then seed its implant/crown counts. The tooth map wins when
+      // Ensure Option 1 exists, then seed its implant/crown/veneer counts. The tooth map wins when
       // the coordinator has planted teeth on it; otherwise fall back to the parsed diagnosis
       // (lower-jaw range → its lower bound). Every count stays editable on the options step.
       const options = state.options.length ? state.options : [createOptionInput(`option-${Date.now()}-1`, 'Option 1')];
@@ -80,11 +80,13 @@ function reducer(state: WizardState, action: Action): WizardState {
 
       const implantCount = planted.implants || (parsed ? (parsed.upperImplants ?? 0) + (parsed.lowerImplantsMin ?? 0) : 0);
       const crownCount = planted.crowns || (parsed ? parsed.crowns ?? 0 : 0);
+      const veneerCount = parsed?.veneers ?? 0;
       const [first, ...rest] = options;
       const seeded: OptionInput = {
         ...first,
         implant: { ...first.implant, count: implantCount || first.implant.count },
         crown: { ...first.crown, count: crownCount || first.crown.count },
+        veneer: { ...first.veneer, count: veneerCount || first.veneer.count },
       };
       return { ...state, options: [seeded, ...rest] };
     }

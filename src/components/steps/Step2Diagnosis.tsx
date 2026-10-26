@@ -47,13 +47,14 @@ export function Step2Diagnosis() {
                 {parsed.crowns} crown(s){parsed.crownMaterial ? ` (${parsed.crownMaterial})` : ''}
               </li>
             ) : null}
-            {parsed.upperImplants || parsed.lowerImplantsMin ? (
+            {parsed.veneers ? <li>{parsed.veneers} veneer(s)</li> : null}
+            {parsed.upperImplants || parsed.lowerImplantsMin || parsed.crowns || parsed.veneers ? (
               <li>
-                <strong>{(parsed.upperImplants ?? 0) + (parsed.lowerImplantsMin ?? 0)} implant(s)</strong> and{' '}
-                <strong>{parsed.crowns ?? 0} crown(s)</strong> will pre-fill Option 1
+                <strong>{(parsed.upperImplants ?? 0) + (parsed.lowerImplantsMin ?? 0)} implant(s)</strong>,{' '}
+                <strong>{parsed.crowns ?? 0} crown(s)</strong> and <strong>{parsed.veneers ?? 0} veneer(s)</strong> will pre-fill Option 1
               </li>
             ) : null}
-            {!parsed.upperImplants && !parsed.lowerImplantsMin && !parsed.crowns ? <li>No quantities detected — you can still add options manually on the next step.</li> : null}
+            {!parsed.upperImplants && !parsed.lowerImplantsMin && !parsed.crowns && !parsed.veneers ? <li>No quantities detected — you can still add options manually on the next step.</li> : null}
           </ul>
           <small className="hint">
             Reads pasted text in any language (English, Arabic, Russian, French, Spanish, …) and Western or Arabic-Indic

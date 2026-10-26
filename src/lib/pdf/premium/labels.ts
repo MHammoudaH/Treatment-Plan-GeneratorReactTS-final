@@ -17,6 +17,7 @@ export interface PremiumSummaryLabels {
   /** `range` is already formatted ("4" or "6–8"); `isRange` is true when min ≠ max. */
   lowerImplants: (range: string, isRange: boolean) => string;
   crowns: (count: number, zirconia: boolean) => string;
+  veneers: (count: number) => string;
 }
 
 /** Every static string printed by the Premium Proposal PDF, in one language. */
@@ -49,6 +50,7 @@ export interface PremiumLabels {
   total: string;
   dentalImplants: string;
   dentalCrowns: string;
+  dentalVeneers: string;
   dentalBridge: string;
   included: string;
   /** Printed instead of a $0/€0 amount for a procedure line whose `priceConfigured` is false
@@ -113,6 +115,7 @@ const EN: PremiumLabels = {
   total: 'Total',
   dentalImplants: 'Dental implants',
   dentalCrowns: 'Dental crowns',
+  dentalVeneers: 'Veneers',
   dentalBridge: 'Full-arch dental bridge',
   included: 'Included',
   priceTbd: 'Price to be confirmed',
@@ -151,7 +154,8 @@ const EN: PremiumLabels = {
     upperImplants: (n) => `${n} implant${n > 1 ? 's' : ''} for the upper jaw`,
     lowerImplants: (range, isRange) =>
       `${range} implant${isRange ? 's' : ''} for the lower jaw according to clinical examination`,
-    crowns: (n, z) => `${n} ${z ? 'zirconia ' : ''}crowns`,
+    crowns: (n, z) => `${n} ${z ? 'zirconia ' : ''}crown${n > 1 ? 's' : ''}`,
+    veneers: (n) => `${n} veneer${n > 1 ? 's' : ''}`,
   },
 };
 
@@ -179,6 +183,7 @@ const RU: PremiumLabels = {
   total: 'Итого',
   dentalImplants: 'Зубные импланты',
   dentalCrowns: 'Зубные коронки',
+  dentalVeneers: 'Виниры',
   dentalBridge: 'Полный мостовидный протез',
   included: 'Включено',
   priceTbd: 'Цена уточняется',
@@ -217,6 +222,7 @@ const RU: PremiumLabels = {
     upperImplants: (n) => `${n} имплантатов на верхнюю челюсть`,
     lowerImplants: (range) => `${range} имплантатов на нижнюю челюсть по результатам клинического осмотра`,
     crowns: (n, z) => `${n} ${z ? 'циркониевых ' : ''}коронок`,
+    veneers: (n) => `${n} виниров`,
   },
 };
 
@@ -244,6 +250,7 @@ const FR: PremiumLabels = {
   total: 'Total',
   dentalImplants: 'Implants dentaires',
   dentalCrowns: 'Couronnes dentaires',
+  dentalVeneers: 'Facettes dentaires',
   dentalBridge: 'Bridge complet sur arcade',
   included: 'Inclus',
   priceTbd: 'Prix à confirmer',
@@ -283,6 +290,7 @@ const FR: PremiumLabels = {
     lowerImplants: (range, isRange) =>
       `${range} implant${isRange ? 's' : ''} pour la mâchoire inférieure selon l’examen clinique`,
     crowns: (n, z) => `${n} couronne${n > 1 ? 's' : ''}${z ? ' en zircone' : ''}`,
+    veneers: (n) => `${n} facette${n > 1 ? 's' : ''}`,
   },
 };
 
@@ -310,6 +318,7 @@ const ES: PremiumLabels = {
   total: 'Total',
   dentalImplants: 'Implantes dentales',
   dentalCrowns: 'Coronas dentales',
+  dentalVeneers: 'Carillas dentales',
   dentalBridge: 'Puente dental de arco completo',
   included: 'Incluido',
   priceTbd: 'Precio por confirmar',
@@ -349,6 +358,7 @@ const ES: PremiumLabels = {
     lowerImplants: (range, isRange) =>
       `${range} implante${isRange ? 's' : ''} para el maxilar inferior según el examen clínico`,
     crowns: (n, z) => `${n} corona${n > 1 ? 's' : ''}${z ? ' de circonio' : ''}`,
+    veneers: (n) => `${n} carilla${n > 1 ? 's' : ''}`,
   },
 };
 
@@ -376,6 +386,7 @@ const AR: PremiumLabels = {
   total: 'الإجمالي',
   dentalImplants: 'زرعات الأسنان',
   dentalCrowns: 'تيجان الأسنان',
+  dentalVeneers: 'قشور الأسنان (فينير)',
   dentalBridge: 'الجسر التعويضي الكامل',
   included: 'مشمول',
   priceTbd: 'السعر يُحدَّد لاحقًا',
@@ -414,6 +425,7 @@ const AR: PremiumLabels = {
     upperImplants: (n) => `${n} زرعات في الفك العلوي`,
     lowerImplants: (range) => `${range} زرعات في الفك السفلي حسب الفحص السريري`,
     crowns: (n, z) => `${n} ${z ? 'تيجان من الزيركون' : 'تيجان'}`,
+    veneers: (n) => `${n} قشور (فينير)`,
   },
 };
 

@@ -1,5 +1,14 @@
 import { useMemo } from 'react';
-import { PRICING, markupPresetsForPrice, priceFor, type Currency, type PriceValue, type ProcedureCatalogItem, type ProcedureCategory } from '../../data/pricing';
+import {
+  PRICING,
+  markupPresetsForPrice,
+  priceFor,
+  type CrownCatalogItem,
+  type Currency,
+  type PriceValue,
+  type ProcedureCatalogItem,
+  type ProcedureCategory,
+} from '../../data/pricing';
 import { formatMoney } from '../../lib/formatMoney';
 import {
   calculateOption,
@@ -9,6 +18,7 @@ import {
   type HotelSelection,
   type OptionInput,
   type ProcedureSelection,
+  type ProductSelection,
   type ServiceSelection,
   type VisitInput,
 } from '../../lib/pricing/engine';
@@ -45,7 +55,6 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
   const fxRate = display.currency === 'USD' ? 1 : display.fxRate;
   const result = useMemo(() => calculateOption(option, display.currency, fxRate), [option, display.currency, fxRate]);
   const implantCatalog = PRICING.implants.find((i) => i.id === option.implant.itemId) ?? null;
-  const crownCatalog = PRICING.crowns.find((c) => c.id === option.crown.itemId) ?? null;
 
   function patch(partial: Partial<OptionInput>) {
     onChange({ ...option, ...partial });
@@ -158,51 +167,33 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
         </div>
 
         {/* CROWNS — quantity is entered independently; there is no 1-crown-per-implant rule. */}
-        <div>
-          <h4>Crowns</h4>
-          <label>Total crowns</label>
-          <NumberField min={0} value={option.crown.count} onChange={(n) => patch({ crown: { ...option.crown, count: Math.max(0, n) } })} />
+        <ProductFields
+          title="Crowns"
+          countLabel="Total crowns"
+          itemLabel="Crown system / material"
+          placeholder="Select crown material"
+          catalog={PRICING.crowns}
+          selection={option.crown}
+          onChange={(crown) => patch({ crown })}
+          display={display}
+          priceLabel={priceLabel}
+        />
+      </div>
 
-          <label>Crown system / material</label>
-          <select value={option.crown.itemId ?? ''} onChange={(e) => patch({ crown: { ...option.crown, itemId: e.target.value || null } })}>
-            <option value="">Select crown material</option>
-            {PRICING.crowns.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.displayName ?? item.name} — {priceLabel(item.price)}
-              </option>
-            ))}
-          </select>
-          {crownCatalog && priceFor(crownCatalog.price, display.currency) === null && option.crown.finalUnitPriceOverride === null && (
-            <p className="config-warning">
-              {display.currency} price not configured for {crownCatalog.displayName ?? crownCatalog.name}. Enter a final unit price
-              override below, or configure the {display.currency} price in the pricing catalog.
-            </p>
-          )}
-
-          <label>Crown markup</label>
-          <div className="percentage-input">
-            <select
-              value={option.crown.markupPercent}
-              disabled={option.crown.finalUnitPriceOverride !== null}
-              onChange={(e) => patch({ crown: { ...option.crown, markupPercent: Number(e.target.value) } })}
-            >
-              {markupPresetsForPrice(priceFor(crownCatalog?.price ?? { usd: null, eur: null, aud: null }, display.currency) ?? 0).map((pct) => (
-                <option key={pct} value={pct}>
-                  {pct}%
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <label>Final unit price override ({display.currency}) — optional</label>
-          <input
-            type="number"
-            min={0}
-            step={0.01}
-            value={option.crown.finalUnitPriceOverride ?? ''}
-            onChange={(e) => patch({ crown: { ...option.crown, finalUnitPriceOverride: overrideFromInput(e.target.value) } })}
-          />
-        </div>
+      {/* VENEERS — an independent line like crowns, so an option can be crowns-only,
+          veneers-only, both, or combined with implants. */}
+      <div className="grid-2">
+        <ProductFields
+          title="Veneers"
+          countLabel="Total veneers"
+          itemLabel="Veneer material"
+          placeholder="Select veneer material"
+          catalog={PRICING.veneers}
+          selection={option.veneer}
+          onChange={(veneer) => patch({ veneer })}
+          display={display}
+          priceLabel={priceLabel}
+        />
       </div>
 
       {/* BRIDGE — an independent procedure the coordinator adds/removes manually. Its
@@ -318,6 +309,12 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
       {option.visits === 2 && (
         <NumberField min={0} max={option.crown.count} value={option.visit1CrownCount} onChange={(n) => patch({ visit1CrownCount: Math.max(0, n) })} />
       )}
+      {option.visits === 2 && option.veneer.count > 0 && (
+        <>
+          <label>Veneers completed in visit 1 (remainder assigned to visit 2)</label>
+          <NumberField min={0} max={option.veneer.count} value={option.visit1VeneerCount} onChange={(n) => patch({ visit1VeneerCount: Math.max(0, n) })} />
+        </>
+      )}
 
       <VisitFields
         title={option.visits === 1 ? 'Visit (single-visit plan)' : 'Visit 1'}
@@ -390,6 +387,79 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
         </div>
       )}
     </article>
+  );
+}
+
+/** Count / catalog item / markup / final-price-override fields for one priced product line
+ *  (crowns, veneers) — each entered independently of every other line. */
+function ProductFields({
+  title,
+  countLabel,
+  itemLabel,
+  placeholder,
+  catalog,
+  selection,
+  onChange,
+  display,
+  priceLabel,
+}: {
+  title: string;
+  countLabel: string;
+  itemLabel: string;
+  placeholder: string;
+  catalog: CrownCatalogItem[];
+  selection: ProductSelection;
+  onChange: (next: ProductSelection) => void;
+  display: DisplaySettings;
+  priceLabel: (price: PriceValue) => string;
+}) {
+  const item = catalog.find((c) => c.id === selection.itemId) ?? null;
+  return (
+    <div>
+      <h4>{title}</h4>
+      <label>{countLabel}</label>
+      <NumberField min={0} value={selection.count} onChange={(n) => onChange({ ...selection, count: Math.max(0, n) })} />
+
+      <label>{itemLabel}</label>
+      <select value={selection.itemId ?? ''} onChange={(e) => onChange({ ...selection, itemId: e.target.value || null })}>
+        <option value="">{placeholder}</option>
+        {catalog.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.displayName ?? c.name} — {priceLabel(c.price)}
+          </option>
+        ))}
+      </select>
+      {item && priceFor(item.price, display.currency) === null && selection.finalUnitPriceOverride === null && (
+        <p className="config-warning">
+          {display.currency} price not configured for {item.displayName ?? item.name}. Enter a final unit price override below,
+          or configure the {display.currency} price in the pricing catalog.
+        </p>
+      )}
+
+      <label>{title} markup</label>
+      <div className="percentage-input">
+        <select
+          value={selection.markupPercent}
+          disabled={selection.finalUnitPriceOverride !== null}
+          onChange={(e) => onChange({ ...selection, markupPercent: Number(e.target.value) })}
+        >
+          {markupPresetsForPrice(priceFor(item?.price ?? { usd: null, eur: null, aud: null }, display.currency) ?? 0).map((pct) => (
+            <option key={pct} value={pct}>
+              {pct}%
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <label>Final unit price override ({display.currency}) — optional</label>
+      <input
+        type="number"
+        min={0}
+        step={0.01}
+        value={selection.finalUnitPriceOverride ?? ''}
+        onChange={(e) => onChange({ ...selection, finalUnitPriceOverride: overrideFromInput(e.target.value) })}
+      />
+    </div>
   );
 }
 
