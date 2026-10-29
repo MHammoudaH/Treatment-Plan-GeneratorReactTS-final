@@ -1327,3 +1327,170 @@ img {
 .bmi-feet-inches select {
   flex: 1;
 }
+
+/* ---- Team performance ---- */
+.perf-period {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0;
+}
+
+.perf-period-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.perf-period-nav strong {
+  min-width: 130px;
+  text-align: center;
+}
+
+.perf-table-wrap {
+  overflow-x: auto;
+}
+
+.perf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.perf-table th,
+.perf-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.perf-table th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.perf-table td small {
+  display: block;
+  color: var(--muted);
+}
+
+.perf-table tr.mine td {
+  background: #eef4fa;
+}
+
+.perf-progress {
+  min-width: 120px;
+}
+
+.perf-bar {
+  height: 6px;
+  margin-top: 4px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.perf-bar i {
+  display: block;
+  height: 100%;
+  background: var(--blue);
+}
+
+.perf-bar.done i {
+  background: #2e8b57;
+}
+
+.perf-team {
+  margin-top: 24px;
+}
+
+.perf-team-target {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-bottom: 8px;
+}
+
+.perf-target-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.perf-target-editor input {
+  width: 76px;
+}
+
+.join-team,
+.join-requests {
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.join-team-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.join-team-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+}
+
+.join-team-list small {
+  display: block;
+  color: var(--muted);
+}
+
+.join-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.my-target-strip {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--blue);
+  border-radius: 10px;
+  background: var(--card-bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.my-target-strip small {
+  color: var(--blue);
+}
+
+.perf-member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.perf-member-actions select {
+  width: auto;
+}

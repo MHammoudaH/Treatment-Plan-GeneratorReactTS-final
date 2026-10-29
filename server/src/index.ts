@@ -9,6 +9,7 @@ import { zohoRouter, dealsHandler } from './zoho/routes.js';
 import { teamRouter } from './team/routes.js';
 import { planningRouter } from './planning/routes.js';
 import { recordsRouter } from './records/routes.js';
+import { performanceRouter } from './performance/routes.js';
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.get('/api/deals', requireAuth, dealsHandler);
 app.use('/api/team', teamRouter);
 app.use('/api/planning', planningRouter);
 app.use('/api/patient-records', recordsRouter);
+app.use('/api/performance', performanceRouter);
 
 // 404 for unknown /api routes
 app.use('/api', (_req, res) => {

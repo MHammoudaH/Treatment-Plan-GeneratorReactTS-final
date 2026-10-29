@@ -13,9 +13,12 @@ import { PlasticSurgeryModule } from './components/PlasticSurgeryModule';
 import { TeamLeaderView } from './components/team/TeamLeaderView';
 import { PlanningView } from './components/planning/PlanningView';
 import { MyPatientsView } from './components/records/MyPatientsView';
+import { PerformanceBoard } from './components/performance/PerformanceBoard';
+import { JoinTeamPanel } from './components/performance/JoinTeamPanel';
+import { MyTargetStrip } from './components/performance/MyTargetStrip';
 import { ROLES } from './lib/api';
 
-type ClinicModule = 'dental' | 'plastic' | 'patients';
+type ClinicModule = 'dental' | 'plastic' | 'patients' | 'performance';
 
 function AppHeader({ onChangeModule }: { onChangeModule?: () => void }) {
   const { user, role, logout } = useAuth();
@@ -49,8 +52,10 @@ function AppHeader({ onChangeModule }: { onChangeModule?: () => void }) {
 }
 
 function ModuleLanding({ onChoose }: { onChoose: (module: ClinicModule) => void }) {
+  const { user, role } = useAuth();
   return (
     <>
+      {user && role === ROLES.COORDINATOR && <MyTargetStrip viewerId={user.id} onOpen={() => onChoose('performance')} />}
       <section className="module-landing wizard-step">
         <span className="eyebrow">DUTY Clinic</span>
         <h2>Choose a treatment module</h2>
@@ -67,6 +72,7 @@ function ModuleLanding({ onChoose }: { onChoose: (module: ClinicModule) => void 
         </div>
         <div className="module-choice-grid">
           <button type="button" className="secondary" onClick={() => onChoose('patients')}>My patients (follow-up records)</button>
+          <button type="button" className="secondary" onClick={() => onChoose('performance')}>Team performance &amp; targets</button>
         </div>
       </section>
 
@@ -93,6 +99,22 @@ function WizardShell({ onChangeModule }: { onChangeModule: () => void }) {
   );
 }
 
+/** Coordinator view of the leaderboards (a leader gets the editable version on their own page). */
+function TeamPerformancePage() {
+  const { user } = useAuth();
+  const [joinKey, setJoinKey] = useState(0);
+  if (!user) return null;
+  return (
+    <section className="wizard-step">
+      <span className="eyebrow">Competition</span>
+      <h2>Team performance</h2>
+      <p className="step-intro">Your progress against your targets, your teammates, and how your team ranks against the other teams.</p>
+      <JoinTeamPanel onChange={() => setJoinKey((n) => n + 1)} />
+      <PerformanceBoard key={joinKey} viewerId={user.id} />
+    </section>
+  );
+}
+
 /**
  * The coordinator experience: module landing -> dental wizard / plastic module.
  * Used directly for coordinators, and reachable by a team leader who opens
@@ -107,6 +129,15 @@ function CoordinatorApp({ onExit }: { onExit?: () => void }) {
       <QuotationProvider>
         <WizardShell onChangeModule={() => setModule(null)} />
       </QuotationProvider>
+    );
+  }
+
+  if (module === 'performance') {
+    return (
+      <div className="app-shell">
+        <AppHeader onChangeModule={() => setModule(null)} />
+        <TeamPerformancePage />
+      </div>
     );
   }
 

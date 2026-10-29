@@ -4,6 +4,7 @@ import { query, queryOne, type UserRow } from '../db.js';
 import { hashPassword, verifyPassword } from './passwords.js';
 import { signSession } from './jwt.js';
 import { requireAuth } from './middleware.js';
+import { applyEmailAssignments } from '../team/assignments.js';
 
 export const authRouter = Router();
 
@@ -54,11 +55,15 @@ authRouter.post('/signup', async (req: Request, res: Response) => {
   }
 
   const password_hash = await hashPassword(password);
-  const row = await queryOne<UserRow>(
+  let row = await queryOne<UserRow>(
     'INSERT INTO users (email, name, password_hash) VALUES ($1, $2, $3) RETURNING *',
     [email, name, password_hash],
   );
   if (!row) return res.status(500).json({ error: 'internal_error' });
+  // Admin-seeded team leader / member assignments for this email (never from the request).
+  if (await applyEmailAssignments(row.id, row.email)) {
+    row = (await queryOne<UserRow>('SELECT * FROM users WHERE id = $1', [row.id])) ?? row;
+  }
 
   const token = signSession({ sub: row.id, email: row.email, role: row.role });
   return res.status(201).json({ token, user: publicUser(row) });
@@ -69,7 +74,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   const email = normalizeEmail(req.body?.email);
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
 
-  const row = await queryOne<UserRow>('SELECT * FROM users WHERE lower(email) = $1', [email]);
+  let row = await queryOne<UserRow>('SELECT * FROM users WHERE lower(email) = $1', [email]);
   // Always run a verify to keep timing roughly constant whether or not the user exists.
   const ok = row ? await verifyPassword(password, row.password_hash) : await verifyPassword(password, 'scrypt$00$00');
   if (!row || !ok) {
@@ -77,14 +82,21 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   }
 
   await query('UPDATE users SET last_login_at = now() WHERE id = $1', [row.id]);
+  if (await applyEmailAssignments(row.id, row.email)) {
+    row = (await queryOne<UserRow>('SELECT * FROM users WHERE id = $1', [row.id])) ?? row;
+  }
   const token = signSession({ sub: row.id, email: row.email, role: row.role });
   return res.json({ token, user: publicUser(row) });
 });
 
 // GET /api/auth/me
 authRouter.get('/me', requireAuth, async (req: Request, res: Response) => {
-  const row = await queryOne<UserRow>('SELECT * FROM users WHERE id = $1', [req.user!.sub]);
+  let row = await queryOne<UserRow>('SELECT * FROM users WHERE id = $1', [req.user!.sub]);
   if (!row) return res.status(401).json({ error: 'unauthorized' });
+  // Someone already signed in (no fresh login) still picks up a new team assignment.
+  if (await applyEmailAssignments(row.id, row.email)) {
+    row = (await queryOne<UserRow>('SELECT * FROM users WHERE id = $1', [row.id])) ?? row;
+  }
   return res.json({ user: publicUser(row) });
 });
 

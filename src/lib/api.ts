@@ -316,3 +316,103 @@ export function addPatientQuote(id: number, quote: QuoteSnapshot): Promise<{ ent
 export function addPatientNote(id: number, body: string, topic: NoteTopic | null): Promise<{ entry: TimelineEntry }> {
   return apiFetch(`/patient-records/${id}/notes`, { method: 'POST', body: JSON.stringify({ body, topic }) });
 }
+
+// ---- team performance (leaderboards, targets, join requests) ----------------------
+// Mirror of server/src/performance/ — keep in sync.
+
+export type PeriodType = 'month' | 'quarter';
+
+export interface Period {
+  type: PeriodType;
+  start: string;
+  end: string;
+  label: string;
+}
+
+export interface Target {
+  quotes: number | null;
+  notes: number | null;
+}
+
+export interface MemberStats {
+  userId: number;
+  name: string;
+  email: string;
+  quotes: number;
+  notes: number;
+  target: Target;
+}
+
+export interface TeamBoard {
+  id: number;
+  name: string;
+  leaderId: number | null;
+  leaderName: string | null;
+  memberCount: number;
+  quotes: number;
+  notes: number;
+  quotesPerMember: number;
+  target: Target;
+  isMine: boolean;
+  members: MemberStats[];
+}
+
+export interface MyTeamStatus {
+  teams: Array<{ id: number; name: string; leaderName: string | null; memberCount: number }>;
+  memberOf: number[];
+  leads: number[];
+  pendingRequest: { id: number; teamId: number; createdAt: string } | null;
+}
+
+export interface PendingJoinRequest {
+  id: number;
+  teamId: number;
+  teamName: string;
+  userId: number;
+  name: string;
+  email: string;
+  createdAt: string;
+}
+
+export function fetchPerformanceBoard(period: PeriodType, date?: string): Promise<{ period: Period; teams: TeamBoard[] }> {
+  return apiFetch(`/performance/board?period=${period}${date ? `&date=${date}` : ''}`);
+}
+
+export function fetchMyTeamStatus(): Promise<MyTeamStatus> {
+  return apiFetch('/performance/teams');
+}
+
+export function requestToJoinTeam(teamId: number): Promise<{ ok: true }> {
+  return apiFetch(`/performance/teams/${teamId}/join`, { method: 'POST' });
+}
+
+export function cancelJoinRequest(): Promise<{ ok: true }> {
+  return apiFetch('/performance/join-request/cancel', { method: 'POST' });
+}
+
+export function fetchJoinRequests(): Promise<{ requests: PendingJoinRequest[] }> {
+  return apiFetch('/performance/requests');
+}
+
+export function decideJoinRequest(id: number, decision: 'approve' | 'decline'): Promise<{ ok: true }> {
+  return apiFetch(`/performance/requests/${id}`, { method: 'POST', body: JSON.stringify({ decision }) });
+}
+
+export function saveTarget(input: {
+  teamId: number;
+  userId: number | null;
+  period: PeriodType;
+  date: string;
+  quotes: number | null;
+  notes: number | null;
+}): Promise<{ ok: true }> {
+  return apiFetch('/performance/targets', { method: 'PUT', body: JSON.stringify(input) });
+}
+
+export function removeTeamMember(teamId: number, userId: number): Promise<{ ok: true }> {
+  return apiFetch(`/performance/teams/${teamId}/members/${userId}`, { method: 'DELETE' });
+}
+
+export function moveTeamMember(teamId: number, userId: number, toTeamId: number): Promise<{ ok: true }> {
+  return apiFetch(`/performance/teams/${teamId}/members/${userId}/move`, { method: 'POST', body: JSON.stringify({ toTeamId }) });
+}

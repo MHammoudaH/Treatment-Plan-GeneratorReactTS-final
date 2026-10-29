@@ -46,3 +46,4 @@ server starts (see `package.json`).
 | `0009_activity_log.sql` | activity_log (append-only audit trail) |
 | `0010_multi_currency_pricing.sql` | `procedure_catalog.price_usd/eur/aud` (independent per-currency prices); `treatment_visits.calculated_total/override_total/final_total` (generated) + `currency` — schema readiness for the multi-currency + All-on-X + per-visit-override pricing architecture in `src/lib/pricing/engine.ts` (not yet wired to any API — the wizard still prices/PDFs client-side) |
 | `0011_patient_records.sql` | patient_records (a coordinator's own saved patients, "My Patients"), patient_record_entries (append-only timeline: quote snapshots + follow-up notes) |
+| `0012_team_performance.sql` | team_email_assignments (admin-seeded leader/member by email, applied at signup/login), team_join_requests (coordinator asks, leader approves), team_targets (monthly/quarterly quotes & notes targets per member or whole team) |

@@ -7,6 +7,7 @@
  *   npm run team -- add "<name>" <memberEmail>
  *   npm run team -- remove "<name>" <memberEmail>
  *   npm run team -- members "<name>"
+ *   npm run team -- assign "<name>" <email> [leader]
  *
  * kind: coordinator | planning
  *
@@ -16,10 +17,11 @@
  *    can set the leader before promoting them with `npm run role`.
  *  - Run against the same DATABASE_URL as the server.
  */
-import { pool } from '../db.js';
+import { pool, query } from '../db.js';
 import { assertSchemaReady } from '../lib/migrations.js';
 import { isTeamKind, leaderRoleForKind, TEAM_KIND_LIST, type TeamKind } from '../auth/roles.js';
 import { findUserByEmail } from '../auth/users.js';
+import { applyEmailAssignments } from '../team/assignments.js';
 import {
   addTeamMember,
   createTeam,
@@ -40,6 +42,7 @@ function usage(): void {
       '  npm run team -- add "<name>" <memberEmail>',
       '  npm run team -- remove "<name>" <memberEmail>',
       '  npm run team -- members "<name>"',
+      '  npm run team -- assign "<name>" <email> [leader]   (works before they sign up)',
       `kind: ${TEAM_KIND_LIST.join(' | ')}`,
     ].join('\n'),
   );
@@ -147,6 +150,28 @@ async function main(): Promise<void> {
         break;
       }
       for (const m of members) console.log(`  ${m.email}  (${m.role})  ${m.name || ''}`.trimEnd());
+      break;
+    }
+
+    case 'assign': {
+      // Pre-assign by email: applied now if they already have an account, otherwise the
+      // first time they sign up / log in (see team/assignments.ts).
+      const [name, rawEmail, flag] = rest;
+      if (!name || !rawEmail || (flag !== undefined && flag !== 'leader')) return usage();
+      const email = rawEmail.trim().toLowerCase();
+      const team = await requireTeam(name);
+      await query(
+        `INSERT INTO team_email_assignments (email, team_id, as_leader) VALUES ($1, $2, $3)
+         ON CONFLICT (email, team_id) DO UPDATE SET as_leader = EXCLUDED.as_leader, applied_at = NULL`,
+        [email, team.id, flag === 'leader'],
+      );
+      const user = await findUserByEmail(email);
+      if (user) {
+        await applyEmailAssignments(user.id, user.email);
+        console.log(`OK — ${email} ${flag ? 'now leads' : 'is on'} "${team.name}".`);
+      } else {
+        console.log(`OK — ${email} will ${flag ? 'lead' : 'join'} "${team.name}" as soon as they sign up.`);
+      }
       break;
     }
 
