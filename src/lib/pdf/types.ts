@@ -20,7 +20,7 @@ export type QuotationLanguage = 'English' | 'Russian' | 'French' | 'Spanish' | '
 /** Currency the PDF displays money in. Legacy source: `coordinator-updates.js`'s
  *  `selectedCurrency` (`#quoteCurrency`), propagated onto `buildQuotationData()`'s
  *  return value as `data.display.currency`. */
-export type DisplayCurrencyCode = 'USD' | 'EUR' | 'AUD';
+export type DisplayCurrencyCode = 'USD' | 'EUR' | 'AUD' | 'GBP';
 
 /**
  * A single priced line item for implants or crowns.
@@ -294,16 +294,11 @@ export interface QuotationPatient {
  * default to USD / rate 1 / all prices shown.
  */
 export interface QuotationDisplayOptions {
-  /** Currency every money amount is rendered in. Implant/crown/procedure/bridge amounts are
-   *  the clinic's OWN independent price for this currency (never computed from USD) — see
-   *  `PriceValue` in `src/data/pricing.ts`. Hotel/transfer/prosthesis logistics prices have
-   *  no independent multi-currency list, so they are still expressed via `usdToCurrencyRate`. */
+  /** Currency every money amount is rendered in — already converted by the pricing engine
+   *  (see `priceFor` in `src/data/pricing.ts`); the renderers never convert. */
   currency: DisplayCurrencyCode;
-  /** Reference "1 USD = X currency" rate (1 for USD). Two uses ONLY: (1) converting the
-   *  USD-only hotel/transfer/prosthesis logistics prices into the selected currency, and
-   *  (2) computing the optional "≈ $X USD" reference line (`showUsdEquivalent`). It is
-   *  NEVER used to compute an implant/crown/procedure/bridge price — those come directly
-   *  from the catalog's per-currency value or a manual override typed in that currency. */
+  /** The "1 USD = X currency" rate the quote was priced at (1 for USD). The renderers only use
+   *  it for the optional "≈ $X USD" reference line (`showUsdEquivalent`). */
   usdToCurrencyRate: number;
   /** When false, hides the printed price for treatment line items (implants/crowns/procedures) — Premium proposal only, see README. */
   showProductPrices: boolean;

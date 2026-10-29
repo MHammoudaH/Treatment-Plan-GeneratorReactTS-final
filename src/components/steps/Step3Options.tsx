@@ -27,10 +27,7 @@ export function Step3Options() {
           <label>Display currency</label>
           <select
             value={display.currency}
-            onChange={(e) => {
-              const currency = e.target.value as DisplayCurrency;
-              dispatch({ type: 'SET_DISPLAY', display: { currency, fxRate: CURRENCY_META[currency].defaultUsdRate } });
-            }}
+            onChange={(e) => dispatch({ type: 'SET_CURRENCY', currency: e.target.value as DisplayCurrency })}
           >
             {CURRENCY_CODES.map((code) => (
               <option key={code} value={code}>
@@ -41,10 +38,30 @@ export function Step3Options() {
           {display.currency !== 'USD' && (
             <div className="eur-rate-wrap">
               <label>1 USD = {display.currency}</label>
-              <NumberField min={0.0001} step={0.0001} value={display.fxRate} onChange={(rate) => dispatch({ type: 'SET_DISPLAY', display: { fxRate: rate } })} />
+              <NumberField
+                min={0.0001}
+                step={0.0001}
+                value={Math.round(display.fxRate * 10000) / 10000}
+                onChange={(rate) => dispatch({ type: 'SET_DISPLAY', display: { fxRate: rate, fxRateEdited: true } })}
+              />
               <small>
-                Used only for hotel/transfer/prosthesis (USD-only pricing) and the optional USD-equivalent line below.
-                Implant, crown, bridge and procedure prices use the clinic's own {display.currency} price — never converted from USD.
+                {display.fxRateEdited
+                  ? 'Custom rate typed for this quote. '
+                  : state.liveRates === null
+                    ? 'Fetching the live rate… '
+                    : state.liveRates.source === 'fallback'
+                      ? 'Live rates unavailable — using the standard fixed rate. '
+                      : `Live rate (${state.liveRates.source === 'frankfurter' ? 'Frankfurter / ECB' : 'currency-api'}${state.liveRates.date ? `, ${state.liveRates.date}` : ''}). `}
+                The clinic's USD prices are converted at this rate and rounded to whole {display.currency}; hotel, transfer and
+                prosthesis use it too. Manual price overrides are typed in {display.currency} and never converted.
+                {display.fxRateEdited && (
+                  <>
+                    {' '}
+                    <button type="button" className="link-button" onClick={() => dispatch({ type: 'SET_CURRENCY', currency: display.currency })}>
+                      Use the live rate again
+                    </button>
+                  </>
+                )}
               </small>
               <label className="inline-check">
                 <input

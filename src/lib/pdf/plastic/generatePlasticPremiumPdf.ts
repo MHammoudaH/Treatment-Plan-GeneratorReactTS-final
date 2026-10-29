@@ -6,7 +6,7 @@
  * Supports COMBINING several procedures into one quotation (`items`, plural) — the
  * coordinator picks as many as the patient wants in one visit, and this renders every one
  * of them with its own overview card plus one shared investment breakdown for the whole
- * combined plan (hotel/transfer/markup apply once, to the visit as a whole, not per procedure).
+ * combined plan (hotel/transfer apply once, to the visit as a whole, not per procedure).
  *
  * The before-after gallery page is decorative showcase material ("just for the
  * canvas"): photos are auto-matched to each selected procedure's category by
@@ -17,8 +17,9 @@
  */
 import type { QuotationLanguage } from '../types';
 import type { PlasticSurgeryItem } from '../../../data/plasticSurgery';
+import { PLASTIC_CURRENCIES, type PlasticCurrency } from '../../currencyRates';
 
-export type PlasticCurrency = 'EUR' | 'USD' | 'AUD';
+export type { PlasticCurrency };
 
 export interface PlasticPremiumInput {
   /** One or more procedures combined into this single quotation. */
@@ -34,7 +35,6 @@ export interface PlasticPremiumInput {
   hotelName: string | null;
   hotelNights: number;
   transferIncluded: boolean;
-  markupPercent: number;
   /** All amounts already converted to `currency`. */
   amounts: {
     /** One priced line per selected procedure — printed as its own row in the investment
@@ -42,8 +42,6 @@ export interface PlasticPremiumInput {
     surgeryItems: { name: string; amount: number }[];
     hotel: number;
     transfer: number;
-    /** Markup amount (not percent). */
-    markup: number;
     /** Final total, honouring any coordinator override. */
     total: number;
   };
@@ -66,7 +64,6 @@ interface Labels {
   surgery: string;
   hotel: string;
   transfer: string;
-  markup: string;
   total: string;
   notes: string;
   beforeAfter: string;
@@ -96,7 +93,6 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     surgery: 'Surgery',
     hotel: 'Hotel',
     transfer: 'Airport transfer',
-    markup: 'Coordination',
     total: 'Total',
     notes: 'Coordinator notes',
     beforeAfter: 'Before & After',
@@ -125,7 +121,6 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     surgery: 'Операция',
     hotel: 'Отель',
     transfer: 'Трансфер из аэропорта',
-    markup: 'Координация',
     total: 'Итого',
     notes: 'Примечания координатора',
     beforeAfter: 'До и После',
@@ -154,7 +149,6 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     surgery: 'Chirurgie',
     hotel: 'Hôtel',
     transfer: 'Transfert aéroport',
-    markup: 'Coordination',
     total: 'Total',
     notes: 'Notes du coordinateur',
     beforeAfter: 'Avant & Après',
@@ -184,7 +178,6 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     surgery: 'Cirugía',
     hotel: 'Hotel',
     transfer: 'Traslado desde el aeropuerto',
-    markup: 'Coordinación',
     total: 'Total',
     notes: 'Notas del coordinador',
     beforeAfter: 'Antes y Después',
@@ -214,7 +207,6 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     surgery: 'الجراحة',
     hotel: 'الفندق',
     transfer: 'التوصيل من المطار',
-    markup: 'التنسيق',
     total: 'الإجمالي',
     notes: 'ملاحظات المنسق',
     beforeAfter: 'قبل وبعد',
@@ -240,7 +232,7 @@ function esc(value: unknown): string {
 }
 
 function symbolFor(currency: PlasticCurrency): string {
-  return currency === 'EUR' ? '€' : currency === 'AUD' ? 'A$' : '$';
+  return PLASTIC_CURRENCIES.find((c) => c.code === currency)?.symbol ?? '€';
 }
 
 function formatDate(iso: string): string {
@@ -309,11 +301,6 @@ export function generatePlasticPremiumHtml(input: PlasticPremiumInput): string {
   if (input.transferIncluded) {
     investmentRows.push(
       `<div class="line"><span>${esc(labels.transfer)}</span><strong>${m(input.amounts.transfer)}</strong></div>`,
-    );
-  }
-  if (input.markupPercent > 0 && input.amounts.markup > 0) {
-    investmentRows.push(
-      `<div class="line"><span>${esc(labels.markup)} (${esc(input.markupPercent)}%)</span><strong>${m(input.amounts.markup)}</strong></div>`,
     );
   }
 

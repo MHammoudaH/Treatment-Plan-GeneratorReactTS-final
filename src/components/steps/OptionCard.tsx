@@ -86,7 +86,7 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
 
   const money = (value: number) => formatMoney(value, display);
   const priceLabel = (price: PriceValue) => {
-    const v = priceFor(price, display.currency);
+    const v = priceFor(price, display.currency, fxRate);
     return v === null ? `${display.currency} price not configured` : money(v);
   };
   /** Reference/status text shown next to a procedure that has no price configured for the
@@ -133,7 +133,7 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
               </option>
             ))}
           </select>
-          {implantCatalog && priceFor(implantCatalog.price, display.currency) === null && option.implant.finalUnitPriceOverride === null && (
+          {implantCatalog && priceFor(implantCatalog.price, display.currency, fxRate) === null && option.implant.finalUnitPriceOverride === null && (
             <p className="config-warning">
               {display.currency} price not configured for {implantCatalog.displayName ?? implantCatalog.name}. Enter a final unit
               price override below, or configure the {display.currency} price in the pricing catalog.
@@ -147,7 +147,7 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
               disabled={option.implant.finalUnitPriceOverride !== null}
               onChange={(e) => patch({ implant: { ...option.implant, markupPercent: Number(e.target.value) } })}
             >
-              {markupPresetsForPrice(priceFor(implantCatalog?.price ?? { usd: null, eur: null, aud: null }, display.currency) ?? 0).map((pct) => (
+              {markupPresetsForPrice(implantCatalog?.price.usd ?? 0).map((pct) => (
                 <option key={pct} value={pct}>
                   {pct}%
                 </option>
@@ -196,47 +196,6 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
         />
       </div>
 
-      {/* BRIDGE — an independent procedure the coordinator adds/removes manually. Its
-          quantity is never inferred from implant or crown counts. */}
-      <h4>Bridge</h4>
-      <div className="grid-2">
-        <div>
-          <label>Bridge quantity</label>
-          <NumberField min={0} value={option.bridge.count} onChange={(n) => patch({ bridge: { ...option.bridge, count: Math.max(0, n) } })} />
-
-          <label>Bridge type</label>
-          <select value={option.bridge.itemId ?? ''} onChange={(e) => patch({ bridge: { ...option.bridge, itemId: e.target.value || null } })}>
-            <option value="">Select bridge</option>
-            {PRICING.bridges.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name} — {priceLabel(item.price)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label>Bridge markup</label>
-          <div className="percentage-input">
-            <NumberField min={0} value={option.bridge.markupPercent} onChange={(n) => patch({ bridge: { ...option.bridge, markupPercent: Math.max(0, n) } })} />
-          </div>
-
-          <label>Final unit price override ({display.currency}) — optional</label>
-          <input
-            type="number"
-            min={0}
-            step={0.01}
-            value={option.bridge.finalUnitPriceOverride ?? ''}
-            onChange={(e) => patch({ bridge: { ...option.bridge, finalUnitPriceOverride: overrideFromInput(e.target.value) } })}
-          />
-        </div>
-      </div>
-      {option.bridge.count > 0 && !result.treatment.bridge.priceConfigured && (
-        <p className="config-warning">
-          {display.currency} price not configured for this bridge. Enter a final unit price override above, or configure the{' '}
-          {display.currency} price in the pricing catalog.
-        </p>
-      )}
-
       {/* PROCEDURES — dental add-ons only. Bariatric/Plastic-Aesthetic procedures belong to the
           dedicated Plastic Surgery module, not the dental quotation. */}
       <h4>Additional procedures</h4>
@@ -244,7 +203,7 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
         {DENTAL_PROCEDURES.map((proc) => {
           const selection = option.procedures.find((p) => p.procedureId === proc.id);
           const checked = Boolean(selection);
-          const configured = priceFor(proc.price, display.currency) !== null;
+          const configured = priceFor(proc.price, display.currency, fxRate) !== null;
           const unavailable = proc.available === false;
           return (
             <div className={`procedure-item${unavailable ? ' procedure-unavailable' : ''}`} key={proc.id}>
@@ -259,12 +218,22 @@ export function OptionCard({ option, onChange, onRemove, display, removable }: P
                   {proc.unit && (
                     <>
                       <label>Quantity ({proc.unit})</label>
-                      <NumberField
-                        min={0}
-                        step={0.5}
-                        value={selection.quantity}
-                        onChange={(n) => updateProcedure(proc.id, { quantity: Math.max(0, n) })}
-                      />
+                      {proc.quantityChoices ? (
+                        <select value={selection.quantity} onChange={(e) => updateProcedure(proc.id, { quantity: Number(e.target.value) })}>
+                          {proc.quantityChoices.map((n) => (
+                            <option key={n} value={n}>
+                              {n}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <NumberField
+                          min={0}
+                          step={0.5}
+                          value={selection.quantity}
+                          onChange={(n) => updateProcedure(proc.id, { quantity: Math.max(0, n) })}
+                        />
+                      )}
                     </>
                   )}
                   {!configured && selection.finalUnitPriceOverride === null && (
@@ -429,7 +398,7 @@ function ProductFields({
           </option>
         ))}
       </select>
-      {item && priceFor(item.price, display.currency) === null && selection.finalUnitPriceOverride === null && (
+      {item && priceFor(item.price, display.currency, display.currency === 'USD' ? 1 : display.fxRate) === null && selection.finalUnitPriceOverride === null && (
         <p className="config-warning">
           {display.currency} price not configured for {item.displayName ?? item.name}. Enter a final unit price override below,
           or configure the {display.currency} price in the pricing catalog.
@@ -443,7 +412,7 @@ function ProductFields({
           disabled={selection.finalUnitPriceOverride !== null}
           onChange={(e) => onChange({ ...selection, markupPercent: Number(e.target.value) })}
         >
-          {markupPresetsForPrice(priceFor(item?.price ?? { usd: null, eur: null, aud: null }, display.currency) ?? 0).map((pct) => (
+          {markupPresetsForPrice(item?.price.usd ?? 0).map((pct) => (
             <option key={pct} value={pct}>
               {pct}%
             </option>

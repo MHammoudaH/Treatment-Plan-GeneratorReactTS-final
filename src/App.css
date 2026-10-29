@@ -475,6 +475,51 @@
   margin-bottom: 10px;
 }
 
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.bmi-calculator {
+  margin: 0 0 18px;
+  padding: 16px;
+  border: 1px dashed #e6cf9e;
+  border-radius: 10px;
+  background: #fffaf0;
+}
+
+.bmi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.bmi-header h4 {
+  margin: 0;
+}
+
+.bmi-units {
+  display: flex;
+  gap: 6px;
+}
+
+.bmi-result {
+  margin: 12px 0 4px;
+  color: var(--navy);
+}
+
+.bmi-result strong {
+  font-size: 1.25em;
+}
+
 .success-note {
   margin: 16px 0 0;
   padding: 10px 12px;

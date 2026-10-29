@@ -5,57 +5,62 @@
  * Prices are official base prices. Coordinator markup/overrides are applied
  * separately by the pricing engine (see src/lib/pricing/engine.ts).
  *
- * MULTI-CURRENCY: every clinic price is a `PriceValue` — three INDEPENDENT numbers
- * (usd/eur/aud), never derived from one another. `null` means "not configured for
- * that currency yet" — see `priceFor()`. Do not invent missing EUR/AUD values; only
- * the clinic's official USD list (and the two bridge prices explicitly given) are
- * populated here. Everything else starts `null` until a coordinator/admin sets it.
+ * MULTI-CURRENCY: the clinic's dental list is in USD. Other display currencies (EUR / AUD /
+ * GBP) are converted from that USD price at the live "1 USD = X" rate and rounded to whole
+ * units — see `priceFor()`. A price the clinic set explicitly for a currency (a non-null
+ * `eur`/`aud`/`gbp`) always wins over a conversion. The Bariatric / Plastic entries are a EUR
+ * list and are never converted back into USD.
  */
 
-export type Currency = 'USD' | 'EUR' | 'AUD';
+export type Currency = 'USD' | 'EUR' | 'AUD' | 'GBP';
 
-export const CURRENCIES: readonly Currency[] = ['USD', 'EUR', 'AUD'];
+export const CURRENCIES: readonly Currency[] = ['USD', 'EUR', 'AUD', 'GBP'];
 
-/** Three independent clinic prices. Never compute one from another. */
+/** Per-currency clinic prices. `null` = no explicit price for that currency (a non-USD
+ *  currency then converts from `usd` — see `priceFor`). */
 export interface PriceValue {
   usd: number | null;
   eur: number | null;
   aud: number | null;
+  gbp: number | null;
 }
 
-/** A USD-only price, EUR/AUD left unconfigured (`null`) — NOT a conversion, just "not set yet". */
+/** A USD price — the other currencies convert from it at the live rate. */
 export function usdOnly(usd: number): PriceValue {
-  return { usd, eur: null, aud: null };
+  return { usd, eur: null, aud: null, gbp: null };
 }
 
-/** A EUR-only price, USD/AUD left unconfigured (`null`) — NOT a conversion, just "not set yet".
- *  Used by the Bariatric / Plastic-Aesthetic catalog below, whose source price list is EUR. */
+/** A EUR-only price, USD/AUD/GBP left unconfigured (`null`). Used by the Bariatric /
+ *  Plastic-Aesthetic catalog below, whose source price list is EUR. */
 export function eurOnly(eur: number): PriceValue {
-  return { usd: null, eur, aud: null };
+  return { usd: null, eur, aud: null, gbp: null };
 }
 
-/** No independent price configured in any currency yet — the coordinator must enter a final
- *  price via `ProcedureSelection.finalUnitPriceOverride`. Never a stand-in for $0/€0. */
+/** No price configured in any currency yet — the coordinator must enter a final price via
+ *  `ProcedureSelection.finalUnitPriceOverride`. Never a stand-in for $0/€0. */
 export function noPrice(): PriceValue {
-  return { usd: null, eur: null, aud: null };
+  return { usd: null, eur: null, aud: null, gbp: null };
 }
 
-/** The independent price for `currency`, or `null` if that currency isn't configured
- *  for this item. Never falls back to another currency — that would silently
- *  reintroduce USD-based conversion, which this catalog forbids. */
-export function priceFor(value: PriceValue, currency: Currency): number | null {
-  switch (currency) {
-    case 'USD':
-      return value.usd;
-    case 'EUR':
-      return value.eur;
-    case 'AUD':
-      return value.aud;
-  }
+/** A USD price converted at `usdToCurrencyRate`, rounded to whole units (€270, not €269.73). */
+export function convertFromUsd(usd: number, usdToCurrencyRate: number): number {
+  return Math.round(usd * usdToCurrencyRate);
 }
 
-export function hasPrice(value: PriceValue, currency: Currency): boolean {
-  return priceFor(value, currency) !== null;
+/**
+ * The price for `currency`: the clinic's explicit price for that currency when set, otherwise
+ * the USD price converted at `usdToCurrencyRate` ("1 USD = X `currency`"), rounded to whole
+ * units. `null` when neither exists (e.g. a EUR-only bariatric entry viewed in USD).
+ */
+export function priceFor(value: PriceValue, currency: Currency, usdToCurrencyRate = 1): number | null {
+  const explicit = currency === 'USD' ? value.usd : currency === 'EUR' ? value.eur : currency === 'AUD' ? value.aud : value.gbp;
+  if (explicit !== null) return explicit;
+  if (currency === 'USD' || value.usd === null) return null;
+  return convertFromUsd(value.usd, usdToCurrencyRate);
+}
+
+export function hasPrice(value: PriceValue, currency: Currency, usdToCurrencyRate = 1): boolean {
+  return priceFor(value, currency, usdToCurrencyRate) !== null;
 }
 
 export interface CrownCatalogItem {
@@ -102,6 +107,9 @@ export interface ProcedureCatalogItem {
    *  Lip Lifting) — kept as catalog entries for completeness but must never be selectable.
    *  Defaults to true (selectable) when omitted. */
   available?: boolean;
+  /** When set, the coordinator picks the quantity from these values (e.g. 1 or 2 jaws) instead
+   *  of typing a free number. Only meaningful together with `unit`. */
+  quantityChoices?: number[];
 }
 
 /** A full-arch prosthetic bridge, priced independently per currency and billed
@@ -190,6 +198,14 @@ export const PRICING: PricingCatalog = {
     { id: 'implant-removal', name: 'Implants Removal', price: usdOnly(100), category: 'Dental' },
     { id: 'root-canal', name: 'Root Canal', price: usdOnly(50), category: 'Dental' },
     { id: 'gingivectomy', name: 'Gingivectomy', price: usdOnly(300), unit: 'per arch', category: 'Dental' },
+    {
+      id: 'titanium-bar',
+      name: 'Titanium Bar (Not a Bridge) — Full Arch',
+      price: usdOnly(600),
+      unit: 'per jaw',
+      quantityChoices: [1, 2],
+      category: 'Dental',
+    },
     { id: 'fillings', name: 'Fillings', price: usdOnly(75), category: 'Dental' },
     // Added by coordinator-updates.js in production (procedureSource()) — kept here as
     // first-class catalog entries rather than a runtime patch.
@@ -303,12 +319,9 @@ export const PRICING: PricingCatalog = {
     { id: 'cat_eyes_fox_eyes', name: 'Cat Eyes / Fox Eyes (surgical)', price: noPrice(), category: 'Plastic', available: false, note: 'Not currently offered by the clinic.' },
     { id: 'lip_lifting', name: 'Lip Lifting', price: noPrice(), category: 'Plastic', available: false, note: 'Not currently offered by the clinic.' },
   ],
-  bridges: [
-    // The clinic's usual full-arch fixed-bridge price. USD/EUR are the clinic's own
-    // independent figures for each currency (NOT converted from one another). AUD is
-    // intentionally left unconfigured — do not assume AUD = USD or AUD = EUR.
-    { id: 'full-arch-bridge', name: 'Full-Arch Dental Bridge', price: { usd: 1000, eur: 1000, aud: null } },
-  ],
+  // The full-arch bridge is no longer offered — the Titanium Bar (per jaw, in `procedures`)
+  // replaces it. Kept as an empty list so the engine's dormant bridge line still type-checks.
+  bridges: [],
   hotels: [
     { id: 'tryp-wyndham-topkapi', name: 'Tryp by Wyndham Istanbul Topkapi', single: 65, double: 65, triple: 95, currency: 'USD' },
     { id: 'ibis-merter', name: 'IBIS Merter', single: 75, double: 75, triple: 105, currency: 'USD', validity: 'Until 30.8' },

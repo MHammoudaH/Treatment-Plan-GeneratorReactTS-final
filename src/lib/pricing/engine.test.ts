@@ -132,19 +132,37 @@ describe('implant/crown/bridge quantities are independent (§1-4, §23 #1-6)', (
 // ===========================================================================
 
 describe('multi-currency independence (§10-11)', () => {
-  it('10: USD/EUR/AUD prices are independent — never converted from one another', () => {
+  it('10: EUR/AUD/GBP convert from the USD list at the live rate, rounded to whole units', () => {
     const medigma = PRICING.implants.find((i) => i.id === 'medigma')!;
     expect(medigma.price.usd).toBe(300);
-    expect(medigma.price.eur).toBeNull(); // not configured — must not be invented
 
     const option = treatmentOption({ implants: 2, crowns: 0 });
     option.implant.itemId = 'medigma';
     option.implant.finalUnitPriceOverride = null;
 
-    const eur = calculateOption(option, 'EUR', 1.1567); // a real-looking rate — must be ignored
-    expect(eur.treatment.implants.priceConfigured).toBe(false);
-    expect(eur.treatment.implants.total).toBe(0);
-    expect(eur.treatment.implants.total).not.toBeCloseTo(2 * 300 * 1.1567, 2);
+    const eur = calculateOption(option, 'EUR', 0.8991); // $300 → €269.73 → €270
+    expect(eur.treatment.implants.priceConfigured).toBe(true);
+    expect(eur.treatment.implants.finalUnitPrice).toBe(270);
+    expect(eur.treatment.implants.total).toBe(540);
+
+    const gbp = calculateOption(option, 'GBP', 0.8368); // $300 → £251.04 → £251
+    expect(gbp.treatment.implants.finalUnitPrice).toBe(251);
+
+    const aud = calculateOption(option, 'AUD', 1.4226); // $300 → A$426.78 → A$427
+    expect(aud.treatment.implants.finalUnitPrice).toBe(427);
+  });
+
+  it('markup applies to the converted (rounded) price', () => {
+    const option = treatmentOption({ implants: 1, crowns: 0 });
+    option.implant = { itemId: 'medigma', count: 1, markupPercent: 25, finalUnitPriceOverride: null };
+    expect(calculateOption(option, 'EUR', 0.8991).treatment.implants.finalUnitPrice).toBe(337.5); // €270 × 1.25
+  });
+
+  it('an explicit per-currency price wins over conversion; EUR-only items never convert back to USD', () => {
+    expect(priceFor({ usd: 300, eur: 250, aud: null, gbp: null }, 'EUR', 0.9)).toBe(250);
+    expect(priceFor({ usd: 300, eur: 250, aud: null, gbp: null }, 'AUD', 1.5)).toBe(450);
+    expect(priceFor({ usd: null, eur: 2700, aud: null, gbp: null }, 'USD', 1)).toBeNull();
+    expect(priceFor({ usd: null, eur: 2700, aud: null, gbp: null }, 'GBP', 0.8)).toBeNull();
   });
 
   it('a manual override belongs to the selected currency and is never converted', () => {
@@ -313,19 +331,10 @@ describe('flight ticket (§14-19)', () => {
 // Regression: bridge quantity x unit price, currency-independent (still true)
 // ===========================================================================
 
-describe('bridge pricing (§2 previously, still applicable)', () => {
-  it('bridgeTotal = bridgeUnitPrice x bridgeQuantity, and AUD is never assumed from USD/EUR', () => {
-    const bridge = PRICING.bridges.find((b) => b.id === 'full-arch-bridge')!;
-    expect(bridge.price).toEqual({ usd: 1000, eur: 1000, aud: null });
-
-    const twoArches = treatmentOption({ implants: 0, crowns: 0, bridges: 2 });
-    twoArches.bridge.itemId = 'full-arch-bridge';
-    twoArches.bridge.finalUnitPriceOverride = null;
-
-    expect(calculateOption(twoArches, 'USD', 1).treatment.bridge.total).toBe(2000);
-    expect(calculateOption(twoArches, 'EUR', 1).treatment.bridge.total).toBe(2000);
-    expect(calculateOption(twoArches, 'AUD', 1).treatment.bridge.total).toBe(0);
-    expect(calculateOption(twoArches, 'AUD', 1).treatment.bridge.priceConfigured).toBe(false);
+describe('full-arch bridge', () => {
+  it('is no longer offered — the Titanium Bar procedure replaces it', () => {
+    expect(PRICING.bridges).toEqual([]);
+    expect(PRICING.procedures.some((p) => p.id === 'titanium-bar')).toBe(true);
   });
 });
 
@@ -555,13 +564,13 @@ describe('implant origin passthrough', () => {
     expect(result.treatment.implants.origin).toBe('Swiss');
   });
 
-  it('crowns/bridges never carry an origin (no such catalog field) — always null', () => {
-    const option = treatmentOption({ implants: 0, crowns: 1, bridges: 1 });
+  it('crowns and veneers never carry an origin (no such catalog field) — always null', () => {
+    const option = treatmentOption({ implants: 0, crowns: 1 });
     option.crown.itemId = PRICING.crowns[0].id;
-    option.bridge.itemId = PRICING.bridges[0].id;
+    option.veneer = { itemId: PRICING.veneers[0].id, count: 1, markupPercent: 0, finalUnitPriceOverride: null };
     const result = calculateOption(option, 'USD', 1);
     expect(result.treatment.crowns.origin).toBeNull();
-    expect(result.treatment.bridge.origin).toBeNull();
+    expect(result.treatment.veneers.origin).toBeNull();
   });
 
   it('no implant selected -> origin is null', () => {
@@ -601,13 +610,13 @@ describe('Bariatric + Plastic/Aesthetic catalog', () => {
 
   it('3: Gastric Band has no catalog price in any currency', () => {
     const item = PRICING.procedures.find((p) => p.id === 'gastric_band')!;
-    expect(item.price).toEqual({ usd: null, eur: null, aud: null });
+    expect(item.price).toEqual({ usd: null, eur: null, aud: null, gbp: null });
     expect(item.priceRange).toBeUndefined();
   });
 
   it('4: Arm Lifting / Brachioplasty has no catalog price', () => {
     const item = PRICING.procedures.find((p) => p.id === 'arm_lifting')!;
-    expect(item.price).toEqual({ usd: null, eur: null, aud: null });
+    expect(item.price).toEqual({ usd: null, eur: null, aud: null, gbp: null });
   });
 
   it('5: a coordinator-entered price for an unpriced procedure is the price actually billed', () => {
@@ -651,7 +660,7 @@ describe('Bariatric + Plastic/Aesthetic catalog', () => {
 
   it('9: J-Plasma has no standalone price in any currency and carries its combination note', () => {
     const item = PRICING.procedures.find((p) => p.id === 'j_plasma')!;
-    expect(item.price).toEqual({ usd: null, eur: null, aud: null });
+    expect(item.price).toEqual({ usd: null, eur: null, aud: null, gbp: null });
     expect(item.note).toMatch(/combined with liposuction/i);
   });
 
@@ -721,12 +730,30 @@ describe('Bariatric + Plastic/Aesthetic catalog', () => {
     expect(priceFor(rhino.price, 'EUR')).toBe(2900);
     expect(priceFor(rhino.price, 'USD')).toBeNull();
     expect(priceFor(rhino.price, 'AUD')).toBeNull();
+    expect(priceFor(rhino.price, 'GBP')).toBeNull();
   });
 });
 
 // ===========================================================================
 // Veneers — an independent line, so crowns-only / veneers-only plans need no implants
 // ===========================================================================
+
+describe('titanium bar', () => {
+  it('is $600 per jaw — 2 jaws doubles it, and an override still wins', () => {
+    const twoJaws = baseOption({
+      visits: 1,
+      procedures: [{ procedureId: 'titanium-bar', quantity: 2, finalUnitPriceOverride: null }],
+      visit1: emptyVisitInput(),
+      visit2: null,
+    });
+    const line = calculateOption(twoJaws, 'USD', 1).treatment.procedures[0];
+    expect(line.unit).toBe('per jaw');
+    expect(line.total).toBe(1200);
+
+    const overridden = baseOption({ ...twoJaws, procedures: [{ procedureId: 'titanium-bar', quantity: 2, finalUnitPriceOverride: 550 }] });
+    expect(calculateOption(overridden, 'USD', 1).treatment.procedures[0].total).toBe(1100);
+  });
+});
 
 describe('veneers', () => {
   it('a veneers-only option prices veneers with no implants or crowns', () => {

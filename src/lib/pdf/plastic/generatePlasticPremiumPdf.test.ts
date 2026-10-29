@@ -17,8 +17,7 @@ function baseInput(overrides: Partial<PlasticPremiumInput> = {}): PlasticPremium
     hotelName: null,
     hotelNights: 0,
     transferIncluded: false,
-    markupPercent: 0,
-    amounts: { surgeryItems: [{ name: RHINOPLASTY.name, amount: 2900 }], hotel: 0, transfer: 0, markup: 0, total: 2900 },
+    amounts: { surgeryItems: [{ name: RHINOPLASTY.name, amount: 2900 }], hotel: 0, transfer: 0, total: 2900 },
     gallery: [],
     ...overrides,
   };
@@ -43,7 +42,6 @@ describe('generatePlasticPremiumHtml — combined multi-procedure quotation', ()
       ],
       hotel: 500,
       transfer: 150,
-      markup: 0,
       total: 6450,
     },
     hotelName: 'Hotel A',

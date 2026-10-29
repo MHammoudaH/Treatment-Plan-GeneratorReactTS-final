@@ -101,6 +101,7 @@ const PROCEDURE_NAMES: Table = {
     fillings: 'Пломбирование',
     'general anesthesia': 'Общий наркоз',
     'hiv protocol for a patient with hiv': 'Протокол для пациента с ВИЧ',
+    'titanium bar (not a bridge) — full arch': 'Титановая балка (не мост) — на всю челюсть',
   },
   French: {
     'bone grafting': 'Greffe osseuse',
@@ -113,6 +114,7 @@ const PROCEDURE_NAMES: Table = {
     fillings: 'Obturations',
     'general anesthesia': 'Anesthésie générale',
     'hiv protocol for a patient with hiv': 'Protocole VIH pour un patient séropositif',
+    'titanium bar (not a bridge) — full arch': 'Barre en titane (pas un bridge) — arcade complète',
   },
   Spanish: {
     'bone grafting': 'Injerto óseo',
@@ -125,6 +127,7 @@ const PROCEDURE_NAMES: Table = {
     fillings: 'Empastes',
     'general anesthesia': 'Anestesia general',
     'hiv protocol for a patient with hiv': 'Protocolo VIH para un paciente con VIH',
+    'titanium bar (not a bridge) — full arch': 'Barra de titanio (no es un puente) — arcada completa',
   },
   Arabic: {
     'bone grafting': 'تطعيم العظم',
@@ -137,15 +140,16 @@ const PROCEDURE_NAMES: Table = {
     fillings: 'حشوات',
     'general anesthesia': 'تخدير عام',
     'hiv protocol for a patient with hiv': 'بروتوكول خاص لمريض فيروس نقص المناعة',
+    'titanium bar (not a bridge) — full arch': 'قضيب تيتانيوم (ليس جسرًا) — فك كامل',
   },
 };
 
 /** Procedure billing units (`ProcedureCatalogItem.unit`). */
 const PROCEDURE_UNITS: Table = {
-  Russian: { '1 cc': '1 куб. см', 'one side': 'одна сторона', 'two sides': 'две стороны', 'per arch': 'за челюсть' },
-  French: { '1 cc': '1 cc', 'one side': 'un côté', 'two sides': 'deux côtés', 'per arch': 'par arcade' },
-  Spanish: { '1 cc': '1 cc', 'one side': 'un lado', 'two sides': 'dos lados', 'per arch': 'por arcada' },
-  Arabic: { '1 cc': '1 سم³', 'one side': 'جهة واحدة', 'two sides': 'جهتان', 'per arch': 'لكل فك' },
+  Russian: { '1 cc': '1 куб. см', 'one side': 'одна сторона', 'two sides': 'две стороны', 'per arch': 'за челюсть', 'per jaw': 'за челюсть' },
+  French: { '1 cc': '1 cc', 'one side': 'un côté', 'two sides': 'deux côtés', 'per arch': 'par arcade', 'per jaw': 'par mâchoire' },
+  Spanish: { '1 cc': '1 cc', 'one side': 'un lado', 'two sides': 'dos lados', 'per arch': 'por arcada', 'per jaw': 'por maxilar' },
+  Arabic: { '1 cc': '1 سم³', 'one side': 'جهة واحدة', 'two sides': 'جهتان', 'per arch': 'لكل فك', 'per jaw': 'لكل فك' },
 };
 
 /** Hotel room types (`QuotationHotelDetails.roomLabel ?? roomType`). */

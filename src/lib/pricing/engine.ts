@@ -34,14 +34,12 @@
  * every "is this field manually overridden" check here explicitly rejects null/undefined/
  * empty-string BEFORE coercing to a number, via `hasOverride()` below.
  *
- * MULTI-CURRENCY: USD, EUR and AUD are three INDEPENDENT clinic price lists (see
- * `PriceValue` in `src/data/pricing.ts`). `calculateOption` takes the selected `currency`
- * and reads that currency's price directly from the catalog — it never multiplies a USD
- * price by an exchange rate to get a EUR/AUD figure. The one exception is logistics
- * (hotel/transfer/prosthesis), which has no independent multi-currency list and is
- * therefore converted from its USD price using the reference `fxRate` — that rate is
- * otherwise used only to print an optional "≈ $X USD" reference line (see
- * `src/lib/formatMoney.ts`), never to compute a treatment price.
+ * MULTI-CURRENCY: the dental catalog is a USD list. For EUR / AUD / GBP, `calculateOption`
+ * converts each catalog price at `fxRate` (the live "1 USD = X" rate, coordinator-editable),
+ * rounded to whole units — unless the clinic set an explicit price for that currency, which
+ * always wins (see `priceFor` in `src/data/pricing.ts`). Logistics (hotel/transfer/prosthesis)
+ * convert at the same rate, unrounded as before. A manual override is typed in the selected
+ * currency and is never converted.
  *
  * TREATMENT COMPOSITION: implant, crown, veneer and bridge quantities are entered
  * independently by the coordinator — there is no automatic "All-on-X" derivation, no
@@ -349,8 +347,9 @@ function calculateProduct(
   selection: ProductSelection,
   catalog: { id: string; name: string; displayName?: string; origin?: string; price: PriceValue } | null,
   currency: Currency,
+  fxRate: number,
 ): TreatmentLineItem {
-  const nativePrice = catalog ? priceFor(catalog.price, currency) : null;
+  const nativePrice = catalog ? priceFor(catalog.price, currency, fxRate) : null;
   const override = hasOverride(selection.finalUnitPriceOverride) ? selection.finalUnitPriceOverride : null;
   const priceConfigured = override !== null || nativePrice !== null;
   const baseUnitPrice = nativePrice ?? 0;
@@ -372,11 +371,11 @@ function calculateProduct(
   };
 }
 
-function calculateProcedureLine(selection: ProcedureSelection, currency: Currency): ProcedureLineItem | null {
+function calculateProcedureLine(selection: ProcedureSelection, currency: Currency, fxRate: number): ProcedureLineItem | null {
   const catalog = findProcedure(selection.procedureId);
   if (!catalog) return null;
   const quantity = catalog.unit ? Math.max(0, selection.quantity || 1) : 1;
-  const nativePrice = priceFor(catalog.price, currency);
+  const nativePrice = priceFor(catalog.price, currency, fxRate);
   const override = hasOverride(selection.finalUnitPriceOverride) ? selection.finalUnitPriceOverride : null;
   const priceConfigured = override !== null || nativePrice !== null;
   const unitPrice = override ?? nativePrice ?? 0;
@@ -441,13 +440,13 @@ export function calculateOption(input: OptionInput, currency: Currency, fxRate: 
   const veneerCatalog = findVeneer(input.veneer.itemId);
   const bridgeCatalog = findBridge(input.bridge.itemId);
 
-  const implantLine = calculateProduct(input.implant, implantCatalog, currency);
-  const crownLine = calculateProduct(input.crown, crownCatalog, currency);
-  const veneerLine = calculateProduct(input.veneer, veneerCatalog, currency);
-  const bridgeLine = calculateProduct(input.bridge, bridgeCatalog, currency);
+  const implantLine = calculateProduct(input.implant, implantCatalog, currency, effectiveFxRate);
+  const crownLine = calculateProduct(input.crown, crownCatalog, currency, effectiveFxRate);
+  const veneerLine = calculateProduct(input.veneer, veneerCatalog, currency, effectiveFxRate);
+  const bridgeLine = calculateProduct(input.bridge, bridgeCatalog, currency, effectiveFxRate);
 
   const procedures = input.procedures
-    .map((p) => calculateProcedureLine(p, currency))
+    .map((p) => calculateProcedureLine(p, currency, effectiveFxRate))
     .filter((line): line is ProcedureLineItem => line !== null);
   const proceduresTotal = round2(procedures.reduce((sum, line) => sum + line.total, 0));
 

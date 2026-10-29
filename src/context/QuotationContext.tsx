@@ -1,7 +1,17 @@
-import { createContext, useContext, useMemo, useReducer, type Dispatch, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useReducer, type Dispatch, type ReactNode } from 'react';
+import { fetchEurRates, usdRates, type RatesResult } from '../lib/currencyRates';
 import { cloneOptionForNewOption, createOptionInput, type OptionInput } from '../lib/pricing/engine';
 import { countMarks, cycleMark, suggestPlan } from '../lib/dental/teeth';
-import { createInitialState, type DiagnosisInfo, type DisplaySettings, type PatientInfo, type PaymentMethod, type WizardState } from '../types/wizard';
+import {
+  FALLBACK_USD_RATES,
+  createInitialState,
+  type DiagnosisInfo,
+  type DisplayCurrency,
+  type DisplaySettings,
+  type PatientInfo,
+  type PaymentMethod,
+  type WizardState,
+} from '../types/wizard';
 
 type Action =
   | { type: 'SET_STEP'; step: WizardState['step'] }
@@ -13,6 +23,8 @@ type Action =
   | { type: 'SET_PAYMENT_METHOD'; method: PaymentMethod }
   | { type: 'SET_INSTALLMENT_AMOUNT'; amount: number | null }
   | { type: 'SET_DISPLAY'; display: Partial<DisplaySettings> }
+  | { type: 'SET_CURRENCY'; currency: DisplayCurrency }
+  | { type: 'SET_LIVE_RATES'; rates: RatesResult }
   | { type: 'ADD_OPTION' }
   | { type: 'PREFILL_OPTIONS_FROM_DIAGNOSIS' }
   | { type: 'REMOVE_OPTION'; id: string }
@@ -22,6 +34,11 @@ type Action =
   | { type: 'REMOVE_PATIENT_PHOTO'; index: number }
   | { type: 'SET_REPLACE_IMPLANT_MAP_WITH_PHOTOS'; value: boolean }
   | { type: 'RESET' };
+
+/** "1 USD = X `currency`" — live when available, otherwise the old fixed rate. */
+function usdRateFor(state: WizardState, currency: DisplayCurrency): number {
+  return state.liveRates ? usdRates(state.liveRates, FALLBACK_USD_RATES)[currency] : FALLBACK_USD_RATES[currency];
+}
 
 function reducer(state: WizardState, action: Action): WizardState {
   switch (action.type) {
@@ -58,6 +75,14 @@ function reducer(state: WizardState, action: Action): WizardState {
       return { ...state, installmentAmount: action.amount };
     case 'SET_DISPLAY':
       return { ...state, display: { ...state.display, ...action.display } };
+    case 'SET_CURRENCY':
+      return { ...state, display: { ...state.display, currency: action.currency, fxRate: usdRateFor(state, action.currency), fxRateEdited: false } };
+    case 'SET_LIVE_RATES': {
+      const next = { ...state, liveRates: action.rates };
+      // A rate the coordinator typed for this quote is never overwritten by a late answer.
+      if (state.display.fxRateEdited) return next;
+      return { ...next, display: { ...state.display, fxRate: usdRateFor(next, state.display.currency) } };
+    }
     case 'ADD_OPTION': {
       const nextNumber = state.options.length + 1;
       const id = `option-${Date.now()}-${nextNumber}`;
@@ -105,7 +130,8 @@ function reducer(state: WizardState, action: Action): WizardState {
     case 'SET_REPLACE_IMPLANT_MAP_WITH_PHOTOS':
       return { ...state, replaceImplantMapWithPhotos: action.value };
     case 'RESET':
-      return createInitialState();
+      // Keep the rates already fetched — they don't belong to one patient's quote.
+      return { ...createInitialState(), liveRates: state.liveRates };
     default:
       return state;
   }
@@ -127,6 +153,16 @@ const QuotationContext = createContext<QuotationContextValue | null>(null);
 
 export function QuotationProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, createInitialState);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchEurRates().then((rates) => {
+      if (!cancelled) dispatch({ type: 'SET_LIVE_RATES', rates });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const value = useMemo(() => ({ state, dispatch }), [state]);
   return <QuotationContext.Provider value={value}>{children}</QuotationContext.Provider>;
 }

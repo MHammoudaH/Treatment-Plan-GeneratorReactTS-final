@@ -59,7 +59,7 @@ function esc(value: unknown): string {
  */
 function money(value: number, display: QuotationDisplayOptions): string {
   const amount = Number(value) || 0;
-  const symbol = display.currency === 'EUR' ? '€' : display.currency === 'AUD' ? 'A$' : '$';
+  const symbol = display.currency === 'EUR' ? '€' : display.currency === 'AUD' ? 'A$' : display.currency === 'GBP' ? '£' : '$';
   const main = `${symbol}${amount.toLocaleString('en-US', {
     minimumFractionDigits: amount % 1 ? 2 : 0,
     maximumFractionDigits: 2,

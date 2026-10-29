@@ -1,4 +1,6 @@
 import type { OptionInput } from '../lib/pricing/engine';
+import type { Currency } from '../data/pricing';
+import type { RatesResult } from '../lib/currencyRates';
 import type { PatientTreatmentData, QuotationLanguage } from '../lib/pdf/types';
 import type { ToothMark } from '../lib/dental/teeth';
 
@@ -18,20 +20,34 @@ export interface DiagnosisInfo {
 
 export type PaymentMethod = 'visit-payments' | 'installments';
 
-export type DisplayCurrency = 'USD' | 'EUR' | 'AUD';
+export type DisplayCurrency = Currency;
 
-/** Per-currency display metadata: dropdown label, money symbol, and a starting
- *  "1 USD = X" reference rate the coordinator can override before issuing. */
+/** Per-currency display metadata: dropdown label, money symbol, and the old fixed
+ *  "1 USD = X" rate — the last-resort fallback when no live rate could be fetched (see
+ *  `src/lib/currencyRates.ts`). GBP had no old dental rate; its fallback is derived from the
+ *  Plastic module's fixed EUR rates (0.86 / 1.09). */
 export const CURRENCY_META: Record<DisplayCurrency, { label: string; symbol: string; defaultUsdRate: number }> = {
   USD: { label: 'USD — US Dollar', symbol: '$', defaultUsdRate: 1 },
   EUR: { label: 'EUR — Euro', symbol: '€', defaultUsdRate: 1 / 1.1567 },
   AUD: { label: 'AUD — Australian Dollar', symbol: 'A$', defaultUsdRate: 1.52 },
+  GBP: { label: 'GBP — British Pound', symbol: '£', defaultUsdRate: 0.86 / 1.09 },
+};
+
+export const FALLBACK_USD_RATES: Record<DisplayCurrency, number> = {
+  USD: CURRENCY_META.USD.defaultUsdRate,
+  EUR: CURRENCY_META.EUR.defaultUsdRate,
+  AUD: CURRENCY_META.AUD.defaultUsdRate,
+  GBP: CURRENCY_META.GBP.defaultUsdRate,
 };
 
 export interface DisplaySettings {
   currency: DisplayCurrency;
-  /** USD → display-currency conversion rate (always 1 while `currency` is USD). */
+  /** USD → display-currency conversion rate (always 1 while `currency` is USD). Prefilled
+   *  from the live rate; the coordinator may still type a different one for this quote. */
   fxRate: number;
+  /** True once the coordinator typed their own `fxRate` — a later live-rate answer then never
+   *  overwrites it. Reset whenever the currency changes. */
+  fxRateEdited: boolean;
   showProductPrices: boolean;
   showHotelPrices: boolean;
   /** When a non-USD currency is selected, also print the USD equivalent in parentheses. */
@@ -67,6 +83,9 @@ export interface WizardState {
    *  removed along with the 3D map step) — kept only for `QuotationPdfData` shape
    *  compatibility; always false in practice. */
   replaceImplantMapWithPhotos: boolean;
+  /** Live exchange rates (or the fixed fallback) — fetched once when the wizard opens. Null
+   *  until the first answer. */
+  liveRates: RatesResult | null;
 }
 
 export function createInitialState(): WizardState {
@@ -78,9 +97,10 @@ export function createInitialState(): WizardState {
     paymentMethod: 'visit-payments',
     installmentAmount: null,
     options: [],
-    display: { currency: 'USD', fxRate: 1, showProductPrices: true, showHotelPrices: true, showUsdEquivalent: false },
+    display: { currency: 'USD', fxRate: 1, fxRateEdited: false, showProductPrices: true, showHotelPrices: true, showUsdEquivalent: false },
     notes: '',
     patientPhotos: [],
     replaceImplantMapWithPhotos: false,
+    liveRates: null,
   };
 }

@@ -6,6 +6,7 @@ function display(overrides: Partial<DisplaySettings> = {}): DisplaySettings {
   return {
     currency: 'EUR',
     fxRate: 1.1567,
+    fxRateEdited: false,
     showProductPrices: true,
     showHotelPrices: true,
     showUsdEquivalent: false,

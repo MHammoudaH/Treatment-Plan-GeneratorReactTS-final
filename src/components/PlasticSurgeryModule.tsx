@@ -3,8 +3,10 @@ import { PLASTIC_CATEGORIES, PLASTIC_SURGERIES, recommendedNights, type PlasticS
 import { galleryForItem } from '../data/plasticGallery';
 import { heroImageForItem } from '../data/plasticImagery';
 import { PRICING } from '../data/pricing';
+import { FALLBACK_EUR_RATES, PLASTIC_CURRENCIES, fetchEurRates, type PlasticCurrency, type RatesResult } from '../lib/currencyRates';
 import type { QuotationLanguage } from '../lib/pdf/types';
 import { generatePlasticPremiumPdf } from '../lib/pdf/plastic/generatePlasticPremiumPdf';
+import { BmiCalculator } from './BmiCalculator';
 import { NumberField } from './NumberField';
 
 interface Props {
@@ -39,13 +41,15 @@ export function PlasticSurgeryModule({ onBack }: Props) {
   const [travelDate, setTravelDate] = useState('');
   const [coordinatorNote, setCoordinatorNote] = useState('');
   const [doctorName, setDoctorName] = useState('');
-  const [currency, setCurrency] = useState<'EUR' | 'USD' | 'AUD'>('EUR');
+  const [currency, setCurrency] = useState<PlasticCurrency>('EUR');
+  // Live EUR-based rates (Frankfurter → currency-api → hardcoded fallback); the hardcoded
+  // rates are used until the first fetch answers, so totals are never blank.
+  const [rateInfo, setRateInfo] = useState<RatesResult>({ rates: FALLBACK_EUR_RATES, source: 'fallback', date: null });
   const [hotelId, setHotelId] = useState('');
   const [hotelNights, setHotelNights] = useState(0);
   const [nightsEdited, setNightsEdited] = useState(false);
   const [hotelPriceOverride, setHotelPriceOverride] = useState('');
   const [transferIncluded, setTransferIncluded] = useState(true);
-  const [markupPercent, setMarkupPercent] = useState(0);
   const [manualTotal, setManualTotal] = useState('');
   const [page, setPage] = useState<1 | 2>(1);
   const [submitted, setSubmitted] = useState(false);
@@ -63,6 +67,17 @@ export function PlasticSurgeryModule({ onBack }: Props) {
   }, [category, search]);
 
   const isSelected = (id: string) => selectedItems.some((item) => item.id === id);
+  const bariatricSelected = selectedItems.some((item) => item.category === 'Bariatric');
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchEurRates().then((result) => {
+      if (!cancelled) setRateInfo(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function toggleSurgery(item: PlasticSurgeryItem) {
     if (item.available === false) return; // not currently offered — never selectable
@@ -103,8 +118,9 @@ export function PlasticSurgeryModule({ onBack }: Props) {
   }
 
   function quotationTotals() {
-    const rates = { EUR: 1, USD: 1.09, AUD: 1.67 };
-    const displayRate = currency === 'EUR' ? 1 / 1.09 : rates[currency];
+    const { rates } = rateInfo;
+    // Hotel and transfer prices are in USD: USD → `currency` goes through the EUR base.
+    const displayRate = rates[currency] / rates.USD;
     // Catalog EUR prices are converted with `rates`; a coordinator override (for an unpriced
     // item) was already typed directly in `currency`, so it is used as-is, never converted.
     const surgeryItems = selectedItems.map((item) => ({
@@ -118,9 +134,9 @@ export function PlasticSurgeryModule({ onBack }: Props) {
     const hotel = hotelPriceOverride !== '' ? Math.max(0, Number(hotelPriceOverride) || 0) : hotelAuto;
     const transfer = transferIncluded ? 150 * displayRate : 0;
     const subtotal = surgeryTotal + hotel + transfer;
-    const calculated = subtotal * (1 + Math.max(0, markupPercent) / 100);
-    // A non-empty "Final total override" wins over the markup calculation — this is the
-    // number that goes on the proposal.
+    const calculated = subtotal;
+    // A non-empty "Final total override" wins over the calculated total — this is the number
+    // that goes on the proposal.
     const finalTotal = manualTotal.trim() === '' ? calculated : Math.max(0, Number(manualTotal) || 0);
     return { surgeryItems, surgeryTotal, hotel, hotelAuto, transfer, subtotal, calculated, finalTotal };
   }
@@ -142,12 +158,10 @@ export function PlasticSurgeryModule({ onBack }: Props) {
       hotelName: hotel ? hotel.name : null,
       hotelNights: hotel ? hotelNights : 0,
       transferIncluded,
-      markupPercent,
       amounts: {
         surgeryItems: totals.surgeryItems,
         hotel: totals.hotel,
         transfer: totals.transfer,
-        markup: Math.max(0, totals.calculated - totals.subtotal),
         total,
       },
       gallery: combinedGallery(selectedItems),
@@ -198,6 +212,7 @@ export function PlasticSurgeryModule({ onBack }: Props) {
           <strong>Hotel stays are not included</strong> in the operation prices below. On the quotation step the
           coordinator selects a hotel and number of nights (and can override the hotel price) so it is added to the total.
         </p>
+        {category === 'Bariatric' && <BmiCalculator />}
         <div className="plastic-grid">
           {cards.map(({ item, image }) => (
             <button
@@ -252,6 +267,7 @@ export function PlasticSurgeryModule({ onBack }: Props) {
             )}
           </div>
         ) : <p className="rule-note">Select one or more operations above to start an appointment request.</p>}
+        {bariatricSelected && category !== 'Bariatric' && <BmiCalculator />}
         <div className="grid-2">
           <div>
             <label htmlFor="plastic-patient-name">Patient name</label>
@@ -288,7 +304,6 @@ export function PlasticSurgeryModule({ onBack }: Props) {
                 setNightsEdited(false);
                 setHotelPriceOverride('');
                 setTransferIncluded(true);
-                setMarkupPercent(0);
                 setManualTotal('');
                 setPriceOverrides({});
                 setSubmitted(false);
@@ -343,11 +358,21 @@ export function PlasticSurgeryModule({ onBack }: Props) {
           <div className="grid-2">
             <div>
               <label htmlFor="plastic-currency">Quotation currency</label>
-              <select id="plastic-currency" value={currency} onChange={(e) => setCurrency(e.target.value as 'EUR' | 'USD' | 'AUD')}>
-                <option value="EUR">EUR — Euro</option>
-                <option value="USD">USD — US Dollar</option>
-                <option value="AUD">AUD — Australian Dollar</option>
+              <select id="plastic-currency" value={currency} onChange={(e) => setCurrency(e.target.value as PlasticCurrency)}>
+                {PLASTIC_CURRENCIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
               </select>
+              <small className="hint">
+                {currency === 'EUR'
+                  ? 'Catalog prices are in EUR.'
+                  : `1 EUR = ${rateInfo.rates[currency].toFixed(4)} ${currency}`}{' '}
+                {rateInfo.source === 'fallback'
+                  ? '· Live rates unavailable — using the standard fallback rates.'
+                  : `· Live rate (${rateInfo.source === 'frankfurter' ? 'Frankfurter / ECB' : 'currency-api'}${rateInfo.date ? `, ${rateInfo.date}` : ''}).`}
+              </small>
             </div>
             <div>
               <label htmlFor="plastic-doctor">Doctor name (manual)</label>
@@ -397,11 +422,9 @@ export function PlasticSurgeryModule({ onBack }: Props) {
               <div className="summary-row"><span>Combined surgery price ({selectedItems.length} procedures)</span><strong>{currency} {totals.surgeryTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong></div>
             )}
             <div className="summary-row"><span>Surgery + hotel + transfer</span><strong>{currency} {totals.subtotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong></div>
-            <label htmlFor="plastic-markup">Coordinator markup (%)</label>
-            <NumberField id="plastic-markup" min={0} step={0.5} value={markupPercent} onChange={(n) => setMarkupPercent(Math.max(0, n))} />
             <label htmlFor="plastic-total-override">Final total override ({currency}) — optional</label>
-            <input id="plastic-total-override" type="number" min={0} step={0.01} value={manualTotal} onChange={(e) => setManualTotal(e.target.value)} placeholder="Leave empty to use markup calculation" />
-            <div className="summary-row"><span>Calculated total (subtotal + markup)</span><strong>{currency} {totals.calculated.toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong></div>
+            <input id="plastic-total-override" type="number" min={0} step={0.01} value={manualTotal} onChange={(e) => setManualTotal(e.target.value)} placeholder="Leave empty to use the calculated total" />
+            <div className="summary-row"><span>Calculated total</span><strong>{currency} {totals.calculated.toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong></div>
             <div className="summary-row summary-total">
               <span>{manualTotal.trim() === '' ? 'Final total' : 'Final total (manual override)'}</span>
               <strong>{currency} {totals.finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong>
