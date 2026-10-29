@@ -35,6 +35,19 @@ export interface PlasticPremiumInput {
   hotelName: string | null;
   hotelNights: number;
   transferIncluded: boolean;
+  /** Full package price: every procedure / hotel / transfer line is still listed, but shows
+   *  "Included" instead of its own price — only the total is printed. */
+  packagePrice?: boolean;
+  /** Patient weight & BMI (current, and expected after treatment when known), in `unit`. */
+  weight?: {
+    unit: 'kg' | 'lb';
+    current: number;
+    bmi: number;
+    expected: number | null;
+    expectedBmi: number | null;
+    /** Timeframe of the procedure-based estimate; null for a coordinator's own figure. */
+    months: { from: number; to: number } | null;
+  } | null;
   /** All amounts already converted to `currency`. */
   amounts: {
     /** One priced line per selected procedure — printed as its own row in the investment
@@ -65,6 +78,16 @@ interface Labels {
   hotel: string;
   transfer: string;
   total: string;
+  included: string;
+  packageTotal: string;
+  weightTitle: string;
+  currentWeight: string;
+  currentBmi: string;
+  expectedWeight: string;
+  expectedBmi: string;
+  timeframe: string;
+  months: string;
+  weightNote: string;
   notes: string;
   beforeAfter: string;
   beforeAfterIntro: string;
@@ -94,6 +117,16 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     hotel: 'Hotel',
     transfer: 'Airport transfer',
     total: 'Total',
+    included: 'Included',
+    packageTotal: 'All-inclusive package price',
+    weightTitle: 'Weight & BMI',
+    currentWeight: 'Current weight',
+    currentBmi: 'Current BMI',
+    expectedWeight: 'Expected weight',
+    expectedBmi: 'Expected BMI',
+    timeframe: 'Expected timeframe',
+    months: 'months',
+    weightNote: 'The expected weight and BMI are estimates based on typical average results. They will be confirmed by your doctor during your one-to-one consultation.',
     notes: 'Coordinator notes',
     beforeAfter: 'Before & After',
     beforeAfterIntro: 'A selection of results from our surgical team for procedures in this area.',
@@ -122,6 +155,16 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     hotel: 'Отель',
     transfer: 'Трансфер из аэропорта',
     total: 'Итого',
+    included: 'Включено',
+    packageTotal: 'Стоимость пакета «всё включено»',
+    weightTitle: 'Вес и ИМТ',
+    currentWeight: 'Текущий вес',
+    currentBmi: 'Текущий ИМТ',
+    expectedWeight: 'Ожидаемый вес',
+    expectedBmi: 'Ожидаемый ИМТ',
+    timeframe: 'Ожидаемый срок',
+    months: 'мес.',
+    weightNote: 'Ожидаемые вес и ИМТ — это оценка на основе средних результатов. Они будут подтверждены вашим врачом на индивидуальной консультации.',
     notes: 'Примечания координатора',
     beforeAfter: 'До и После',
     beforeAfterIntro: 'Подборка результатов нашей хирургической команды по операциям в этой зоне.',
@@ -150,6 +193,16 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     hotel: 'Hôtel',
     transfer: 'Transfert aéroport',
     total: 'Total',
+    included: 'Inclus',
+    packageTotal: 'Prix du forfait tout compris',
+    weightTitle: 'Poids & IMC',
+    currentWeight: 'Poids actuel',
+    currentBmi: 'IMC actuel',
+    expectedWeight: 'Poids attendu',
+    expectedBmi: 'IMC attendu',
+    timeframe: 'Délai estimé',
+    months: 'mois',
+    weightNote: "Le poids et l'IMC attendus sont des estimations fondées sur des résultats moyens. Ils seront confirmés par votre médecin lors de votre consultation individuelle.",
     notes: 'Notes du coordinateur',
     beforeAfter: 'Avant & Après',
     beforeAfterIntro: 'Une sélection de résultats de notre équipe chirurgicale pour les interventions de cette zone.',
@@ -179,6 +232,16 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     hotel: 'Hotel',
     transfer: 'Traslado desde el aeropuerto',
     total: 'Total',
+    included: 'Incluido',
+    packageTotal: 'Precio del paquete todo incluido',
+    weightTitle: 'Peso e IMC',
+    currentWeight: 'Peso actual',
+    currentBmi: 'IMC actual',
+    expectedWeight: 'Peso esperado',
+    expectedBmi: 'IMC esperado',
+    timeframe: 'Plazo estimado',
+    months: 'meses',
+    weightNote: 'El peso y el IMC esperados son estimaciones basadas en resultados medios. Su médico los confirmará durante su consulta individual.',
     notes: 'Notas del coordinador',
     beforeAfter: 'Antes y Después',
     beforeAfterIntro: 'Una selección de resultados de nuestro equipo quirúrgico para procedimientos en esta zona.',
@@ -208,6 +271,16 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     hotel: 'الفندق',
     transfer: 'التوصيل من المطار',
     total: 'الإجمالي',
+    included: 'مشمول',
+    packageTotal: 'سعر الباقة الشاملة',
+    weightTitle: 'الوزن ومؤشر كتلة الجسم',
+    currentWeight: 'الوزن الحالي',
+    currentBmi: 'مؤشر كتلة الجسم الحالي',
+    expectedWeight: 'الوزن المتوقع',
+    expectedBmi: 'مؤشر كتلة الجسم المتوقع',
+    timeframe: 'المدة المتوقعة',
+    months: 'أشهر',
+    weightNote: 'الوزن ومؤشر كتلة الجسم المتوقعان تقديرات مبنية على متوسط النتائج المعتادة، وسيؤكدها طبيبك خلال الاستشارة الفردية.',
     notes: 'ملاحظات المنسق',
     beforeAfter: 'قبل وبعد',
     beforeAfterIntro: 'مجموعة مختارة من نتائج فريقنا الجراحي لعمليات هذه المنطقة.',
@@ -265,6 +338,8 @@ export function generatePlasticPremiumHtml(input: PlasticPremiumInput): string {
   const date = formatDate(input.travelDate);
   const generatedOn = new Date().toLocaleDateString('en-GB');
   const m = (amount: number) => money(amount, currency);
+  // In package mode a line's own price is replaced by "Included"; only the total is priced.
+  const lineAmount = (amount: number) => (input.packagePrice ? esc(labels.included) : m(amount));
 
   // One overview card per selected procedure — its own name, note and category/stay/hospital
   // facts — followed by ONE shared fact-grid for the whole visit (date, doctor), since those
@@ -288,19 +363,40 @@ export function generatePlasticPremiumHtml(input: PlasticPremiumInput): string {
   if (date) visitFacts.push([labels.preferredDate, date]);
   visitFacts.push([labels.doctor, input.doctorName ? esc(input.doctorName) : esc(labels.pending)]);
 
+  const w = input.weight;
+  const weightFacts: Array<[string, string]> = [];
+  if (w) {
+    weightFacts.push([labels.currentWeight, `${w.current} ${w.unit}`], [labels.currentBmi, w.bmi.toFixed(1)]);
+    if (w.expected !== null && w.expectedBmi !== null) {
+      weightFacts.push([labels.expectedWeight, `${w.expected} ${w.unit}`], [labels.expectedBmi, w.expectedBmi.toFixed(1)]);
+      if (w.months) {
+        const span = w.months.from === w.months.to ? `${w.months.from}` : `${w.months.from}–${w.months.to}`;
+        weightFacts.push([labels.timeframe, `${span} ${labels.months}`]);
+      }
+    }
+  }
+  const weightBlock = weightFacts.length
+    ? `
+    <div class="kicker">${esc(labels.weightTitle)}</div>
+    <div class="fact-grid">
+      ${weightFacts.map(([k, v]) => `<div class="fact"><span>${esc(k)}</span><strong><bdi>${esc(v)}</bdi></strong></div>`).join('')}
+    </div>
+    ${w && w.expected !== null ? `<p class="fineprint">${esc(labels.weightNote)}</p>` : ''}`
+    : '';
+
   // One investment row per selected procedure, so a combined quote shows exactly what each
   // procedure costs rather than a single opaque "Surgery" figure.
   const investmentRows: string[] = input.amounts.surgeryItems.map(
-    (surgery) => `<div class="line"><span>${esc(labels.surgery)} — ${esc(surgery.name)}</span><strong>${m(surgery.amount)}</strong></div>`,
+    (surgery) => `<div class="line"><span>${esc(labels.surgery)} — ${esc(surgery.name)}</span><strong>${lineAmount(surgery.amount)}</strong></div>`,
   );
   if (input.hotelName && input.hotelNights > 0) {
     investmentRows.push(
-      `<div class="line"><span>${esc(labels.hotel)} — ${esc(input.hotelName)} · ${input.hotelNights} ${esc(labels.nights)}</span><strong>${m(input.amounts.hotel)}</strong></div>`,
+      `<div class="line"><span>${esc(labels.hotel)} — ${esc(input.hotelName)} · ${input.hotelNights} ${esc(labels.nights)}</span><strong>${lineAmount(input.amounts.hotel)}</strong></div>`,
     );
   }
   if (input.transferIncluded) {
     investmentRows.push(
-      `<div class="line"><span>${esc(labels.transfer)}</span><strong>${m(input.amounts.transfer)}</strong></div>`,
+      `<div class="line"><span>${esc(labels.transfer)}</span><strong>${lineAmount(input.amounts.transfer)}</strong></div>`,
     );
   }
 
@@ -424,10 +520,10 @@ ${RTL_CSS}
     <div class="procedure-cards">${procedureCards}</div>
     <div class="fact-grid">
       ${visitFacts.map(([k, v]) => `<div class="fact"><span>${esc(k)}</span><strong>${v}</strong></div>`).join('')}
-    </div>
+    </div>${weightBlock}
     <div class="kicker">${esc(labels.investment)}</div>
     <div class="invoice">${investmentRows.join('')}</div>
-    <div class="total-box"><span>${esc(labels.total)}</span><strong>${m(input.amounts.total)}</strong></div>
+    <div class="total-box"><span>${esc(input.packagePrice ? labels.packageTotal : labels.total)}</span><strong>${m(input.amounts.total)}</strong></div>
     ${notesBox}
   </div>
 </section>

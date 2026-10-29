@@ -1,11 +1,9 @@
-import { useState } from 'react';
-import { bmiCategory, calculateBmi, type BmiUnits } from '../lib/bmi';
+import { CM_PER_INCH, LB_PER_KG, bmiCategory, calculateBmi, type BmiUnits, type BmiValues } from '../lib/bmi';
 
-/** Informational BMI check for bariatric patients — does not affect any price. */
-export function BmiCalculator() {
-  const [units, setUnits] = useState<BmiUnits>('metric');
-  const [weight, setWeight] = useState('');
-  const [height, setHeight] = useState('');
+/** Patient weight / height / BMI — informational only, does not affect any price. The values
+ *  live in the parent so they carry through to the quotation step and the PDF. */
+export function BmiCalculator({ value, onChange }: { value: BmiValues; onChange: (next: BmiValues) => void }) {
+  const { units, weight, height } = value;
   const bmi = calculateBmi(Number(weight), Number(height), units);
   const metric = units === 'metric';
 
@@ -14,15 +12,17 @@ export function BmiCalculator() {
     // Convert what's already typed so switching units doesn't lose it.
     const w = Number(weight);
     const h = Number(height);
-    if (w > 0) setWeight(String(Math.round((next === 'imperial' ? w * 2.20462 : w / 2.20462) * 10) / 10));
-    if (h > 0) setHeight(String(Math.round((next === 'imperial' ? h / 2.54 : h * 2.54) * 10) / 10));
-    setUnits(next);
+    onChange({
+      units: next,
+      weight: w > 0 ? String(Math.round((next === 'imperial' ? w * LB_PER_KG : w / LB_PER_KG) * 10) / 10) : weight,
+      height: h > 0 ? String(Math.round((next === 'imperial' ? h / CM_PER_INCH : h * CM_PER_INCH) * 10) / 10) : height,
+    });
   }
 
   return (
     <div className="bmi-calculator">
       <div className="bmi-header">
-        <h4>BMI calculator</h4>
+        <h4>Weight &amp; BMI</h4>
         <div className="bmi-units" role="group" aria-label="BMI units">
           <button type="button" className={metric ? '' : 'secondary'} onClick={() => switchUnits('metric')}>
             kg / cm
@@ -35,11 +35,11 @@ export function BmiCalculator() {
       <div className="grid-2">
         <div>
           <label htmlFor="bmi-weight">Weight ({metric ? 'kg' : 'lb'})</label>
-          <input id="bmi-weight" type="number" min={0} step={0.1} value={weight} onChange={(e) => setWeight(e.target.value)} />
+          <input id="bmi-weight" type="number" min={0} step={0.1} value={weight} onChange={(e) => onChange({ ...value, weight: e.target.value })} />
         </div>
         <div>
           <label htmlFor="bmi-height">Height ({metric ? 'cm' : 'inches'})</label>
-          <input id="bmi-height" type="number" min={0} step={0.1} value={height} onChange={(e) => setHeight(e.target.value)} />
+          <input id="bmi-height" type="number" min={0} step={0.1} value={height} onChange={(e) => onChange({ ...value, height: e.target.value })} />
         </div>
       </div>
       <p className="bmi-result">
@@ -51,7 +51,7 @@ export function BmiCalculator() {
           </>
         )}
       </p>
-      <small className="hint">Informational only — does not affect pricing.</small>
+      <small className="hint">Optional — carried to the quotation step (expected weight &amp; BMI) and the PDF. Does not affect pricing.</small>
     </div>
   );
 }

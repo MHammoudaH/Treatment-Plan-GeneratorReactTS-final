@@ -6,6 +6,7 @@ import { PRICING } from '../data/pricing';
 import { FALLBACK_EUR_RATES, PLASTIC_CURRENCIES, fetchEurRates, type PlasticCurrency, type RatesResult } from '../lib/currencyRates';
 import type { QuotationLanguage } from '../lib/pdf/types';
 import { generatePlasticPremiumPdf } from '../lib/pdf/plastic/generatePlasticPremiumPdf';
+import { EMPTY_BMI, bmiCategory, calculateBmi, expectedWeight, fromKg, toCm, toKg, type BmiValues } from '../lib/bmi';
 import { BmiCalculator } from './BmiCalculator';
 import { NumberField } from './NumberField';
 
@@ -50,6 +51,7 @@ export function PlasticSurgeryModule({ onBack }: Props) {
   const [nightsEdited, setNightsEdited] = useState(false);
   const [hotelPriceOverride, setHotelPriceOverride] = useState('');
   const [transferIncluded, setTransferIncluded] = useState(true);
+  const [packagePrice, setPackagePrice] = useState(false);
   const [manualTotal, setManualTotal] = useState('');
   const [page, setPage] = useState<1 | 2>(1);
   const [submitted, setSubmitted] = useState(false);
@@ -58,6 +60,11 @@ export function PlasticSurgeryModule({ onBack }: Props) {
   // €0/$0: an unpriced item without an entry here contributes nothing to the total AND blocks
   // proposal generation (see `unpricedWithoutOverride` below).
   const [priceOverrides, setPriceOverrides] = useState<Record<string, string>>({});
+  // Patient weight/height (appointment page) → expected weight & BMI (quotation page) → PDF.
+  const [bmiValues, setBmiValues] = useState<BmiValues>(EMPTY_BMI);
+  // Coordinator's own expected weight, typed in `bmiValues.units`; '' = use the estimate.
+  const [expectedWeightOverride, setExpectedWeightOverride] = useState('');
+  const [includeWeightInPdf, setIncludeWeightInPdf] = useState(true);
 
   const cards = useMemo(() => {
     const list = category === 'All' ? PLASTIC_SURGERIES : PLASTIC_SURGERIES.filter((item) => item.category === category);
@@ -67,7 +74,23 @@ export function PlasticSurgeryModule({ onBack }: Props) {
   }, [category, search]);
 
   const isSelected = (id: string) => selectedItems.some((item) => item.id === id);
-  const bariatricSelected = selectedItems.some((item) => item.category === 'Bariatric');
+
+  const weightUnit = bmiValues.units === 'metric' ? 'kg' : 'lb';
+  const currentKg = toKg(Number(bmiValues.weight), bmiValues.units);
+  const heightCm = toCm(Number(bmiValues.height), bmiValues.units);
+  const currentBmi = calculateBmi(currentKg, heightCm, 'metric');
+  const weightEstimate = expectedWeight(currentKg, heightCm, selectedItems.map((item) => item.id));
+  const overrideValue = Number(expectedWeightOverride);
+  const expectedKg =
+    expectedWeightOverride.trim() !== '' && overrideValue > 0 ? toKg(overrideValue, bmiValues.units) : (weightEstimate?.weightKg ?? null);
+  const expectedBmi = currentBmi !== null && expectedKg !== null ? calculateBmi(expectedKg, heightCm, 'metric') : null;
+  const estimateProcedure = weightEstimate ? selectedItems.find((item) => item.id === weightEstimate.procedureId) : undefined;
+
+  function changeBmi(next: BmiValues) {
+    // An override typed in kg means nothing in lb — clear it when the units switch.
+    if (next.units !== bmiValues.units) setExpectedWeightOverride('');
+    setBmiValues(next);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -158,6 +181,19 @@ export function PlasticSurgeryModule({ onBack }: Props) {
       hotelName: hotel ? hotel.name : null,
       hotelNights: hotel ? hotelNights : 0,
       transferIncluded,
+      packagePrice,
+      weight:
+        includeWeightInPdf && currentBmi !== null
+          ? {
+              unit: weightUnit,
+              current: fromKg(currentKg, bmiValues.units),
+              bmi: currentBmi,
+              expected: expectedKg !== null ? fromKg(expectedKg, bmiValues.units) : null,
+              expectedBmi,
+              // The timeframe belongs to the estimate — not shown for a coordinator's own figure.
+              months: weightEstimate && expectedWeightOverride.trim() === '' ? { from: weightEstimate.monthsFrom, to: weightEstimate.monthsTo } : null,
+            }
+          : null,
       amounts: {
         surgeryItems: totals.surgeryItems,
         hotel: totals.hotel,
@@ -212,7 +248,6 @@ export function PlasticSurgeryModule({ onBack }: Props) {
           <strong>Hotel stays are not included</strong> in the operation prices below. On the quotation step the
           coordinator selects a hotel and number of nights (and can override the hotel price) so it is added to the total.
         </p>
-        {category === 'Bariatric' && <BmiCalculator />}
         <div className="plastic-grid">
           {cards.map(({ item, image }) => (
             <button
@@ -267,7 +302,6 @@ export function PlasticSurgeryModule({ onBack }: Props) {
             )}
           </div>
         ) : <p className="rule-note">Select one or more operations above to start an appointment request.</p>}
-        {bariatricSelected && category !== 'Bariatric' && <BmiCalculator />}
         <div className="grid-2">
           <div>
             <label htmlFor="plastic-patient-name">Patient name</label>
@@ -284,6 +318,7 @@ export function PlasticSurgeryModule({ onBack }: Props) {
             </select>
           </div>
         </div>
+        <BmiCalculator value={bmiValues} onChange={changeBmi} />
         <label htmlFor="plastic-coordinator-note">Coordinator notes</label>
         <textarea id="plastic-coordinator-note" rows={3} value={coordinatorNote} onChange={(e) => setCoordinatorNote(e.target.value)} placeholder="Medical details, requested combinations, or questions for the coordinator" />
         <div className="wizard-actions">
@@ -304,8 +339,12 @@ export function PlasticSurgeryModule({ onBack }: Props) {
                 setNightsEdited(false);
                 setHotelPriceOverride('');
                 setTransferIncluded(true);
+                setPackagePrice(false);
                 setManualTotal('');
                 setPriceOverrides({});
+                setBmiValues(EMPTY_BMI);
+                setExpectedWeightOverride('');
+                setIncludeWeightInPdf(true);
                 setSubmitted(false);
                 setPage(1);
               }}>
@@ -416,6 +455,10 @@ export function PlasticSurgeryModule({ onBack }: Props) {
             </div>
           </div>
           <label className="inline-check"><input type="checkbox" checked={transferIncluded} onChange={(e) => setTransferIncluded(e.target.checked)} /> Include airport transfer</label>
+          <label className="inline-check">
+            <input type="checkbox" checked={packagePrice} onChange={(e) => setPackagePrice(e.target.checked)} /> Full package price — hide the
+            procedure, hotel and transfer prices in the PDF (each line shows "Included"; only the total is shown)
+          </label>
           <div className="coordinator-pricing">
             <h4>Coordinator price review</h4>
             {selectedItems.length > 1 && (
@@ -429,6 +472,50 @@ export function PlasticSurgeryModule({ onBack }: Props) {
               <span>{manualTotal.trim() === '' ? 'Final total' : 'Final total (manual override)'}</span>
               <strong>{currency} {totals.finalTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong>
             </div>
+          </div>
+          <div className="bmi-calculator">
+            <h4>Weight &amp; BMI outlook</h4>
+            {currentBmi === null ? (
+              <p className="hint">No weight / height entered on the appointment page — go back to add them if you want this in the proposal.</p>
+            ) : (
+              <>
+                <div className="summary-row">
+                  <span>Current</span>
+                  <strong>
+                    {fromKg(currentKg, bmiValues.units)} {weightUnit} · BMI {currentBmi.toFixed(1)} ({bmiCategory(currentBmi)})
+                  </strong>
+                </div>
+                {expectedKg !== null && expectedBmi !== null ? (
+                  <div className="summary-row summary-total">
+                    <span>Expected{weightEstimate && expectedWeightOverride.trim() === '' ? ` in ${weightEstimate.monthsFrom === weightEstimate.monthsTo ? weightEstimate.monthsFrom : `${weightEstimate.monthsFrom}–${weightEstimate.monthsTo}`} months` : ''}</span>
+                    <strong>
+                      {fromKg(expectedKg, bmiValues.units)} {weightUnit} · BMI {expectedBmi.toFixed(1)} ({bmiCategory(expectedBmi)})
+                    </strong>
+                  </div>
+                ) : (
+                  <p className="hint">The selected procedures reshape the body rather than reduce weight — no significant change in weight or BMI is expected. You can still enter an expected weight below.</p>
+                )}
+                {estimateProcedure && (
+                  <small className="hint">
+                    Estimate based on typical average results for {estimateProcedure.name}
+                    {currentBmi < 25 && ' (little expected change — the patient is already in the healthy BMI range)'}. These are estimations — the doctor confirms them in the one-to-one consultation (this note is printed in the PDF too).
+                  </small>
+                )}
+                <label htmlFor="plastic-expected-weight">Expected weight override ({weightUnit}) — optional</label>
+                <input
+                  id="plastic-expected-weight"
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={expectedWeightOverride}
+                  onChange={(e) => setExpectedWeightOverride(e.target.value)}
+                  placeholder={weightEstimate ? `Estimate: ${fromKg(weightEstimate.weightKg, bmiValues.units)}` : 'Leave empty for no expected weight'}
+                />
+                <label className="inline-check">
+                  <input type="checkbox" checked={includeWeightInPdf} onChange={(e) => setIncludeWeightInPdf(e.target.checked)} /> Include weight &amp; BMI in the PDF
+                </label>
+              </>
+            )}
           </div>
           <label htmlFor="plastic-final-note">Final quotation notes</label>
           <textarea id="plastic-final-note" rows={3} value={coordinatorNote} onChange={(e) => setCoordinatorNote(e.target.value)} />

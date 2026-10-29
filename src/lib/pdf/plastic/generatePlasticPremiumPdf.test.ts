@@ -64,6 +64,44 @@ describe('generatePlasticPremiumHtml — combined multi-procedure quotation', ()
     expect((html.match(/class="line"/g) ?? []).length).toBe(4); // 2 surgery rows + hotel + transfer
   });
 
+  it('package price: every line is still listed but shows "Included"; only the total is priced', () => {
+    const html = generatePlasticPremiumHtml({ ...combined, packagePrice: true });
+    expect((html.match(/class="line"/g) ?? []).length).toBe(4);
+    expect(html).toContain('Surgery — Rhinoplasty</span><strong>Included</strong>');
+    expect(html).toContain('Airport transfer</span><strong>Included</strong>');
+    expect(html).not.toContain('€2,900');
+    expect(html).not.toContain('€500');
+    expect(html).not.toContain('€150');
+    expect(html).toContain('All-inclusive package price</span><strong>€6,450</strong>');
+  });
+
+  it('package price labels are translated (Arabic)', () => {
+    const html = generatePlasticPremiumHtml({ ...combined, packagePrice: true, language: 'Arabic' });
+    expect(html).toContain('مشمول');
+    expect(html).toContain('سعر الباقة الشاملة');
+  });
+
+  it('weight & BMI: current and expected figures with the timeframe when provided', () => {
+    const html = generatePlasticPremiumHtml({
+      ...combined,
+      weight: { unit: 'kg', current: 120, bmi: 39.2, expected: 91.5, expectedBmi: 29.9, months: { from: 12, to: 18 } },
+    });
+    expect(html).toContain('Current weight');
+    expect(html).toContain('120 kg');
+    expect(html).toContain('91.5 kg');
+    expect(html).toContain('29.9');
+    expect(html).toContain('12–18 months');
+    expect(html).toContain('typical average results');
+    expect(html).toContain('confirmed by your doctor during your one-to-one consultation');
+  });
+
+  it('weight & BMI: nothing printed when not provided; no expected rows without an expected weight', () => {
+    expect(generatePlasticPremiumHtml(combined)).not.toContain('Current weight');
+    const html = generatePlasticPremiumHtml({ ...combined, weight: { unit: 'lb', current: 180, bmi: 26.6, expected: null, expectedBmi: null, months: null } });
+    expect(html).toContain('180 lb');
+    expect(html).not.toContain('Expected weight');
+  });
+
   it('the cover page combines every procedure name', () => {
     const html = generatePlasticPremiumHtml(combined);
     expect(html).toContain('Rhinoplasty + Breast Lifting Without Silicone');
