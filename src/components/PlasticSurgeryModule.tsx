@@ -255,6 +255,9 @@ export function PlasticSurgeryModule({ onBack, opened }: Props) {
         <button type="button" className="secondary plastic-hero-back" onClick={onBack}>Change module</button>
       </section>
 
+      {plan?.rebuilt && (
+        <p className="rule-note">Rebuilt from this patient's saved quote summary (it was saved before full plans were kept). Products, procedures, quantities, hotels and the quoted prices are filled in — please check the hotel, transfer, dates and anything else before generating.</p>
+      )}
       {page === 1 ? <section className="plastic-catalog">
         <div className="plastic-toolbar">
           <div>

@@ -17,6 +17,8 @@ import type { RecordSaveState } from './recordSaver';
 export interface DentalPlan {
   module: 'dental';
   version: 1;
+  /** Rebuilt from an older quote's text summary (see rebuildPlan.ts) — the coordinator checks it. */
+  rebuilt?: boolean;
   patient: WizardState['patient'];
   diagnosis: WizardState['diagnosis'];
   toothPlan: WizardState['toothPlan'];
@@ -30,6 +32,8 @@ export interface DentalPlan {
 export interface PlasticPlan {
   module: 'plastic';
   version: 1;
+  /** Rebuilt from an older quote's text summary (see rebuildPlan.ts) — the coordinator checks it. */
+  rebuilt?: boolean;
   itemIds: string[];
   patientName: string;
   language: QuotationLanguage;
@@ -98,9 +102,11 @@ export function wizardStateFromPlan(opened: OpenedPlan & { plan: DentalPlan }): 
     installmentAmount: plan.installmentAmount ?? null,
     // Fill any field a newer app version added since the plan was saved.
     options: (plan.options ?? []).map((option) => ({ ...createOptionInput(option.id, option.name), ...option })),
-    display: { ...initial.display, ...plan.display, fxRateEdited: (plan.display?.currency ?? 'USD') !== 'USD' },
+    // A rebuilt plan never knew its rate: let today's live rate fill it in.
+    display: { ...initial.display, ...plan.display, fxRateEdited: !plan.rebuilt && (plan.display?.currency ?? 'USD') !== 'USD' },
     notes: plan.notes ?? '',
     recordSave: recordSaveFor(opened),
+    rebuiltFromSummary: plan.rebuilt === true,
   };
 }
 

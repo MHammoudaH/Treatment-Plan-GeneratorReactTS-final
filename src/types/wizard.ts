@@ -89,6 +89,8 @@ export interface WizardState {
   liveRates: RatesResult | null;
   /** "Save this patient to my records" checkbox + the record this quotation already saved to. */
   recordSave: RecordSaveState;
+  /** Re-opened from an older quote's summary (no full plan was saved) — show a "please check" note. */
+  rebuiltFromSummary?: boolean;
 }
 
 export function createInitialState(): WizardState {

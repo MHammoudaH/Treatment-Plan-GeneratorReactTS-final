@@ -114,6 +114,7 @@ function WizardShell({ onChangeModule }: { onChangeModule: () => void }) {
       <AppHeader onChangeModule={onChangeModule} />
 
       <Stepper />
+      {state.rebuiltFromSummary && <p className="rule-note">Rebuilt from this patient's saved quote summary (it was saved before full plans were kept). Products, procedures, quantities, hotels and the quoted prices are filled in — please check markups, the exchange rate, transfers and anything else before generating.</p>}
 
       <main>
         {state.step === 0 && <Step1Patient />}

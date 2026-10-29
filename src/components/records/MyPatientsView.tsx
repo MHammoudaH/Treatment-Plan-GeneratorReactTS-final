@@ -14,6 +14,7 @@ import {
 import { formatSnapshotMoney } from '../../lib/patientRecords';
 import { useNavValue } from '../../lib/navigation';
 import type { OpenedPlan } from '../../lib/editablePlan';
+import { rebuildPlanFromQuote } from '../../lib/rebuildPlan';
 
 function formatDateTime(iso: string): string {
   const date = new Date(iso);
@@ -76,16 +77,27 @@ function PatientDetail({ id, onBack, onOpenPlan }: { id: number; onBack: () => v
 
   async function openPlan(entryId: number) {
     if (!record) return;
+    const entry = record.entries.find((e) => e.id === entryId);
+    if (!entry?.quote) return;
     setOpening(entryId);
     setError(null);
     try {
-      const found = await fetchQuotePlan(record.id, entryId);
-      onOpenPlan({ recordId: record.id, patientName: record.patientName, quote: found.quote, plan: found.plan });
+      if (entry.hasPlan) {
+        const found = await fetchQuotePlan(record.id, entryId);
+        onOpenPlan({ recordId: record.id, patientName: record.patientName, quote: found.quote, plan: found.plan });
+        return;
+      }
+      // Saved before full plans were kept: rebuild it from the quote's summary.
+      const plan = rebuildPlanFromQuote(entry.quote, record.patientName);
+      if (!plan) throw new Error("This quote's summary couldn't be matched to the current catalog — please build it again.");
+      onOpenPlan({ recordId: record.id, patientName: record.patientName, quote: entry.quote, plan });
     } catch (err) {
-      setError((err as ApiError)?.message ?? 'Could not open this quote.');
+      setError((err as Error)?.message ?? 'Could not open this quote.');
       setOpening(null);
     }
   }
+
+  const latestQuote = record ? [...record.entries].reverse().find((e) => e.kind === 'quote' && e.quote) : undefined;
 
   async function addNote() {
     if (!body.trim() || !record) return;
@@ -115,6 +127,14 @@ function PatientDetail({ id, onBack, onOpenPlan }: { id: number; onBack: () => v
         <>
           <h2>{record.patientName}</h2>
           <p className="step-intro">Saved {formatDateTime(record.createdAt)}. The timeline shows the original quote, then every quote and note added after it.</p>
+          {latestQuote && (
+            <div className="wizard-actions">
+              <button type="button" disabled={opening !== null} onClick={() => openPlan(latestQuote.id)}>
+                {opening === latestQuote.id ? 'Opening…' : 'Update treatment plan'}
+              </button>
+              <small className="hint">Opens the latest quote pre-filled — change what you need and generate the PDF again.</small>
+            </div>
+          )}
 
           <ol className="timeline">
             {record.entries.map((entry, index) => (
@@ -128,17 +148,18 @@ function PatientDetail({ id, onBack, onOpenPlan }: { id: number; onBack: () => v
                   </small>
                 </div>
                 {entry.kind === 'quote' && entry.quote ? <QuoteCard quote={entry.quote} /> : <p className="timeline-note">{entry.body}</p>}
-                {entry.kind === 'quote' &&
-                  (entry.hasPlan ? (
-                    <div className="timeline-actions">
-                      <button type="button" disabled={opening !== null} onClick={() => openPlan(entry.id)}>
-                        {opening === entry.id ? 'Opening…' : 'Open & update this plan'}
-                      </button>
-                      <small className="hint">Opens the {entry.quote?.module === 'plastic' ? 'plastic surgery module' : 'dental wizard'} pre-filled — change what you need and generate the PDF again; it's added here as an updated quote.</small>
-                    </div>
-                  ) : (
-                    <small className="hint">Saved before plans could be re-opened — generate this patient's quote once more to make it updatable.</small>
-                  ))}
+                {entry.kind === 'quote' && entry.quote && (
+                  <div className="timeline-actions">
+                    <button type="button" className="secondary" disabled={opening !== null} onClick={() => openPlan(entry.id)}>
+                      {opening === entry.id ? 'Opening…' : 'Open & update this version'}
+                    </button>
+                    <small className="hint">
+                      {entry.hasPlan
+                        ? `Opens the ${entry.quote.module === 'plastic' ? 'plastic surgery module' : 'dental wizard'} pre-filled — generate the PDF again and it's added here as an updated quote.`
+                        : 'Older quote: rebuilt from its summary with the quoted prices — check the details before generating.'}
+                    </small>
+                  </div>
+                )}
               </li>
             ))}
           </ol>
