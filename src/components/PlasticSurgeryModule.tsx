@@ -8,6 +8,7 @@ import type { QuotationLanguage } from '../lib/pdf/types';
 import { generatePlasticPremiumPdf } from '../lib/pdf/plastic/generatePlasticPremiumPdf';
 import { EMPTY_BMI, bmiCategory, calculateBmi, expectedWeight, fromKg, toCm, toKg, type BmiValues } from '../lib/bmi';
 import { BmiCalculator } from './BmiCalculator';
+import { useNavValue } from '../lib/navigation';
 import { SaveToRecordsOption } from './records/SaveToRecordsOption';
 import { plasticQuoteSnapshot } from '../lib/patientRecords';
 import { INITIAL_RECORD_SAVE, useRecordSaver, type RecordSaveState } from '../lib/recordSaver';
@@ -56,7 +57,7 @@ export function PlasticSurgeryModule({ onBack }: Props) {
   const [transferIncluded, setTransferIncluded] = useState(true);
   const [packagePrice, setPackagePrice] = useState(false);
   const [manualTotal, setManualTotal] = useState('');
-  const [page, setPage] = useState<1 | 2>(1);
+  const [page, setPage] = useNavValue<1 | 2>('plasticPage', 1);
   const [submitted, setSubmitted] = useState(false);
   // Per-item final price for procedures with no catalog price (`priceEur === null`) — entered
   // directly in the quotation's selected `currency`, keyed by procedure id. Never defaults to

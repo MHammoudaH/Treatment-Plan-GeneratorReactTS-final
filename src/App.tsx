@@ -1,5 +1,6 @@
 import './App.css';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { goBack, useNavDepth, useNavValue } from './lib/navigation';
 import { QuotationProvider, useQuotation } from './context/QuotationContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthGate } from './components/auth/AuthGate';
@@ -17,11 +18,16 @@ import { PerformanceBoard } from './components/performance/PerformanceBoard';
 import { JoinTeamPanel } from './components/performance/JoinTeamPanel';
 import { MyTargetStrip } from './components/performance/MyTargetStrip';
 import { ROLES } from './lib/api';
+import type { WizardState } from './types/wizard';
 
 type ClinicModule = 'dental' | 'plastic' | 'patients' | 'performance';
 
+/** Screens inside a module — cleared whenever the module changes. */
+const MODULE_SCREEN_KEYS = ['dentalStep', 'plasticPage', 'patientId'];
+
 function AppHeader({ onChangeModule }: { onChangeModule?: () => void }) {
   const { user, role, logout } = useAuth();
+  const depth = useNavDepth();
   return (
     <header className="app-header">
       <img src="/assets/logo/Logo-main.png" alt="Duty Clinic" className="app-logo" />
@@ -30,6 +36,11 @@ function AppHeader({ onChangeModule }: { onChangeModule?: () => void }) {
         <p>Coordinator quotation &amp; treatment plan builder</p>
       </div>
       <div className="app-header-actions">
+        {depth > 0 && (
+          <button type="button" className="secondary back-button" onClick={goBack} title="Back to the previous screen">
+            ← Back
+          </button>
+        )}
         {onChangeModule && (
           <button type="button" className="secondary change-module" onClick={onChangeModule}>
             Change module
@@ -82,7 +93,19 @@ function ModuleLanding({ onChoose }: { onChoose: (module: ClinicModule) => void 
 }
 
 function WizardShell({ onChangeModule }: { onChangeModule: () => void }) {
-  const { state } = useQuotation();
+  const { state, dispatch } = useQuotation();
+  // Keep the wizard step in the browser history (← Back / browser back move between steps).
+  const [navStep, setNavStep] = useNavValue<WizardState['step']>('dentalStep', 0);
+  const synced = useRef<WizardState['step']>(state.step);
+  useEffect(() => {
+    if (navStep !== synced.current) {
+      synced.current = navStep; // history moved (Back): follow it
+      dispatch({ type: 'SET_STEP', step: navStep });
+    } else if (state.step !== synced.current) {
+      synced.current = state.step; // the wizard moved (Next / its own Back): record it
+      setNavStep(state.step);
+    }
+  }, [navStep, state.step, dispatch, setNavStep]);
   return (
     <div className="app-shell">
       <AppHeader onChangeModule={onChangeModule} />
@@ -121,7 +144,7 @@ function TeamPerformancePage() {
  * "coordinator tools" (`onExit` returns them to the team view).
  */
 function CoordinatorApp({ onExit }: { onExit?: () => void }) {
-  const [module, setModule] = useState<ClinicModule | null>(null);
+  const [module, setModule] = useNavValue<ClinicModule | null>('module', null, MODULE_SCREEN_KEYS);
   const leave = onExit ?? (() => setModule(null));
 
   if (module === 'dental') {
@@ -178,7 +201,7 @@ function CoordinatorApp({ onExit }: { onExit?: () => void }) {
  */
 function AppContent() {
   const { role } = useAuth();
-  const [leaderView, setLeaderView] = useState<'team' | 'coordinator'>('team');
+  const [leaderView, setLeaderView] = useNavValue<'team' | 'coordinator'>('leaderView', 'team', ['module', ...MODULE_SCREEN_KEYS]);
 
   if (role === ROLES.PLANNING_MANAGER) {
     return (

@@ -11,6 +11,7 @@ import {
   type QuoteSnapshot,
 } from '../../lib/api';
 import { formatSnapshotMoney } from '../../lib/patientRecords';
+import { useNavValue } from '../../lib/navigation';
 
 function formatDateTime(iso: string): string {
   const date = new Date(iso);
@@ -149,7 +150,7 @@ function PatientDetail({ id, onBack }: { id: number; onBack: () => void }) {
 export function MyPatientsView() {
   const [records, setRecords] = useState<PatientRecordSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [openId, setOpenId] = useState<number | null>(null);
+  const [openId, setOpenId] = useNavValue<number | null>('patientId', null);
   const [search, setSearch] = useState('');
 
   // Reload whenever the list is shown again, so notes added on a patient's page show up in the counts.

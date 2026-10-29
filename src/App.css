@@ -1494,3 +1494,7 @@ img {
 .perf-member-actions select {
   width: auto;
 }
+
+.back-button {
+  white-space: nowrap;
+}
