@@ -156,8 +156,9 @@ interface QuotationContextValue {
 
 const QuotationContext = createContext<QuotationContextValue | null>(null);
 
-export function QuotationProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, createInitialState);
+/** `initialState`: a quotation re-opened from My Patients ("Open & update"); otherwise a new one. */
+export function QuotationProvider({ children, initialState }: { children: ReactNode; initialState?: WizardState }) {
+  const [state, dispatch] = useReducer(reducer, initialState, (init) => init ?? createInitialState());
 
   useEffect(() => {
     let cancelled = false;

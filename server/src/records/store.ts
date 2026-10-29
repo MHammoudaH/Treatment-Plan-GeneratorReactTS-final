@@ -39,6 +39,8 @@ export interface TimelineEntry {
   topic: NoteTopic | null;
   body: string | null;
   quote: QuoteSnapshot | null;
+  /** A quote entry that kept its editable plan — it can be re-opened with "Open & update". */
+  hasPlan: boolean;
   authorName: string;
   createdAt: string;
 }
@@ -57,6 +59,7 @@ interface EntryRow {
   topic: NoteTopic | null;
   body: string | null;
   quote: QuoteSnapshot | null;
+  has_plan: boolean;
   author_name: string;
   created_at: Date;
 }
@@ -68,12 +71,13 @@ function toEntry(row: EntryRow): TimelineEntry {
     topic: row.topic,
     body: row.body,
     quote: row.quote,
+    hasPlan: row.has_plan,
     authorName: row.author_name,
     createdAt: iso(row.created_at),
   };
 }
 
-const ENTRY_COLUMNS = `e.id, e.kind, e.topic, e.body, e.quote, e.created_at,
+const ENTRY_COLUMNS = `e.id, e.kind, e.topic, e.body, e.quote, (e.plan IS NOT NULL) AS has_plan, e.created_at,
   COALESCE(NULLIF(u.name, ''), u.email) AS author_name`;
 
 /** The coordinator's live records, most recently active first. */
@@ -131,7 +135,12 @@ export async function getRecord(coordinatorId: number, recordId: number): Promis
 }
 
 /** Creates a record whose timeline starts with `quote`. Returns the new record id. */
-export async function createRecordWithQuote(coordinatorId: number, patientName: string, quote: QuoteSnapshot): Promise<number> {
+export async function createRecordWithQuote(
+  coordinatorId: number,
+  patientName: string,
+  quote: QuoteSnapshot,
+  plan: EditablePlan | null,
+): Promise<number> {
   return withTransaction(async (client) => {
     const { rows } = await client.query<{ id: number }>(
       'INSERT INTO patient_records (coordinator_id, patient_name) VALUES ($1, $2) RETURNING id',
@@ -139,14 +148,16 @@ export async function createRecordWithQuote(coordinatorId: number, patientName: 
     );
     const recordId = rows[0].id;
     await client.query(
-      `INSERT INTO patient_record_entries (record_id, author_id, kind, quote) VALUES ($1, $2, 'quote', $3)`,
-      [recordId, coordinatorId, JSON.stringify(quote)],
+      `INSERT INTO patient_record_entries (record_id, author_id, kind, quote, plan) VALUES ($1, $2, 'quote', $3, $4)`,
+      [recordId, coordinatorId, JSON.stringify(quote), plan ? JSON.stringify(plan) : null],
     );
     return recordId;
   });
 }
 
-export type NewEntry = { kind: 'quote'; quote: QuoteSnapshot } | { kind: 'note'; body: string; topic: NoteTopic | null };
+export type NewEntry =
+  | { kind: 'quote'; quote: QuoteSnapshot; plan: EditablePlan | null }
+  | { kind: 'note'; body: string; topic: NoteTopic | null };
 
 /** Appends to the caller's record's timeline. Null when the record isn't the caller's. */
 export async function addEntry(coordinatorId: number, recordId: number, entry: NewEntry): Promise<TimelineEntry | null> {
@@ -157,8 +168,8 @@ export async function addEntry(coordinatorId: number, recordId: number, entry: N
     );
     if (owned.rowCount === 0) return null;
     const { rows } = await client.query<{ id: number }>(
-      `INSERT INTO patient_record_entries (record_id, author_id, kind, topic, body, quote)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      `INSERT INTO patient_record_entries (record_id, author_id, kind, topic, body, quote, plan)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
       [
         recordId,
         coordinatorId,
@@ -166,6 +177,7 @@ export async function addEntry(coordinatorId: number, recordId: number, entry: N
         entry.kind === 'note' ? entry.topic : null,
         entry.kind === 'note' ? entry.body : null,
         entry.kind === 'quote' ? JSON.stringify(entry.quote) : null,
+        entry.kind === 'quote' && entry.plan ? JSON.stringify(entry.plan) : null,
       ],
     );
     // Touch the record so it rises to the top of "My Patients" (the trigger sets the time).
@@ -178,7 +190,40 @@ export async function addEntry(coordinatorId: number, recordId: number, entry: N
   });
 }
 
+/** The editable plan behind one of the caller's quote entries, or null if not theirs / none kept. */
+export async function getPlan(
+  coordinatorId: number,
+  recordId: number,
+  entryId: number,
+): Promise<{ patientName: string; quote: QuoteSnapshot; plan: EditablePlan } | null> {
+  const { rows } = await query<{ patient_name: string; quote: QuoteSnapshot; plan: EditablePlan }>(
+    `SELECT r.patient_name, e.quote, e.plan
+       FROM patient_record_entries e JOIN patient_records r ON r.id = e.record_id
+      WHERE e.id = $1 AND r.id = $2 AND r.coordinator_id = $3 AND r.deleted_at IS NULL
+        AND e.kind = 'quote' AND e.plan IS NOT NULL`,
+    [entryId, recordId, coordinatorId],
+  );
+  const row = rows[0];
+  return row ? { patientName: row.patient_name, quote: row.quote, plan: row.plan } : null;
+}
+
 // ---- validation --------------------------------------------------------------
+
+/** The wizard / module state a quote was generated from. Opaque to the server beyond its
+ *  module tag — the frontend owns its shape (see src/lib/editablePlan.ts). */
+export type EditablePlan = { module: 'dental' | 'plastic'; version: number } & Record<string, unknown>;
+
+const MAX_PLAN_CHARS = 300_000;
+
+/** undefined/null → no plan (null); a valid plan matching the quote's module; otherwise 'invalid'. */
+export function parseEditablePlan(value: unknown, module: QuoteSnapshot['module']): EditablePlan | null | 'invalid' {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== 'object' || Array.isArray(value)) return 'invalid';
+  const plan = value as Record<string, unknown>;
+  if (plan.module !== module || typeof plan.version !== 'number') return 'invalid';
+  if (JSON.stringify(plan).length > MAX_PLAN_CHARS) return 'invalid';
+  return plan as EditablePlan;
+}
 
 const MAX_OPTIONS = 10;
 const MAX_LINES = 60;

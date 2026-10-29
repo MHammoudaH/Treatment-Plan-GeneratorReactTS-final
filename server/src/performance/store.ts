@@ -289,3 +289,61 @@ export async function moveMember(leaderId: number, fromTeamId: number, userId: n
     return 'ok';
   });
 }
+
+export interface AvailableCoordinator {
+  userId: number;
+  name: string;
+  email: string;
+  /** Team this person has asked to join, if any. */
+  requestedTeamId: number | null;
+}
+
+/** Coordinators not in any coordinator team (and not leading one) — who a leader can add. */
+export async function getAvailableCoordinators(): Promise<AvailableCoordinator[]> {
+  const { rows } = await query<{ id: number; name: string; email: string; requested_team_id: number | null }>(
+    `SELECT u.id, ${displayName('u')} AS name, u.email,
+            (SELECT r.team_id FROM team_join_requests r WHERE r.user_id = u.id AND r.status = 'pending') AS requested_team_id
+       FROM users u
+      WHERE u.role = 'coordinator'
+        AND NOT EXISTS (SELECT 1 FROM team_memberships m JOIN teams t ON t.id = m.team_id AND t.kind = 'coordinator' WHERE m.user_id = u.id)
+        AND NOT EXISTS (SELECT 1 FROM teams t WHERE t.leader_user_id = u.id)
+      ORDER BY lower(${displayName('u')}), u.id`,
+  );
+  return rows.map((r) => ({ userId: r.id, name: r.name, email: r.email, requestedTeamId: r.requested_team_id }));
+}
+
+/**
+ * A leader adds coordinators to their own team directly. Each person must still be an
+ * unassigned coordinator at that moment (one team per person) — anyone who isn't is skipped.
+ */
+export async function addMembers(leaderId: number, teamId: number, userIds: number[]): Promise<{ added: number[]; skipped: number[] } | 'not_your_team'> {
+  return withTransaction(async (client) => {
+    const team = await client.query(`SELECT 1 FROM teams WHERE id = $1 AND leader_user_id = $2 AND kind = 'coordinator'`, [teamId, leaderId]);
+    if (team.rowCount === 0) return 'not_your_team';
+    const added: number[] = [];
+    const skipped: number[] = [];
+    for (const userId of userIds) {
+      // Lock the person's row so two leaders adding the same coordinator at once can't both win.
+      const eligible = await client.query(
+        `SELECT 1 FROM users u
+          WHERE u.id = $1 AND u.role = 'coordinator'
+            AND NOT EXISTS (SELECT 1 FROM team_memberships m JOIN teams t ON t.id = m.team_id AND t.kind = 'coordinator' WHERE m.user_id = u.id)
+            AND NOT EXISTS (SELECT 1 FROM teams t WHERE t.leader_user_id = u.id)
+          FOR UPDATE OF u`,
+        [userId],
+      );
+      if (eligible.rowCount === 0) {
+        skipped.push(userId);
+        continue;
+      }
+      await client.query(`INSERT INTO team_memberships (team_id, user_id) VALUES ($1, $2) ON CONFLICT (team_id, user_id) DO NOTHING`, [teamId, userId]);
+      await client.query(
+        `UPDATE team_join_requests SET status = CASE WHEN team_id = $2 THEN 'approved' ELSE 'cancelled' END, decided_at = now(), decided_by = $3
+          WHERE user_id = $1 AND status = 'pending'`,
+        [userId, teamId, leaderId],
+      );
+      added.push(userId);
+    }
+    return { added, skipped };
+  });
+}

@@ -6,14 +6,25 @@
  * yours is a plain 404.
  *
  *   GET  /api/patient-records              my records, most recently active first
- *   POST /api/patient-records              { patientName, quote } → new record
+ *   POST /api/patient-records              { patientName, quote, plan? } → new record
  *   GET  /api/patient-records/:id          record + full timeline (oldest first)
- *   POST /api/patient-records/:id/quotes   { quote } → append a re-issued quote
+ *   POST /api/patient-records/:id/quotes   { quote, plan? } → append a re-issued / updated quote
+ *   GET  /api/patient-records/:id/entries/:entryId/plan   the editable plan behind a quote
  *   POST /api/patient-records/:id/notes    { body, topic? } → append a note
  */
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { loadCurrentUser } from '../auth/middleware.js';
-import { NOTE_TOPICS, addEntry, createRecordWithQuote, getRecord, listRecords, parseQuoteSnapshot, type NoteTopic } from './store.js';
+import {
+  NOTE_TOPICS,
+  addEntry,
+  createRecordWithQuote,
+  getPlan,
+  getRecord,
+  listRecords,
+  parseEditablePlan,
+  parseQuoteSnapshot,
+  type NoteTopic,
+} from './store.js';
 
 export const recordsRouter = Router();
 
@@ -31,6 +42,7 @@ function recordId(req: Request): number | null {
 }
 
 const NOT_FOUND = { error: 'not_found', message: 'Patient record not found.' };
+const INVALID_PLAN = { error: 'invalid_plan', message: 'The saved plan is malformed or too large.' };
 
 recordsRouter.get(
   '/',
@@ -48,7 +60,9 @@ recordsRouter.post(
     }
     const quote = parseQuoteSnapshot(req.body?.quote);
     if (!quote) return res.status(400).json({ error: 'invalid_quote', message: 'The quote details are missing or malformed.' });
-    const id = await createRecordWithQuote(req.currentUser!.id, patientName, quote);
+    const plan = parseEditablePlan(req.body?.plan, quote.module);
+    if (plan === 'invalid') return res.status(400).json(INVALID_PLAN);
+    const id = await createRecordWithQuote(req.currentUser!.id, patientName, quote, plan);
     return res.status(201).json({ id });
   }),
 );
@@ -69,7 +83,9 @@ recordsRouter.post(
     const id = recordId(req);
     const quote = parseQuoteSnapshot(req.body?.quote);
     if (!quote) return res.status(400).json({ error: 'invalid_quote', message: 'The quote details are missing or malformed.' });
-    const entry = id ? await addEntry(req.currentUser!.id, id, { kind: 'quote', quote }) : null;
+    const plan = parseEditablePlan(req.body?.plan, quote.module);
+    if (plan === 'invalid') return res.status(400).json(INVALID_PLAN);
+    const entry = id ? await addEntry(req.currentUser!.id, id, { kind: 'quote', quote, plan }) : null;
     if (!entry) return res.status(404).json(NOT_FOUND);
     return res.status(201).json({ entry });
   }),
@@ -91,5 +107,16 @@ recordsRouter.post(
     const entry = id ? await addEntry(req.currentUser!.id, id, { kind: 'note', body, topic }) : null;
     if (!entry) return res.status(404).json(NOT_FOUND);
     return res.status(201).json({ entry });
+  }),
+);
+
+recordsRouter.get(
+  '/:id/entries/:entryId/plan',
+  wrap(async (req, res) => {
+    const id = recordId(req);
+    const entryId = Number(req.params.entryId);
+    const found = id && Number.isInteger(entryId) && entryId > 0 ? await getPlan(req.currentUser!.id, id, entryId) : null;
+    if (!found) return res.status(404).json({ error: 'not_found', message: 'No editable plan was saved with this quote.' });
+    return res.json(found);
   }),
 );

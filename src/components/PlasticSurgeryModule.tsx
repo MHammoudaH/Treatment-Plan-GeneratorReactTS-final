@@ -9,6 +9,7 @@ import { generatePlasticPremiumPdf } from '../lib/pdf/plastic/generatePlasticPre
 import { EMPTY_BMI, bmiCategory, calculateBmi, expectedWeight, fromKg, toCm, toKg, type BmiValues } from '../lib/bmi';
 import { BmiCalculator } from './BmiCalculator';
 import { useNavValue } from '../lib/navigation';
+import { plasticItemsFromPlan, recordSaveFor, type OpenedPlan, type PlasticPlan } from '../lib/editablePlan';
 import { SaveToRecordsOption } from './records/SaveToRecordsOption';
 import { plasticQuoteSnapshot } from '../lib/patientRecords';
 import { INITIAL_RECORD_SAVE, useRecordSaver, type RecordSaveState } from '../lib/recordSaver';
@@ -16,6 +17,8 @@ import { NumberField } from './NumberField';
 
 interface Props {
   onBack: () => void;
+  /** A saved quote re-opened from My Patients ("Open & update"). */
+  opened?: OpenedPlan & { plan: PlasticPlan };
 }
 
 /** Combined gallery for several procedures — a few images per procedure rather than every
@@ -37,39 +40,40 @@ function combinedGallery(items: PlasticSurgeryItem[]): string[] {
   return urls;
 }
 
-export function PlasticSurgeryModule({ onBack }: Props) {
+export function PlasticSurgeryModule({ onBack, opened }: Props) {
+  const plan = opened?.plan;
   const [category, setCategory] = useState<(typeof PLASTIC_CATEGORIES)[number]>('All');
   const [search, setSearch] = useState('');
-  const [selectedItems, setSelectedItems] = useState<PlasticSurgeryItem[]>([]);
-  const [patientName, setPatientName] = useState('');
-  const [language, setLanguage] = useState<QuotationLanguage>('English');
-  const [travelDate, setTravelDate] = useState('');
-  const [coordinatorNote, setCoordinatorNote] = useState('');
-  const [doctorName, setDoctorName] = useState('');
-  const [currency, setCurrency] = useState<PlasticCurrency>('EUR');
+  const [selectedItems, setSelectedItems] = useState<PlasticSurgeryItem[]>(() => (plan ? plasticItemsFromPlan(plan) : []));
+  const [patientName, setPatientName] = useState(plan?.patientName ?? '');
+  const [language, setLanguage] = useState<QuotationLanguage>(plan?.language ?? 'English');
+  const [travelDate, setTravelDate] = useState(plan?.travelDate ?? '');
+  const [coordinatorNote, setCoordinatorNote] = useState(plan?.coordinatorNote ?? '');
+  const [doctorName, setDoctorName] = useState(plan?.doctorName ?? '');
+  const [currency, setCurrency] = useState<PlasticCurrency>(plan?.currency ?? 'EUR');
   // Live EUR-based rates (Frankfurter → currency-api → hardcoded fallback); the hardcoded
   // rates are used until the first fetch answers, so totals are never blank.
   const [rateInfo, setRateInfo] = useState<RatesResult>({ rates: FALLBACK_EUR_RATES, source: 'fallback', date: null });
-  const [hotelId, setHotelId] = useState('');
-  const [hotelNights, setHotelNights] = useState(0);
-  const [nightsEdited, setNightsEdited] = useState(false);
-  const [hotelPriceOverride, setHotelPriceOverride] = useState('');
-  const [transferIncluded, setTransferIncluded] = useState(true);
-  const [packagePrice, setPackagePrice] = useState(false);
-  const [manualTotal, setManualTotal] = useState('');
+  const [hotelId, setHotelId] = useState(plan?.hotelId ?? '');
+  const [hotelNights, setHotelNights] = useState(plan?.hotelNights ?? 0);
+  const [nightsEdited, setNightsEdited] = useState(plan?.nightsEdited ?? false);
+  const [hotelPriceOverride, setHotelPriceOverride] = useState(plan?.hotelPriceOverride ?? '');
+  const [transferIncluded, setTransferIncluded] = useState(plan?.transferIncluded ?? true);
+  const [packagePrice, setPackagePrice] = useState(plan?.packagePrice ?? false);
+  const [manualTotal, setManualTotal] = useState(plan?.manualTotal ?? '');
   const [page, setPage] = useNavValue<1 | 2>('plasticPage', 1);
   const [submitted, setSubmitted] = useState(false);
   // Per-item final price for procedures with no catalog price (`priceEur === null`) — entered
   // directly in the quotation's selected `currency`, keyed by procedure id. Never defaults to
   // €0/$0: an unpriced item without an entry here contributes nothing to the total AND blocks
   // proposal generation (see `unpricedWithoutOverride` below).
-  const [priceOverrides, setPriceOverrides] = useState<Record<string, string>>({});
+  const [priceOverrides, setPriceOverrides] = useState<Record<string, string>>(plan?.priceOverrides ?? {});
   // Patient weight/height (appointment page) → expected weight & BMI (quotation page) → PDF.
-  const [bmiValues, setBmiValues] = useState<BmiValues>(EMPTY_BMI);
+  const [bmiValues, setBmiValues] = useState<BmiValues>(plan?.bmi ?? EMPTY_BMI);
   // Coordinator's own expected weight, typed in `bmiValues.units`; '' = use the estimate.
-  const [expectedWeightOverride, setExpectedWeightOverride] = useState('');
-  const [includeWeightInPdf, setIncludeWeightInPdf] = useState(true);
-  const [recordSave, setRecordSave] = useState<RecordSaveState>(INITIAL_RECORD_SAVE);
+  const [expectedWeightOverride, setExpectedWeightOverride] = useState(plan?.expectedWeightOverride ?? '');
+  const [includeWeightInPdf, setIncludeWeightInPdf] = useState(plan?.includeWeightInPdf ?? true);
+  const [recordSave, setRecordSave] = useState<RecordSaveState>(() => (opened ? recordSaveFor(opened) : INITIAL_RECORD_SAVE));
   const recordSaver = useRecordSaver(recordSave, setRecordSave);
 
   const cards = useMemo(() => {
@@ -209,7 +213,29 @@ export function PlasticSurgeryModule({ onBack }: Props) {
       gallery: combinedGallery(selectedItems),
     };
     generatePlasticPremiumPdf(pdfInput);
-    void recordSaver.save(patientName, plasticQuoteSnapshot(pdfInput));
+    const editablePlan: PlasticPlan = {
+      module: 'plastic',
+      version: 1,
+      itemIds: selectedItems.map((item) => item.id),
+      patientName,
+      language,
+      travelDate,
+      coordinatorNote,
+      doctorName,
+      currency,
+      hotelId,
+      hotelNights,
+      nightsEdited,
+      hotelPriceOverride,
+      transferIncluded,
+      packagePrice,
+      manualTotal,
+      priceOverrides,
+      bmi: bmiValues,
+      expectedWeightOverride,
+      includeWeightInPdf,
+    };
+    void recordSaver.save(patientName, plasticQuoteSnapshot(pdfInput), editablePlan);
 
     setSubmitted(true);
     setPage(1);

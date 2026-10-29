@@ -1498,3 +1498,78 @@ img {
 .back-button {
   white-space: nowrap;
 }
+
+.timeline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-top: 10px;
+}
+
+.add-members {
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.add-members-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.add-members-toolbar input {
+  flex: 1 1 220px;
+}
+
+.add-members-toolbar select {
+  width: auto;
+}
+
+.add-members-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.add-members-list label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  cursor: pointer;
+  font-weight: 400;
+}
+
+.add-members-list input {
+  width: auto;
+}
+
+.add-members-list small {
+  display: block;
+  color: var(--muted);
+}
+
+.targets-panel {
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--blue);
+  border-radius: 10px;
+  background: var(--card-bg);
+}
+
+.targets-table input {
+  width: 90px;
+}

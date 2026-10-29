@@ -13,6 +13,8 @@
  *   PUT    /api/performance/targets                      { teamId, userId|null, period, date, quotes, notes }
  *   DELETE /api/performance/teams/:teamId/members/:userId
  *   POST   /api/performance/teams/:teamId/members/:userId/move   { toTeamId }
+ *   GET    /api/performance/available                    coordinators not in a team yet
+ *   POST   /api/performance/teams/:teamId/members        { userIds } — add them to my team
  *
  * A coordinator can never leave or switch team themselves: there is deliberately no endpoint
  * for it. Only the leader of the team they're in can move or remove them.
@@ -22,8 +24,10 @@ import { loadCurrentUser, requireTeamLeader } from '../auth/middleware.js';
 import { removeTeamMember } from '../team/store.js';
 import { isPeriodType, periodFor } from './periods.js';
 import {
+  addMembers,
   cancelJoinRequest,
   decideRequest,
+  getAvailableCoordinators,
   getBoard,
   getMyTeamStatus,
   getPendingRequests,
@@ -176,5 +180,32 @@ performanceRouter.post(
     if (result === 'no_such_team') return res.status(400).json({ error: 'invalid_team', message: 'Choose a different, existing team.' });
     if (result === 'not_a_member') return res.status(404).json({ error: 'not_found', message: 'That person is not in your team.' });
     return res.json({ ok: true });
+  }),
+);
+
+// GET /api/performance/available — coordinators not in a team yet (for "Add team members").
+performanceRouter.get(
+  '/available',
+  requireTeamLeader,
+  wrap(async (_req, res) => {
+    res.json({ coordinators: await getAvailableCoordinators() });
+  }),
+);
+
+// POST /api/performance/teams/:teamId/members  { userIds: number[] } — add to my team directly.
+performanceRouter.post(
+  '/teams/:teamId/members',
+  requireTeamLeader,
+  wrap(async (req, res) => {
+    const teamId = positiveInt(req.params.teamId);
+    const raw: unknown = req.body?.userIds;
+    const userIds = Array.isArray(raw) ? [...new Set(raw.map(positiveInt))] : [];
+    if (!teamId) return res.status(403).json({ error: 'forbidden', message: 'Not your team.' });
+    if (userIds.length === 0 || userIds.length > 100 || userIds.includes(null)) {
+      return res.status(400).json({ error: 'invalid_users', message: 'Choose between 1 and 100 people.' });
+    }
+    const result = await addMembers(req.currentUser!.id, teamId, userIds as number[]);
+    if (result === 'not_your_team') return res.status(403).json({ error: 'forbidden', message: 'Not your team.' });
+    return res.json(result);
   }),
 );

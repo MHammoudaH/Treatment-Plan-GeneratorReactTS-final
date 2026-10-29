@@ -3,14 +3,12 @@ import {
   fetchPerformanceBoard,
   moveTeamMember,
   removeTeamMember,
-  saveTarget,
   type ApiError,
   type Period,
   type PeriodType,
-  type Target,
   type TeamBoard,
 } from '../../lib/api';
-import { parseTargetInput, progressLabel, progressPercent, rankBadge, shiftPeriod } from '../../lib/performance';
+import { progressLabel, progressPercent, rankBadge, shiftPeriod } from '../../lib/performance';
 
 function Progress({ value, target }: { value: number; target: number | null }) {
   const pct = progressPercent(value, target);
@@ -26,45 +24,11 @@ function Progress({ value, target }: { value: number; target: number | null }) {
   );
 }
 
-/** Two small target inputs (quotes / notes) with Save — leaders only. */
-function TargetEditor({ target, onSave, label }: { target: Target; onSave: (next: Target) => Promise<void>; label: string }) {
-  const [quotes, setQuotes] = useState(target.quotes === null ? '' : String(target.quotes));
-  const [notes, setNotes] = useState(target.notes === null ? '' : String(target.notes));
-  const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const q = parseTargetInput(quotes);
-  const n = parseTargetInput(notes);
-  const invalid = q === undefined || n === undefined;
-  const dirty = q !== target.quotes || n !== target.notes;
-
-  async function save() {
-    if (invalid) return;
-    setState('saving');
-    try {
-      await onSave({ quotes: q, notes: n });
-      setState('saved');
-    } catch {
-      setState('error');
-    }
-  }
-
-  return (
-    <div className="perf-target-editor">
-      <input aria-label={`${label} quotes target`} inputMode="numeric" placeholder="Quotes" value={quotes} onChange={(e) => setQuotes(e.target.value)} />
-      <input aria-label={`${label} notes target`} inputMode="numeric" placeholder="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
-      <button type="button" className="secondary" disabled={invalid || !dirty || state === 'saving'} onClick={save}>
-        {state === 'saving' ? 'Saving…' : 'Save'}
-      </button>
-      {invalid && <small className="error-text">Whole numbers only</small>}
-      {!invalid && state === 'saved' && !dirty && <small className="hint">Saved</small>}
-      {state === 'error' && <small className="error-text">Not saved</small>}
-    </div>
-  );
-}
-
 /**
  * Leaderboards for one month or quarter: every team ranked against the others, and — for the
  * viewer's own team(s) — each member ranked against their teammates, with progress to target.
- * `leaderMode` adds target editing and member removal for the teams the viewer leads.
+ * `leaderMode` adds moving / removing members of the teams the viewer leads (targets are set in
+ * `TargetsPanel`).
  */
 export function PerformanceBoard({ leaderMode = false, viewerId }: { leaderMode?: boolean; viewerId: number }) {
   const [periodType, setPeriodType] = useState<PeriodType>('month');
@@ -94,12 +58,6 @@ export function PerformanceBoard({ leaderMode = false, viewerId }: { leaderMode?
   function changePeriodType(next: PeriodType) {
     setPeriodType(next);
     setDate(period?.start); // stay around the period being viewed
-  }
-
-  async function setTargetFor(team: TeamBoard, userId: number | null, target: Target) {
-    if (!period) return;
-    await saveTarget({ teamId: team.id, userId, period: period.type, date: period.start, quotes: target.quotes, notes: target.notes });
-    setReload((n) => n + 1);
   }
 
   async function remove(team: TeamBoard, userId: number, name: string) {
@@ -200,14 +158,6 @@ export function PerformanceBoard({ leaderMode = false, viewerId }: { leaderMode?
             return (
               <div key={team.id} className="perf-team">
                 <h3>{team.name} — member leaderboard</h3>
-                {canEdit && (
-                  <div className="perf-team-target">
-                    <span>
-                      Team target for {data.period.label} (quotes / notes)
-                    </span>
-                    <TargetEditor key={`${data.period.start}-${data.period.type}-team`} label={team.name} target={team.target} onSave={(t) => setTargetFor(team, null, t)} />
-                  </div>
-                )}
                 {team.members.length === 0 ? (
                   <p className="rule-note">No members yet.</p>
                 ) : (
@@ -219,7 +169,6 @@ export function PerformanceBoard({ leaderMode = false, viewerId }: { leaderMode?
                           <th>Member</th>
                           <th>Quotes</th>
                           <th>Notes</th>
-                          {canEdit && <th>Target (quotes / notes)</th>}
                           {canEdit && <th />}
                         </tr>
                       </thead>
@@ -237,11 +186,6 @@ export function PerformanceBoard({ leaderMode = false, viewerId }: { leaderMode?
                             <td>
                               <Progress value={m.notes} target={m.target.notes} />
                             </td>
-                            {canEdit && (
-                              <td>
-                                <TargetEditor key={`${data.period.start}-${data.period.type}-${m.userId}`} label={m.name} target={m.target} onSave={(t) => setTargetFor(team, m.userId, t)} />
-                              </td>
-                            )}
                             {canEdit && (
                               <td>
                                 <div className="perf-member-actions">

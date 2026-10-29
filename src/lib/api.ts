@@ -1,3 +1,5 @@
+import type { EditablePlan } from './editablePlan';
+
 /**
  * Thin client for the backend API (see `server/`).
  *
@@ -285,6 +287,8 @@ export interface TimelineEntry {
   topic: NoteTopic | null;
   body: string | null;
   quote: QuoteSnapshot | null;
+  /** True when the editable plan was kept — the quote can be re-opened with "Open & update". */
+  hasPlan: boolean;
   authorName: string;
   createdAt: string;
 }
@@ -305,12 +309,17 @@ export function fetchPatientRecord(id: number): Promise<{ record: PatientRecord 
   return apiFetch(`/patient-records/${id}`);
 }
 
-export function createPatientRecord(patientName: string, quote: QuoteSnapshot): Promise<{ id: number }> {
-  return apiFetch('/patient-records', { method: 'POST', body: JSON.stringify({ patientName, quote }) });
+export function createPatientRecord(patientName: string, quote: QuoteSnapshot, plan?: EditablePlan): Promise<{ id: number }> {
+  return apiFetch('/patient-records', { method: 'POST', body: JSON.stringify({ patientName, quote, plan }) });
 }
 
-export function addPatientQuote(id: number, quote: QuoteSnapshot): Promise<{ entry: TimelineEntry }> {
-  return apiFetch(`/patient-records/${id}/quotes`, { method: 'POST', body: JSON.stringify({ quote }) });
+export function addPatientQuote(id: number, quote: QuoteSnapshot, plan?: EditablePlan): Promise<{ entry: TimelineEntry }> {
+  return apiFetch(`/patient-records/${id}/quotes`, { method: 'POST', body: JSON.stringify({ quote, plan }) });
+}
+
+/** The editable plan saved with one quote entry (for "Open & update"). */
+export function fetchQuotePlan(recordId: number, entryId: number): Promise<{ patientName: string; quote: QuoteSnapshot; plan: EditablePlan }> {
+  return apiFetch(`/patient-records/${recordId}/entries/${entryId}/plan`);
 }
 
 export function addPatientNote(id: number, body: string, topic: NoteTopic | null): Promise<{ entry: TimelineEntry }> {
@@ -415,4 +424,21 @@ export function removeTeamMember(teamId: number, userId: number): Promise<{ ok: 
 
 export function moveTeamMember(teamId: number, userId: number, toTeamId: number): Promise<{ ok: true }> {
   return apiFetch(`/performance/teams/${teamId}/members/${userId}/move`, { method: 'POST', body: JSON.stringify({ toTeamId }) });
+}
+
+export interface AvailableCoordinator {
+  userId: number;
+  name: string;
+  email: string;
+  requestedTeamId: number | null;
+}
+
+/** Team leaders: coordinators not in any team yet. */
+export function fetchAvailableCoordinators(): Promise<{ coordinators: AvailableCoordinator[] }> {
+  return apiFetch('/performance/available');
+}
+
+/** Team leaders: add people straight to my team. Anyone already placed elsewhere is skipped. */
+export function addTeamMembers(teamId: number, userIds: number[]): Promise<{ added: number[]; skipped: number[] }> {
+  return apiFetch(`/performance/teams/${teamId}/members`, { method: 'POST', body: JSON.stringify({ userIds }) });
 }

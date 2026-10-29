@@ -19,6 +19,7 @@ import { JoinTeamPanel } from './components/performance/JoinTeamPanel';
 import { MyTargetStrip } from './components/performance/MyTargetStrip';
 import { ROLES } from './lib/api';
 import type { WizardState } from './types/wizard';
+import { wizardStateFromPlan, type DentalPlan, type OpenedPlan, type PlasticPlan } from './lib/editablePlan';
 
 type ClinicModule = 'dental' | 'plastic' | 'patients' | 'performance';
 
@@ -96,7 +97,9 @@ function WizardShell({ onChangeModule }: { onChangeModule: () => void }) {
   const { state, dispatch } = useQuotation();
   // Keep the wizard step in the browser history (← Back / browser back move between steps).
   const [navStep, setNavStep] = useNavValue<WizardState['step']>('dentalStep', 0);
-  const synced = useRef<WizardState['step']>(state.step);
+  // Start from the history's step, so a wizard that opens on a later step (a re-opened plan)
+  // records that step instead of being sent back to step 1.
+  const synced = useRef<WizardState['step']>(navStep);
   useEffect(() => {
     if (navStep !== synced.current) {
       synced.current = navStep; // history moved (Back): follow it
@@ -145,11 +148,13 @@ function TeamPerformancePage() {
  */
 function CoordinatorApp({ onExit }: { onExit?: () => void }) {
   const [module, setModule] = useNavValue<ClinicModule | null>('module', null, MODULE_SCREEN_KEYS);
+  // A saved quote re-opened from My Patients ("Open & update") — pre-fills the module it opens.
+  const [opened, setOpened] = useState<OpenedPlan | null>(null);
   const leave = onExit ?? (() => setModule(null));
 
   if (module === 'dental') {
     return (
-      <QuotationProvider>
+      <QuotationProvider initialState={opened?.plan.module === 'dental' ? wizardStateFromPlan(opened as OpenedPlan & { plan: DentalPlan }) : undefined}>
         <WizardShell onChangeModule={() => setModule(null)} />
       </QuotationProvider>
     );
@@ -168,7 +173,12 @@ function CoordinatorApp({ onExit }: { onExit?: () => void }) {
     return (
       <div className="app-shell">
         <AppHeader onChangeModule={() => setModule(null)} />
-        <MyPatientsView />
+        <MyPatientsView
+          onOpenPlan={(plan) => {
+            setOpened(plan);
+            setModule(plan.plan.module);
+          }}
+        />
       </div>
     );
   }
@@ -178,7 +188,10 @@ function CoordinatorApp({ onExit }: { onExit?: () => void }) {
       <QuotationProvider>
         <div className="app-shell">
           <AppHeader />
-          <PlasticSurgeryModule onBack={() => setModule(null)} />
+          <PlasticSurgeryModule
+            onBack={() => setModule(null)}
+            opened={opened?.plan.module === 'plastic' ? (opened as OpenedPlan & { plan: PlasticPlan }) : undefined}
+          />
         </div>
       </QuotationProvider>
     );
@@ -188,7 +201,12 @@ function CoordinatorApp({ onExit }: { onExit?: () => void }) {
     <QuotationProvider>
       <div className="app-shell">
         <AppHeader onChangeModule={onExit ? leave : undefined} />
-        <ModuleLanding onChoose={setModule} />
+        <ModuleLanding
+          onChoose={(next) => {
+            setOpened(null); // a module chosen here always starts a new quotation
+            setModule(next);
+          }}
+        />
       </div>
     </QuotationProvider>
   );

@@ -8,6 +8,7 @@ import { generateSimpleQuotationPdf } from '../../lib/pdf/simple/generateSimpleQ
 import { generatePremiumQuotationPdf } from '../../lib/pdf/premium/generatePremiumQuotationPdf';
 import { resizeImageFiles } from '../../lib/pdf/imageUtils';
 import { dentalQuoteSnapshot } from '../../lib/patientRecords';
+import { dentalPlanFromState } from '../../lib/editablePlan';
 import { useRecordSaver, type RecordSaveState } from '../../lib/recordSaver';
 import { SaveToRecordsOption } from '../records/SaveToRecordsOption';
 
@@ -24,7 +25,7 @@ export function Step4Confirm() {
     const pdfData = buildQuotationPdfData(state);
     if (state.notes.trim()) pdfData.notes = state.notes.trim();
     generateSimpleQuotationPdf(pdfData);
-    void recordSaver.save(pdfData.patient.name, dentalQuoteSnapshot(pdfData, 'simple'));
+    void recordSaver.save(pdfData.patient.name, dentalQuoteSnapshot(pdfData, 'simple'), dentalPlanFromState(state));
   }
 
   async function handlePhotosSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -56,7 +57,7 @@ export function Step4Confirm() {
     if (hasPhotos) pdfData.patientPhotos = state.patientPhotos;
 
     generatePremiumQuotationPdf(pdfData, doctors);
-    void recordSaver.save(pdfData.patient.name, dentalQuoteSnapshot(pdfData, 'premium'));
+    void recordSaver.save(pdfData.patient.name, dentalQuoteSnapshot(pdfData, 'premium'), dentalPlanFromState(state));
   }
 
   return (

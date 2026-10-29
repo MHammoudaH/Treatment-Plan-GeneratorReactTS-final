@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   NOTE_TOPIC_LABELS,
   addPatientNote,
+  fetchQuotePlan,
   fetchPatientRecord,
   fetchPatientRecords,
   type ApiError,
@@ -12,6 +13,7 @@ import {
 } from '../../lib/api';
 import { formatSnapshotMoney } from '../../lib/patientRecords';
 import { useNavValue } from '../../lib/navigation';
+import type { OpenedPlan } from '../../lib/editablePlan';
 
 function formatDateTime(iso: string): string {
   const date = new Date(iso);
@@ -53,7 +55,7 @@ function QuoteCard({ quote }: { quote: QuoteSnapshot }) {
   );
 }
 
-function PatientDetail({ id, onBack }: { id: number; onBack: () => void }) {
+function PatientDetail({ id, onBack, onOpenPlan }: { id: number; onBack: () => void; onOpenPlan: (opened: OpenedPlan) => void }) {
   const [record, setRecord] = useState<PatientRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [body, setBody] = useState('');
@@ -69,6 +71,21 @@ function PatientDetail({ id, onBack }: { id: number; onBack: () => void }) {
       cancelled = true;
     };
   }, [id]);
+
+  const [opening, setOpening] = useState<number | null>(null);
+
+  async function openPlan(entryId: number) {
+    if (!record) return;
+    setOpening(entryId);
+    setError(null);
+    try {
+      const found = await fetchQuotePlan(record.id, entryId);
+      onOpenPlan({ recordId: record.id, patientName: record.patientName, quote: found.quote, plan: found.plan });
+    } catch (err) {
+      setError((err as ApiError)?.message ?? 'Could not open this quote.');
+      setOpening(null);
+    }
+  }
 
   async function addNote() {
     if (!body.trim() || !record) return;
@@ -111,6 +128,17 @@ function PatientDetail({ id, onBack }: { id: number; onBack: () => void }) {
                   </small>
                 </div>
                 {entry.kind === 'quote' && entry.quote ? <QuoteCard quote={entry.quote} /> : <p className="timeline-note">{entry.body}</p>}
+                {entry.kind === 'quote' &&
+                  (entry.hasPlan ? (
+                    <div className="timeline-actions">
+                      <button type="button" disabled={opening !== null} onClick={() => openPlan(entry.id)}>
+                        {opening === entry.id ? 'Opening…' : 'Open & update this plan'}
+                      </button>
+                      <small className="hint">Opens the {entry.quote?.module === 'plastic' ? 'plastic surgery module' : 'dental wizard'} pre-filled — change what you need and generate the PDF again; it's added here as an updated quote.</small>
+                    </div>
+                  ) : (
+                    <small className="hint">Saved before plans could be re-opened — generate this patient's quote once more to make it updatable.</small>
+                  ))}
               </li>
             ))}
           </ol>
@@ -147,7 +175,7 @@ function PatientDetail({ id, onBack }: { id: number; onBack: () => void }) {
 }
 
 /** "My Patients" — the signed-in coordinator's saved patients and their follow-up timelines. */
-export function MyPatientsView() {
+export function MyPatientsView({ onOpenPlan }: { onOpenPlan: (opened: OpenedPlan) => void }) {
   const [records, setRecords] = useState<PatientRecordSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useNavValue<number | null>('patientId', null);
@@ -174,7 +202,7 @@ export function MyPatientsView() {
     return (records ?? []).filter((r) => !q || r.patientName.toLowerCase().includes(q));
   }, [records, search]);
 
-  if (openId !== null) return <PatientDetail id={openId} onBack={() => setOpenId(null)} />;
+  if (openId !== null) return <PatientDetail id={openId} onBack={() => setOpenId(null)} onOpenPlan={onOpenPlan} />;
 
   return (
     <section className="wizard-step my-patients">
