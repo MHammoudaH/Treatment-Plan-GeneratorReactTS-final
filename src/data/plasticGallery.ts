@@ -14,57 +14,67 @@ const GALLERY_LIMIT = 6;
 
 /** Specific item id -> ordered gallery folder keys (see GALLERY_MANIFEST). */
 const FOLDERS_BY_ITEM_ID: Record<string, string[]> = {
-  // Face — nose
-  rhinoplasty: ['aesthetic/RHINOPLASTY'],
-  septoplasty: ['aesthetic/RHINOPLASTY'],
-  'rhinoplasty-double-chin': ['aesthetic/RHINOPLASTY', 'aesthetic/double chin'],
-  'second-rhinoplasty': ['aesthetic/RHINOPLASTY'],
-  'rhinoplasty-cartilage': ['aesthetic/RHINOPLASTY'],
-  'laser-rhinoplasty': ['aesthetic/RHINOPLASTY'],
+  // Face — nose (real Drive-import rhinoplasty set — 91 photos — leads the legacy set)
+  rhinoplasty: ['aesthetic-drive-import/rhinoplasty', 'aesthetic/RHINOPLASTY'],
+  septoplasty: ['aesthetic-drive-import/rhinoplasty', 'aesthetic/RHINOPLASTY'],
+  'rhinoplasty-double-chin': ['aesthetic-drive-import/rhinoplasty', 'aesthetic/RHINOPLASTY', 'aesthetic/double chin'],
+  'second-rhinoplasty': ['aesthetic-drive-import/rhinoplasty', 'aesthetic/RHINOPLASTY'],
+  'rhinoplasty-cartilage': ['aesthetic-drive-import/rhinoplasty', 'aesthetic/RHINOPLASTY'],
+  'laser-rhinoplasty': ['aesthetic-drive-import/rhinoplasty', 'aesthetic/RHINOPLASTY'],
   // Face — eyes / brow / jaw / other
-  blepharoplasty: ['aesthetic/blepharoplasty', 'before-after/Eyes'],
-  'jaw-silicone': ['aesthetic/nick lifting', 'before-after/Facelift', 'aesthetic/face lift'],
-  'jaw-line': ['aesthetic/nick lifting', 'before-after/Facelift', 'aesthetic/face lift'],
-  'dimple-one': ['aesthetic/face lift', 'before-after/Facelift'],
-  'dimple-two': ['aesthetic/face lift', 'before-after/Facelift'],
-  'face-neck-lift': ['before-after/Facelift', 'aesthetic/face lift', 'aesthetic/nick lifting'],
+  blepharoplasty: ['aesthetic-drive-import/blepharoplasty', 'aesthetic/blepharoplasty', 'before-after/Eyes'],
+  otoplasty: ['aesthetic-drive-import/otoplasty'],
+  'jaw-silicone': ['aesthetic-drive-import/face-lift', 'aesthetic/nick lifting', 'before-after/Facelift', 'aesthetic/face lift'],
+  'jaw-line': ['aesthetic-drive-import/face-lift', 'aesthetic/nick lifting', 'before-after/Facelift', 'aesthetic/face lift'],
+  'dimple-one': ['aesthetic-drive-import/face-lift', 'aesthetic/face lift', 'before-after/Facelift'],
+  'dimple-two': ['aesthetic-drive-import/face-lift', 'aesthetic/face lift', 'before-after/Facelift'],
+  'face-neck-lift': ['aesthetic-drive-import/face-lift', 'aesthetic-drive-import/neck-lift', 'before-after/Facelift', 'aesthetic/face lift', 'aesthetic/nick lifting'],
 
   // Breast — augmentation
-  'breast-nipple': ['aesthetic/breast enlargment', 'before-after/breast'],
-  'silimed-round': ['aesthetic/breast enlargment', 'before-after/breast'],
-  'motiva-round': ['aesthetic/breast enlargment', 'before-after/breast'],
-  'motiva-teardrop': ['aesthetic/breast enlargment', 'before-after/breast'],
-  'mentor-round': ['aesthetic/breast enlargment', 'before-after/breast'],
-  'mentor-teardrop': ['aesthetic/breast enlargment', 'before-after/breast'],
-  'cereform-round': ['aesthetic/breast enlargment', 'before-after/breast'],
-  'cereform-teardrop': ['aesthetic/breast enlargment', 'before-after/breast'],
+  'breast-nipple': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/breast enlargment', 'before-after/breast'],
+  'breast-reduction': ['aesthetic-drive-import/breast-surgeries'],
+  'silimed-round': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/breast enlargment', 'before-after/breast'],
+  'motiva-round': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/breast enlargment', 'before-after/breast'],
+  'motiva-teardrop': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/breast enlargment', 'before-after/breast'],
+  'mentor-round': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/breast enlargment', 'before-after/breast'],
+  'mentor-teardrop': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/breast enlargment', 'before-after/breast'],
+  'cereform-round': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/breast enlargment', 'before-after/breast'],
+  'cereform-teardrop': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/breast enlargment', 'before-after/breast'],
   // Breast — with lift
-  'breast-lift': ['aesthetic/BREAST LIFTING_', 'before-after/breast'],
-  'silimed-lift-round': ['aesthetic/BREAST LIFTING_', 'aesthetic/breast enlargment'],
-  'motiva-lift-round': ['aesthetic/BREAST LIFTING_', 'aesthetic/breast enlargment'],
-  'motiva-lift-teardrop': ['aesthetic/BREAST LIFTING_', 'aesthetic/breast enlargment'],
-  'mentor-lift-round': ['aesthetic/BREAST LIFTING_', 'aesthetic/breast enlargment'],
-  'mentor-lift-teardrop': ['aesthetic/BREAST LIFTING_', 'aesthetic/breast enlargment'],
-  'cereform-lift-round': ['aesthetic/BREAST LIFTING_', 'aesthetic/breast enlargment'],
-  'cereform-lift-teardrop': ['aesthetic/BREAST LIFTING_', 'aesthetic/breast enlargment'],
-  'lifting-only': ['aesthetic/BREAST LIFTING_'],
+  'breast-lift': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/BREAST LIFTING_', 'before-after/breast'],
+  'silimed-lift-round': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/BREAST LIFTING_', 'aesthetic/breast enlargment'],
+  'motiva-lift-round': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/BREAST LIFTING_', 'aesthetic/breast enlargment'],
+  'motiva-lift-teardrop': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/BREAST LIFTING_', 'aesthetic/breast enlargment'],
+  'mentor-lift-round': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/BREAST LIFTING_', 'aesthetic/breast enlargment'],
+  'mentor-lift-teardrop': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/BREAST LIFTING_', 'aesthetic/breast enlargment'],
+  'cereform-lift-round': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/BREAST LIFTING_', 'aesthetic/breast enlargment'],
+  'cereform-lift-teardrop': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/BREAST LIFTING_', 'aesthetic/breast enlargment'],
+  'lifting-only': ['aesthetic-drive-import/breast-surgeries', 'aesthetic/BREAST LIFTING_'],
 
   // Body — liposuction / contouring
-  'three-area-lipo': ['aesthetic/lipo', 'before-after/liposuction and fat'],
-  'six-pack': ['aesthetic/lipo', 'before-after/liposuction and fat'],
-  'lipo-jplasma': ['aesthetic/lipo', 'before-after/liposuction and fat'],
-  // Body — buttock
+  'three-area-lipo': ['aesthetic-drive-import/liposuction', 'aesthetic/lipo', 'before-after/liposuction and fat'],
+  'six-pack': ['aesthetic-drive-import/six-pack-surgeries', 'aesthetic-drive-import/liposuction', 'aesthetic/lipo', 'before-after/liposuction and fat'],
+  'lipo-jplasma': ['aesthetic-drive-import/j-plasma', 'aesthetic-drive-import/liposuction', 'aesthetic/lipo', 'before-after/liposuction and fat'],
+  'j-plasma': ['aesthetic-drive-import/j-plasma'],
+  'vaser-lipo-4d': ['aesthetic-drive-import/liposuction'],
+  'abdominoplasty': ['aesthetic-drive-import/liposuction-abdominoplasty'],
+  'arm-lifting': ['aesthetic-drive-import/arm-lift'],
+  'thigh-lifting': ['aesthetic-drive-import/thigh-lift'],
+  'bbl-fat-transfer': ['aesthetic-drive-import/bbl-brazilian-butt-lifting'],
+  'fat-injection-hands': ['aesthetic-drive-import/hand-fat-injection'],
+  // Body — buttock (silicone implants — distinct technique from the fat-transfer BBL set above)
   'butt-silicone-europe': ['aesthetic/BBL', 'before-after/liposuction and fat'],
   'butt-silicone-american': ['aesthetic/BBL', 'before-after/liposuction and fat'],
 
-  // Men
-  gynecomastia: ['aesthetic/lipo', 'before-after/liposuction and fat'],
+  // Men (real Drive-import gynecomastia set replaces the old generic-lipo fallback)
+  gynecomastia: ['aesthetic-drive-import/gynocomestia'],
 
   // Packages
-  'three-area-lipo-bbl': ['aesthetic/BBL', 'aesthetic/lipo'],
-  'three-area-lipo-breast-bbl': ['aesthetic/BBL', 'aesthetic/breast enlargment', 'aesthetic/lipo'],
-  'three-area-lipo-rhinoplasty': ['aesthetic/lipo', 'aesthetic/RHINOPLASTY'],
-  'three-area-lipo-breast-rhinoplasty': ['aesthetic/breast enlargment', 'aesthetic/RHINOPLASTY', 'aesthetic/lipo'],
+  'three-area-lipo-bbl': ['aesthetic-drive-import/liposuction', 'aesthetic/BBL', 'aesthetic/lipo'],
+  'three-area-lipo-breast-bbl': ['aesthetic-drive-import/liposuction', 'aesthetic-drive-import/breast-surgeries', 'aesthetic/BBL', 'aesthetic/breast enlargment', 'aesthetic/lipo'],
+  'three-area-lipo-rhinoplasty': ['aesthetic-drive-import/liposuction', 'aesthetic-drive-import/rhinoplasty', 'aesthetic/lipo', 'aesthetic/RHINOPLASTY'],
+  'three-area-lipo-breast-rhinoplasty': ['aesthetic-drive-import/breast-surgeries', 'aesthetic-drive-import/rhinoplasty', 'aesthetic/breast enlargment', 'aesthetic/RHINOPLASTY', 'aesthetic/lipo'],
+  'mommy-makeover': ['aesthetic-drive-import/mommy-makeover'],
 };
 
 /** Category fallback when an item id has no specific mapping. */

@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const GALLERY_DIR = join(ROOT, 'public', 'assets', 'gallery');
 const OUT_FILE = join(ROOT, 'src', 'data', 'plasticGalleryManifest.ts');
-const TOP_LEVEL = ['aesthetic', 'before-after'];
+const TOP_LEVEL = ['aesthetic', 'before-after', 'aesthetic-drive-import'];
 const IMAGE_RE = /\.(jpe?g|png|webp)$/i;
 // Working files / layered exports that are not clean before-after shots.
 const SKIP_RE = /(-recovered|copy-recovered|final frame)/i;
