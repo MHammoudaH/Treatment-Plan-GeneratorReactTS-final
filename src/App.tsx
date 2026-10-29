@@ -12,9 +12,10 @@ import { Step4Confirm } from './components/steps/Step4Confirm';
 import { PlasticSurgeryModule } from './components/PlasticSurgeryModule';
 import { TeamLeaderView } from './components/team/TeamLeaderView';
 import { PlanningView } from './components/planning/PlanningView';
+import { MyPatientsView } from './components/records/MyPatientsView';
 import { ROLES } from './lib/api';
 
-type ClinicModule = 'dental' | 'plastic';
+type ClinicModule = 'dental' | 'plastic' | 'patients';
 
 function AppHeader({ onChangeModule }: { onChangeModule?: () => void }) {
   const { user, role, logout } = useAuth();
@@ -64,6 +65,9 @@ function ModuleLanding({ onChoose }: { onChoose: (module: ClinicModule) => void 
           <button type="button" className="secondary" onClick={() => onChoose('dental')}>Open dental module</button>
           <button type="button" onClick={() => onChoose('plastic')}>Open plastic surgery module</button>
         </div>
+        <div className="module-choice-grid">
+          <button type="button" className="secondary" onClick={() => onChoose('patients')}>My patients (follow-up records)</button>
+        </div>
       </section>
 
       <ZohoDealsPanel />
@@ -103,6 +107,15 @@ function CoordinatorApp({ onExit }: { onExit?: () => void }) {
       <QuotationProvider>
         <WizardShell onChangeModule={() => setModule(null)} />
       </QuotationProvider>
+    );
+  }
+
+  if (module === 'patients') {
+    return (
+      <div className="app-shell">
+        <AppHeader onChangeModule={() => setModule(null)} />
+        <MyPatientsView />
+      </div>
     );
   }
 

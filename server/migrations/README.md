@@ -45,3 +45,4 @@ server starts (see `package.json`).
 | `0008_logistics.sql` | flights, hotel_reservations, transfers |
 | `0009_activity_log.sql` | activity_log (append-only audit trail) |
 | `0010_multi_currency_pricing.sql` | `procedure_catalog.price_usd/eur/aud` (independent per-currency prices); `treatment_visits.calculated_total/override_total/final_total` (generated) + `currency` — schema readiness for the multi-currency + All-on-X + per-visit-override pricing architecture in `src/lib/pricing/engine.ts` (not yet wired to any API — the wizard still prices/PDFs client-side) |
+| `0011_patient_records.sql` | patient_records (a coordinator's own saved patients, "My Patients"), patient_record_entries (append-only timeline: quote snapshots + follow-up notes) |

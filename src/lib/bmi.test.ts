@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bmiCategory, calculateBmi, expectedWeight, fromKg, toCm, toKg } from './bmi';
+import { bmiCategory, calculateBmi, expectedWeight, formatFeetInches, fromKg, splitFeetInches, toCm, toKg } from './bmi';
 
 describe('calculateBmi', () => {
   it('metric: kg and cm', () => {
@@ -56,5 +56,19 @@ describe('expectedWeight', () => {
   it('unit helpers round-trip pounds and inches', () => {
     expect(fromKg(toKg(220, 'imperial'), 'imperial')).toBe(220);
     expect(toCm(70, 'imperial')).toBeCloseTo(177.8);
+  });
+});
+
+describe('feet / inches', () => {
+  it("66 inches is 5'6\" — and 160 lb at 5'6\" is a BMI of 25.8", () => {
+    expect(formatFeetInches(66)).toBe('5\'6"');
+    expect(splitFeetInches(66)).toEqual({ feet: 5, inches: 6 });
+    expect(calculateBmi(160, 66, 'imperial')).toBe(25.8);
+  });
+
+  it('exact feet and the ends of the dropdown range', () => {
+    expect(formatFeetInches(72)).toBe('6\'0"');
+    expect(formatFeetInches(36)).toBe('3\'0"');
+    expect(formatFeetInches(95)).toBe('7\'11"');
   });
 });

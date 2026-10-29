@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type Dispatch, type ReactNode } from 'react';
 import { fetchEurRates, usdRates, type RatesResult } from '../lib/currencyRates';
+import type { RecordSaveState } from '../lib/recordSaver';
 import { cloneOptionForNewOption, createOptionInput, type OptionInput } from '../lib/pricing/engine';
 import { countMarks, cycleMark, suggestPlan } from '../lib/dental/teeth';
 import {
@@ -25,6 +26,7 @@ type Action =
   | { type: 'SET_DISPLAY'; display: Partial<DisplaySettings> }
   | { type: 'SET_CURRENCY'; currency: DisplayCurrency }
   | { type: 'SET_LIVE_RATES'; rates: RatesResult }
+  | { type: 'SET_RECORD_SAVE'; recordSave: RecordSaveState }
   | { type: 'ADD_OPTION' }
   | { type: 'PREFILL_OPTIONS_FROM_DIAGNOSIS' }
   | { type: 'REMOVE_OPTION'; id: string }
@@ -129,9 +131,12 @@ function reducer(state: WizardState, action: Action): WizardState {
       return { ...state, patientPhotos: state.patientPhotos.filter((_, i) => i !== action.index) };
     case 'SET_REPLACE_IMPLANT_MAP_WITH_PHOTOS':
       return { ...state, replaceImplantMapWithPhotos: action.value };
+    case 'SET_RECORD_SAVE':
+      return { ...state, recordSave: action.recordSave };
     case 'RESET':
-      // Keep the rates already fetched — they don't belong to one patient's quote.
-      return { ...createInitialState(), liveRates: state.liveRates };
+      // Keep the rates already fetched — they don't belong to one patient's quote. Keep the
+      // coordinator's "save to my records" preference, but the next patient is a new record.
+      return { ...createInitialState(), liveRates: state.liveRates, recordSave: { enabled: state.recordSave.enabled, record: null } };
     default:
       return state;
   }

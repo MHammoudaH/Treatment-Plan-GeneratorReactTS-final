@@ -8,6 +8,7 @@ import { requireAuth } from './auth/middleware.js';
 import { zohoRouter, dealsHandler } from './zoho/routes.js';
 import { teamRouter } from './team/routes.js';
 import { planningRouter } from './planning/routes.js';
+import { recordsRouter } from './records/routes.js';
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use('/api/zoho', zohoRouter);
 app.get('/api/deals', requireAuth, dealsHandler);
 app.use('/api/team', teamRouter);
 app.use('/api/planning', planningRouter);
+app.use('/api/patient-records', recordsRouter);
 
 // 404 for unknown /api routes
 app.use('/api', (_req, res) => {

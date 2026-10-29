@@ -1,0 +1,51 @@
+import { useState } from 'react';
+import { addPatientQuote, createPatientRecord, type ApiError, type QuoteSnapshot } from './api';
+import { sameQuote } from './patientRecords';
+
+/** Kept by the caller (wizard context / plastic module) so it survives step changes. */
+export interface RecordSaveState {
+  /** The "Save this patient to my records" checkbox. */
+  enabled: boolean;
+  /** The record this quotation session already saved to, if any. */
+  record: { id: number; patientName: string; lastQuote: QuoteSnapshot } | null;
+}
+
+export const INITIAL_RECORD_SAVE: RecordSaveState = { enabled: false, record: null };
+
+export type RecordSaveStatus = { kind: 'idle' } | { kind: 'saving' } | { kind: 'saved'; message: string } | { kind: 'error'; message: string };
+
+/**
+ * Saves the quote once a PDF has been generated, when the checkbox is ticked. The first PDF
+ * creates the patient record; generating again for the same patient in the same session adds
+ * the new quote to that record's timeline (nothing is added when the quote is unchanged, e.g.
+ * printing the Simple and then the Premium PDF of the same plan).
+ */
+export function useRecordSaver(state: RecordSaveState, setState: (next: RecordSaveState) => void) {
+  const [status, setStatus] = useState<RecordSaveStatus>({ kind: 'idle' });
+
+  async function save(patientName: string, quote: QuoteSnapshot): Promise<void> {
+    const name = patientName.trim();
+    if (!state.enabled || !name) return;
+    const existing = state.record && state.record.patientName === name ? state.record : null;
+    if (existing && sameQuote(existing.lastQuote, quote)) {
+      setStatus({ kind: 'saved', message: `Already saved to ${name}'s record in My Patients.` });
+      return;
+    }
+    setStatus({ kind: 'saving' });
+    try {
+      if (existing) {
+        await addPatientQuote(existing.id, quote);
+        setState({ ...state, record: { ...existing, lastQuote: quote } });
+        setStatus({ kind: 'saved', message: `Updated quote added to ${name}'s timeline in My Patients.` });
+      } else {
+        const { id } = await createPatientRecord(name, quote);
+        setState({ ...state, record: { id, patientName: name, lastQuote: quote } });
+        setStatus({ kind: 'saved', message: `${name} saved to My Patients.` });
+      }
+    } catch (err) {
+      setStatus({ kind: 'error', message: `Couldn't save to My Patients: ${(err as ApiError)?.message ?? 'unknown error'}. The PDF was still generated.` });
+    }
+  }
+
+  return { status, save };
+}

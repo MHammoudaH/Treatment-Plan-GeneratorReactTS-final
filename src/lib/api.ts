@@ -246,3 +246,73 @@ export function fetchPlanningConfirmed(): Promise<PlanningListResponse> {
 export function fetchPlanningPatients(): Promise<PlanningListResponse> {
   return apiFetch<PlanningListResponse>('/planning/patients');
 }
+
+// ---- patient follow-up records ("My Patients") -------------------------------
+// Mirror of server/src/records/store.ts — keep the two in sync.
+
+/** What was quoted, exactly as the PDF showed it. */
+export interface QuoteSnapshot {
+  module: 'dental' | 'plastic';
+  pdf: 'simple' | 'premium';
+  currency: string;
+  language: string;
+  options: Array<{ name: string; lines: string[]; total: number }>;
+  /** Short remark about how it was quoted, e.g. "Full package price". */
+  remark?: string;
+}
+
+export type NoteTopic = 'discussion' | 'objection' | 'price' | 'next_step';
+
+export const NOTE_TOPIC_LABELS: Record<NoteTopic, string> = {
+  discussion: 'Discussion',
+  objection: 'Objection',
+  price: 'Price negotiated',
+  next_step: 'Next step',
+};
+
+export interface PatientRecordSummary {
+  id: number;
+  patientName: string;
+  createdAt: string;
+  updatedAt: string;
+  noteCount: number;
+  latestQuote: QuoteSnapshot | null;
+}
+
+export interface TimelineEntry {
+  id: number;
+  kind: 'quote' | 'note';
+  topic: NoteTopic | null;
+  body: string | null;
+  quote: QuoteSnapshot | null;
+  authorName: string;
+  createdAt: string;
+}
+
+export interface PatientRecord {
+  id: number;
+  patientName: string;
+  createdAt: string;
+  updatedAt: string;
+  entries: TimelineEntry[];
+}
+
+export function fetchPatientRecords(): Promise<{ records: PatientRecordSummary[] }> {
+  return apiFetch('/patient-records');
+}
+
+export function fetchPatientRecord(id: number): Promise<{ record: PatientRecord }> {
+  return apiFetch(`/patient-records/${id}`);
+}
+
+export function createPatientRecord(patientName: string, quote: QuoteSnapshot): Promise<{ id: number }> {
+  return apiFetch('/patient-records', { method: 'POST', body: JSON.stringify({ patientName, quote }) });
+}
+
+export function addPatientQuote(id: number, quote: QuoteSnapshot): Promise<{ entry: TimelineEntry }> {
+  return apiFetch(`/patient-records/${id}/quotes`, { method: 'POST', body: JSON.stringify({ quote }) });
+}
+
+export function addPatientNote(id: number, body: string, topic: NoteTopic | null): Promise<{ entry: TimelineEntry }> {
+  return apiFetch(`/patient-records/${id}/notes`, { method: 'POST', body: JSON.stringify({ body, topic }) });
+}

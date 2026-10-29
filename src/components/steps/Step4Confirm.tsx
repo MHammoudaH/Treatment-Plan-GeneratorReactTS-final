@@ -7,6 +7,9 @@ import { calculateOption } from '../../lib/pricing/engine';
 import { generateSimpleQuotationPdf } from '../../lib/pdf/simple/generateSimpleQuotationPdf';
 import { generatePremiumQuotationPdf } from '../../lib/pdf/premium/generatePremiumQuotationPdf';
 import { resizeImageFiles } from '../../lib/pdf/imageUtils';
+import { dentalQuoteSnapshot } from '../../lib/patientRecords';
+import { useRecordSaver, type RecordSaveState } from '../../lib/recordSaver';
+import { SaveToRecordsOption } from '../records/SaveToRecordsOption';
 
 export function Step4Confirm() {
   const { state, dispatch } = useQuotation();
@@ -14,11 +17,14 @@ export function Step4Confirm() {
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [selectedDoctorIds, setSelectedDoctorIds] = useState<number[]>([]);
   const hasPhotos = state.patientPhotos.length > 0;
+  const setRecordSave = (recordSave: RecordSaveState) => dispatch({ type: 'SET_RECORD_SAVE', recordSave });
+  const recordSaver = useRecordSaver(state.recordSave, setRecordSave);
 
   function handleSimplePdf() {
     const pdfData = buildQuotationPdfData(state);
     if (state.notes.trim()) pdfData.notes = state.notes.trim();
     generateSimpleQuotationPdf(pdfData);
+    void recordSaver.save(pdfData.patient.name, dentalQuoteSnapshot(pdfData, 'simple'));
   }
 
   async function handlePhotosSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -50,6 +56,7 @@ export function Step4Confirm() {
     if (hasPhotos) pdfData.patientPhotos = state.patientPhotos;
 
     generatePremiumQuotationPdf(pdfData, doctors);
+    void recordSaver.save(pdfData.patient.name, dentalQuoteSnapshot(pdfData, 'premium'));
   }
 
   return (
@@ -134,6 +141,8 @@ export function Step4Confirm() {
         onChange={(e) => dispatch({ type: 'SET_NOTES', notes: e.target.value })}
         placeholder="Anything else to include for the patient or the file…"
       />
+
+      <SaveToRecordsOption state={state.recordSave} onChange={setRecordSave} status={recordSaver.status} />
 
       <div className="wizard-actions">
         <button type="button" className="secondary" onClick={() => dispatch({ type: 'SET_STEP', step: 2 })}>

@@ -8,6 +8,9 @@ import type { QuotationLanguage } from '../lib/pdf/types';
 import { generatePlasticPremiumPdf } from '../lib/pdf/plastic/generatePlasticPremiumPdf';
 import { EMPTY_BMI, bmiCategory, calculateBmi, expectedWeight, fromKg, toCm, toKg, type BmiValues } from '../lib/bmi';
 import { BmiCalculator } from './BmiCalculator';
+import { SaveToRecordsOption } from './records/SaveToRecordsOption';
+import { plasticQuoteSnapshot } from '../lib/patientRecords';
+import { INITIAL_RECORD_SAVE, useRecordSaver, type RecordSaveState } from '../lib/recordSaver';
 import { NumberField } from './NumberField';
 
 interface Props {
@@ -65,6 +68,8 @@ export function PlasticSurgeryModule({ onBack }: Props) {
   // Coordinator's own expected weight, typed in `bmiValues.units`; '' = use the estimate.
   const [expectedWeightOverride, setExpectedWeightOverride] = useState('');
   const [includeWeightInPdf, setIncludeWeightInPdf] = useState(true);
+  const [recordSave, setRecordSave] = useState<RecordSaveState>(INITIAL_RECORD_SAVE);
+  const recordSaver = useRecordSaver(recordSave, setRecordSave);
 
   const cards = useMemo(() => {
     const list = category === 'All' ? PLASTIC_SURGERIES : PLASTIC_SURGERIES.filter((item) => item.category === category);
@@ -170,7 +175,7 @@ export function PlasticSurgeryModule({ onBack }: Props) {
     const totals = quotationTotals();
     const total = totals.finalTotal;
 
-    generatePlasticPremiumPdf({
+    const pdfInput: Parameters<typeof generatePlasticPremiumPdf>[0] = {
       items: selectedItems,
       patientName,
       language,
@@ -201,7 +206,9 @@ export function PlasticSurgeryModule({ onBack }: Props) {
         total,
       },
       gallery: combinedGallery(selectedItems),
-    });
+    };
+    generatePlasticPremiumPdf(pdfInput);
+    void recordSaver.save(patientName, plasticQuoteSnapshot(pdfInput));
 
     setSubmitted(true);
     setPage(1);
@@ -327,6 +334,8 @@ export function PlasticSurgeryModule({ onBack }: Props) {
         {submitted && (
           <div className="success-note">
             <p>Request prepared for {patientName}. The coordinator will confirm the doctor name and final quotation manually.</p>
+            {(recordSaver.status.kind === 'saved' || recordSaver.status.kind === 'error') && <p className="hint">{recordSaver.status.message}</p>}
+            {recordSaver.status.kind === 'saving' && <p className="hint">Saving to My Patients…</p>}
             <div className="wizard-actions">
               <button type="button" onClick={() => {
                 setSelectedItems([]);
@@ -345,6 +354,7 @@ export function PlasticSurgeryModule({ onBack }: Props) {
                 setBmiValues(EMPTY_BMI);
                 setExpectedWeightOverride('');
                 setIncludeWeightInPdf(true);
+                setRecordSave({ enabled: recordSave.enabled, record: null });
                 setSubmitted(false);
                 setPage(1);
               }}>
@@ -519,6 +529,7 @@ export function PlasticSurgeryModule({ onBack }: Props) {
           </div>
           <label htmlFor="plastic-final-note">Final quotation notes</label>
           <textarea id="plastic-final-note" rows={3} value={coordinatorNote} onChange={(e) => setCoordinatorNote(e.target.value)} />
+          <SaveToRecordsOption state={recordSave} onChange={setRecordSave} status={recordSaver.status} />
           <div className="wizard-actions">
             <button type="button" className="secondary" onClick={() => setPage(1)}>Back to appointment</button>
             <button type="button" disabled={!allSelectedPriced} onClick={generateProposal}>Generate Premium Proposal PDF</button>

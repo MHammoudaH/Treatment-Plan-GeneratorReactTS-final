@@ -1,4 +1,14 @@
-import { CM_PER_INCH, LB_PER_KG, bmiCategory, calculateBmi, type BmiUnits, type BmiValues } from '../lib/bmi';
+import {
+  CM_PER_INCH,
+  HEIGHT_FEET,
+  LB_PER_KG,
+  bmiCategory,
+  calculateBmi,
+  formatFeetInches,
+  splitFeetInches,
+  type BmiUnits,
+  type BmiValues,
+} from '../lib/bmi';
 
 /** Patient weight / height / BMI — informational only, does not affect any price. The values
  *  live in the parent so they carry through to the quotation step and the PDF. */
@@ -6,6 +16,13 @@ export function BmiCalculator({ value, onChange }: { value: BmiValues; onChange:
   const { units, weight, height } = value;
   const bmi = calculateBmi(Number(weight), Number(height), units);
   const metric = units === 'metric';
+  // Imperial height is stored as total inches and picked as feet + inches (5'6" = 66).
+  const totalInches = Number(height);
+  const feetInches = !metric && totalInches > 0 ? splitFeetInches(totalInches) : null;
+
+  function setFeetInches(feet: number | null, inches: number) {
+    onChange({ ...value, height: feet === null ? '' : String(feet * 12 + inches) });
+  }
 
   function switchUnits(next: BmiUnits) {
     if (next === units) return;
@@ -15,7 +32,8 @@ export function BmiCalculator({ value, onChange }: { value: BmiValues; onChange:
     onChange({
       units: next,
       weight: w > 0 ? String(Math.round((next === 'imperial' ? w * LB_PER_KG : w / LB_PER_KG) * 10) / 10) : weight,
-      height: h > 0 ? String(Math.round((next === 'imperial' ? h / CM_PER_INCH : h * CM_PER_INCH) * 10) / 10) : height,
+      // Whole inches for the feet/inches dropdowns; one decimal of a cm going back.
+      height: h > 0 ? String(next === 'imperial' ? Math.round(h / CM_PER_INCH) : Math.round(h * CM_PER_INCH * 10) / 10) : height,
     });
   }
 
@@ -35,11 +53,62 @@ export function BmiCalculator({ value, onChange }: { value: BmiValues; onChange:
       <div className="grid-2">
         <div>
           <label htmlFor="bmi-weight">Weight ({metric ? 'kg' : 'lb'})</label>
-          <input id="bmi-weight" type="number" min={0} step={0.1} value={weight} onChange={(e) => onChange({ ...value, weight: e.target.value })} />
+          <input
+            id="bmi-weight"
+            type="number"
+            min={0}
+            step={0.1}
+            value={weight}
+            placeholder={metric ? 'e.g. 72' : 'e.g. 160'}
+            onChange={(e) => onChange({ ...value, weight: e.target.value })}
+          />
         </div>
         <div>
-          <label htmlFor="bmi-height">Height ({metric ? 'cm' : 'inches'})</label>
-          <input id="bmi-height" type="number" min={0} step={0.1} value={height} onChange={(e) => onChange({ ...value, height: e.target.value })} />
+          {metric ? (
+            <>
+              <label htmlFor="bmi-height">Height (cm)</label>
+              <input
+                id="bmi-height"
+                type="number"
+                min={0}
+                step={0.1}
+                value={height}
+                placeholder="e.g. 168"
+                onChange={(e) => onChange({ ...value, height: e.target.value })}
+              />
+            </>
+          ) : (
+            <>
+              <label htmlFor="bmi-height-feet">Height (feet / inches)</label>
+              <div className="bmi-feet-inches">
+                <select
+                  id="bmi-height-feet"
+                  aria-label="Height, feet"
+                  value={feetInches ? String(feetInches.feet) : ''}
+                  onChange={(e) => setFeetInches(e.target.value === '' ? null : Number(e.target.value), feetInches?.inches ?? 0)}
+                >
+                  <option value="">ft</option>
+                  {HEIGHT_FEET.map((ft) => (
+                    <option key={ft} value={ft}>
+                      {ft} ft
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Height, inches"
+                  value={feetInches ? String(feetInches.inches) : '0'}
+                  disabled={!feetInches}
+                  onChange={(e) => setFeetInches(feetInches?.feet ?? null, Number(e.target.value))}
+                >
+                  {Array.from({ length: 12 }, (_, inch) => (
+                    <option key={inch} value={inch}>
+                      {inch} in
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
         </div>
       </div>
       <p className="bmi-result">
@@ -47,7 +116,7 @@ export function BmiCalculator({ value, onChange }: { value: BmiValues; onChange:
           'Enter weight and height to see the BMI.'
         ) : (
           <>
-            BMI <strong>{bmi.toFixed(1)}</strong> — {bmiCategory(bmi)}
+            {!metric && `${Number(weight)} lb · ${formatFeetInches(totalInches)} — `}BMI <strong>{bmi.toFixed(1)}</strong> — {bmiCategory(bmi)}
           </>
         )}
       </p>

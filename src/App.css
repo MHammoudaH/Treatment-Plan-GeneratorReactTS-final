@@ -1201,3 +1201,129 @@ img {
     max-width: 120px;
   }
 }
+
+/* ---- My Patients (follow-up records) ---- */
+.save-to-records {
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.save-to-records .inline-check {
+  margin: 0 0 4px;
+}
+
+.error-text {
+  color: var(--red);
+  font-weight: 500;
+}
+
+.patient-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.patient-row {
+  width: 100%;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.patient-row:hover {
+  border-color: var(--blue);
+}
+
+.patient-row span {
+  color: var(--navy);
+}
+
+.patient-row small {
+  color: var(--muted);
+}
+
+.timeline {
+  list-style: none;
+  margin: 16px 0;
+  padding: 0 0 0 18px;
+  border-left: 2px solid var(--border);
+}
+
+.timeline-entry {
+  position: relative;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-bg);
+}
+
+.timeline-entry::before {
+  content: '';
+  position: absolute;
+  left: -26px;
+  top: 16px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--blue);
+  border: 2px solid var(--card-bg);
+}
+
+.timeline-entry.is-quote::before {
+  background: var(--red);
+}
+
+.timeline-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-bottom: 6px;
+}
+
+.timeline-meta small {
+  color: var(--muted);
+}
+
+.timeline-note {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.timeline-option + .timeline-option {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.timeline-option ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.timeline-add {
+  margin-top: 8px;
+}
+
+.bmi-feet-inches {
+  display: flex;
+  gap: 8px;
+}
+
+.bmi-feet-inches select {
+  flex: 1;
+}

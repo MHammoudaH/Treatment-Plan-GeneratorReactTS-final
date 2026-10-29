@@ -81,6 +81,21 @@ export function expectedWeight(currentKg: number, heightCm: number, procedureIds
   return best;
 }
 
+/** Feet offered in the imperial height dropdown — with 0-11 inches, 3'0" to 7'11". */
+export const HEIGHT_FEET = [3, 4, 5, 6, 7] as const;
+
+/** Whole inches → { feet, inches }, e.g. 66 → { feet: 5, inches: 6 }. */
+export function splitFeetInches(totalInches: number): { feet: number; inches: number } {
+  const whole = Math.round(totalInches);
+  return { feet: Math.floor(whole / 12), inches: whole % 12 };
+}
+
+/** Whole inches written the US way, e.g. 66 → 5'6". */
+export function formatFeetInches(totalInches: number): string {
+  const { feet, inches } = splitFeetInches(totalInches);
+  return `${feet}'${inches}"`;
+}
+
 /** Weight in kg from a value typed in `units`. */
 export function toKg(weight: number, units: BmiUnits): number {
   return units === 'metric' ? weight : weight / LB_PER_KG;

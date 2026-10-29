@@ -1,6 +1,7 @@
 import type { OptionInput } from '../lib/pricing/engine';
 import type { Currency } from '../data/pricing';
 import type { RatesResult } from '../lib/currencyRates';
+import { INITIAL_RECORD_SAVE, type RecordSaveState } from '../lib/recordSaver';
 import type { PatientTreatmentData, QuotationLanguage } from '../lib/pdf/types';
 import type { ToothMark } from '../lib/dental/teeth';
 
@@ -86,6 +87,8 @@ export interface WizardState {
   /** Live exchange rates (or the fixed fallback) — fetched once when the wizard opens. Null
    *  until the first answer. */
   liveRates: RatesResult | null;
+  /** "Save this patient to my records" checkbox + the record this quotation already saved to. */
+  recordSave: RecordSaveState;
 }
 
 export function createInitialState(): WizardState {
@@ -102,5 +105,6 @@ export function createInitialState(): WizardState {
     patientPhotos: [],
     replaceImplantMapWithPhotos: false,
     liveRates: null,
+    recordSave: INITIAL_RECORD_SAVE,
   };
 }
