@@ -15,7 +15,18 @@
 /** Language the quotation is written in. Drives label dictionaries, date formatting and
  *  layout direction (Arabic renders RTL via a dedicated template). Legacy source:
  *  `quotation.patient.language`, read from the `#language` select. */
-export type QuotationLanguage = 'English' | 'Russian' | 'French' | 'Spanish' | 'Arabic';
+export const QUOTATION_LANGUAGES = ['English', 'Russian', 'French', 'Italian', 'Spanish', 'Arabic'] as const;
+export type QuotationLanguage = (typeof QUOTATION_LANGUAGES)[number];
+
+/** The `<html lang>` code of each language — one place, used by every PDF generator. */
+export const HTML_LANG: Record<QuotationLanguage, string> = {
+  English: 'en',
+  Russian: 'ru',
+  French: 'fr',
+  Italian: 'it',
+  Spanish: 'es',
+  Arabic: 'ar',
+};
 
 /** Currency the PDF displays money in. Legacy source: `coordinator-updates.js`'s
  *  `selectedCurrency` (`#quoteCurrency`), propagated onto `buildQuotationData()`'s

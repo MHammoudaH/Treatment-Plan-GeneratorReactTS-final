@@ -252,7 +252,7 @@ describe('generatePremiumQuotationHtml — veneers and translated content', () =
     const html = generatePremiumQuotationHtml({ ...base, patient: { ...base.patient, language: 'Arabic' } });
     expect(html).toContain('النظام الألماني');
     expect(html).toContain('تيجان زركونيا Ivoclar (ألمانية)');
-    expect(html).toContain('علاج قناة الجذر');
+    expect(html).toContain('علاج عصب السن');
     expect(html).toContain('غرفة مفردة');
     expect(html).not.toContain('Zirconium Crowns Ivoclar German');
     expect(html).not.toContain('>Root Canal<');

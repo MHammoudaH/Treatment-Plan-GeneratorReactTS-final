@@ -4,7 +4,7 @@ import { galleryForItem } from '../data/plasticGallery';
 import { heroImageForItem } from '../data/plasticImagery';
 import { PRICING } from '../data/pricing';
 import { FALLBACK_EUR_RATES, PLASTIC_CURRENCIES, fetchEurRates, type PlasticCurrency, type RatesResult } from '../lib/currencyRates';
-import type { QuotationLanguage } from '../lib/pdf/types';
+import { QUOTATION_LANGUAGES, type QuotationLanguage } from '../lib/pdf/types';
 import { generatePlasticPremiumPdf } from '../lib/pdf/plastic/generatePlasticPremiumPdf';
 import { EMPTY_BMI, bmiCategory, calculateBmi, expectedWeight, fromKg, toCm, toKg, type BmiValues } from '../lib/bmi';
 import { BmiCalculator } from './BmiCalculator';
@@ -351,7 +351,7 @@ export function PlasticSurgeryModule({ onBack, opened }: Props) {
           <div>
             <label htmlFor="plastic-language">Quotation language</label>
             <select id="plastic-language" value={language} onChange={(e) => setLanguage(e.target.value as QuotationLanguage)}>
-              {(['English', 'Russian', 'French', 'Spanish', 'Arabic'] as QuotationLanguage[]).map((item) => <option key={item}>{item}</option>)}
+              {QUOTATION_LANGUAGES.map((item) => <option key={item}>{item}</option>)}
             </select>
           </div>
         </div>

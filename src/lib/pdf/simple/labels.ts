@@ -1,5 +1,5 @@
 /**
- * Label dictionaries for the Simple Quotation PDF (Russian / English / French / Spanish).
+ * Label dictionaries for the Simple Quotation PDF (Russian / English / French / Italian / Spanish).
  * Ported verbatim from `pdfLabels()` and the sibling per-language translation maps in the
  * legacy `pdf-generator.js`. Arabic has its own dedicated dictionary — see `arabicLabels.ts`.
  */
@@ -87,9 +87,17 @@ export const SIMPLE_LABELS: Record<SimpleLatinLanguage, SimpleLabels> = {
     proposal: 'PLAN DE TRAITEMENT PERSONNALISÉ', preparedFor: 'Préparé pour', date: 'Date', treatmentPlan: 'PLAN DE TRAITEMENT', treatment: 'Traitement', quantity: 'Qté.', unitPrice: 'Prix unitaire', total: 'Total',
     implants: 'Implants', crowns: 'Couronnes', veneers: 'Facettes', bridge: 'Bridge complet', procedures: 'Procédures supplémentaires', accommodation: 'HÉBERGEMENT ET SERVICES', visit1: 'PREMIÈRE VISITE', visit2: 'DEUXIÈME VISITE', flightTicket: 'Billet d’avion', hotel: 'Hôtel', room: 'Chambre', nights: 'Nuits', perNight: 'Prix / nuit', services: 'Services', details: 'Détails', included: 'Inclus',
     transfer: 'Transfert VIP', prosthesis: 'Prothèse dentaire', translator: 'Interprète', paymentByVisit: 'Paiement par visite', optionTotal: 'Total de l’option', visit: 'Visite', oneVisit: '1 visite', twoVisits: '2 visites', important: 'IMPORTANT',
-    generated: 'Ce document a été généré automatiquement à partir de l’option de traitement sélectionnée.', disclaimer: 'Le plan de traitement final et le volume des procédures sont confirmés par le médecin après l’examen clinique et les examens diagnostiques nécessaires.',
+    generated: 'Ce document a été généré automatiquement à partir de l’option de traitement sélectionnée.', disclaimer: 'Le plan de traitement final et l’étendue des procédures sont confirmés par le médecin après l’examen clinique et les examens diagnostiques nécessaires.',
     intro: 'Nous vous proposons un plan de traitement personnalisé basé sur les informations fournies. Les pages suivantes résument le traitement sélectionné, l’hébergement, les services et les modalités de paiement.',
     installment: 'PLAN DE PAIEMENT POUR LES ÉTATS-UNIS / CANADA', package: 'Forfait +', installmentAmount: 'Montant du financement', remainingCash: 'Solde restant', cashPerVisit: 'Paiement comptant par visite', option: 'OPTION', translationNotice: 'Plan de traitement traduit à partir des données confirmées du médecin.', notes: 'Notes', priceTbd: 'Prix à confirmer',
+  },
+  Italian: {
+    proposal: 'PIANO DI TRATTAMENTO PERSONALIZZATO', preparedFor: 'Preparato per', date: 'Data', treatmentPlan: 'PIANO DI TRATTAMENTO', treatment: 'Trattamento', quantity: 'Q.tà', unitPrice: 'Prezzo unitario', total: 'Totale',
+    implants: 'Impianti', crowns: 'Corone', veneers: 'Faccette', bridge: 'Ponte su arcata completa', procedures: 'Procedure aggiuntive', accommodation: 'ALLOGGIO E SERVIZI', visit1: 'PRIMA VISITA', visit2: 'SECONDA VISITA', flightTicket: 'Biglietto aereo', hotel: 'Hotel', room: 'Camera', nights: 'Notti', perNight: 'Prezzo / notte', services: 'Servizi', details: 'Dettagli', included: 'Incluso',
+    transfer: 'Transfer VIP', prosthesis: 'Protesi dentale', translator: 'Interprete', paymentByVisit: 'Pagamento per visita', optionTotal: 'Totale dell’opzione', visit: 'Visita', oneVisit: '1 visita', twoVisits: '2 visite', important: 'IMPORTANTE',
+    generated: 'Questo documento è stato generato automaticamente dall’opzione di trattamento selezionata.', disclaimer: 'Il piano di trattamento definitivo e l’entità delle procedure sono confermati dal medico dopo la visita clinica e gli accertamenti diagnostici necessari.',
+    intro: 'Le proponiamo un piano di trattamento personalizzato basato sulle informazioni fornite. Le pagine seguenti riassumono il trattamento selezionato, l’alloggio, i servizi e le modalità di pagamento.',
+    installment: 'PIANO RATEALE PER STATI UNITI / CANADA', package: 'Pacchetto +', installmentAmount: 'Importo finanziato', remainingCash: 'Saldo restante', cashPerVisit: 'Pagamento in contanti per visita', option: 'OPZIONE', translationNotice: 'Piano di trattamento tradotto dai dati confermati dal medico.', notes: 'Note', priceTbd: 'Prezzo da confermare',
   },
   Spanish: {
     proposal: 'PLAN DE TRATAMIENTO PERSONALIZADO', preparedFor: 'Preparado para', date: 'Fecha', treatmentPlan: 'PLAN DE TRATAMIENTO', treatment: 'Tratamiento', quantity: 'Cant.', unitPrice: 'Precio unitario', total: 'Total',

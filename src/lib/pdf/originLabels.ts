@@ -12,6 +12,7 @@ const ORIGIN_LABELS: Record<QuotationLanguage, Record<string, string>> = {
   English: { German: 'Germany', American: 'USA', Swiss: 'Switzerland', Korean: 'South Korea', Turkish: 'Turkey' },
   Russian: { German: 'Германия', American: 'США', Swiss: 'Швейцария', Korean: 'Корея', Turkish: 'Турция' },
   French: { German: 'Allemagne', American: 'États-Unis', Swiss: 'Suisse', Korean: 'Corée du Sud', Turkish: 'Turquie' },
+  Italian: { German: 'Germania', American: 'Stati Uniti', Swiss: 'Svizzera', Korean: 'Corea del Sud', Turkish: 'Turchia' },
   Spanish: { German: 'Alemania', American: 'Estados Unidos', Swiss: 'Suiza', Korean: 'Corea del Sur', Turkish: 'Turquía' },
   Arabic: { German: 'ألمانيا', American: 'الولايات المتحدة', Swiss: 'سويسرا', Korean: 'كوريا الجنوبية', Turkish: 'تركيا' },
 };

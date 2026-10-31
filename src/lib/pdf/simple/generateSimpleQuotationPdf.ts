@@ -24,6 +24,9 @@ import type {
   QuotationVisitServices,
 } from '../types';
 import { getSimpleLabels, type SimpleLabels, type SimpleLatinLanguage } from './labels';
+import { getPremiumLabels } from '../premium/labels';
+import { HTML_LANG } from '../types';
+import { AR_IMPLANTS, AR_OPTIONS, RU_IMPLANTS, arabicCount, russianCount } from '../plurals';
 import { transliteratePatientName } from './transliteration';
 import { ARABIC_LABELS } from './arabicLabels';
 import { transliterateArabicPatientName } from './arabicTransliteration';
@@ -95,7 +98,8 @@ function formatDate(iso: string, language: string): string {
 function formatArabicDate(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('ar-EG');
+  // Western digits, like every other number in the document.
+  return date.toLocaleDateString('en-GB');
 }
 
 /**
@@ -116,6 +120,7 @@ function optionsCountWord(language: SimpleLatinLanguage, count: number): string 
     return 'вариантов';
   }
   if (language === 'French') return count === 1 ? 'option' : 'options';
+  if (language === 'Italian') return count === 1 ? 'opzione' : 'opzioni';
   if (language === 'Spanish') return count === 1 ? 'opción' : 'opciones';
   return count === 1 ? 'option' : 'options';
 }
@@ -142,45 +147,43 @@ function translateTreatmentPlan(data: QuotationPdfData, language: SimpleLatinLan
   if (!d) return data.patient.diagnosis || '';
 
   const { upperImplants, lowerImplantsMin, lowerImplantsMax, crowns } = d;
-  const crownWord =
-    {
-      Russian: 'циркониевые коронки',
-      French: 'couronnes en zircone',
-      Spanish: 'coronas de zirconio',
-      English: 'zirconia crowns',
-    }[language] || 'zirconia crowns';
+  // Number-aware wording, shared with the Premium Proposal.
+  const summary = getPremiumLabels(language).summary;
 
   const lines: string[] = [];
 
   if (language === 'Russian') {
-    if (upperImplants) lines.push(`• ${upperImplants} ${upperImplants === 1 ? 'имплант' : 'импланта'} на верхнюю челюсть.`);
+    if (upperImplants) lines.push(`• ${russianCount(upperImplants, RU_IMPLANTS)} на верхнюю челюсть.`);
     if (lowerImplantsMin) {
       const range = lowerImplantsMax && lowerImplantsMax !== lowerImplantsMin ? `${lowerImplantsMin}–${lowerImplantsMax}` : `${lowerImplantsMin}`;
-      const word = lowerImplantsMax && lowerImplantsMax !== lowerImplantsMin ? 'импланта' : 'имплант';
-      lines.push(`• ${range} ${word} на нижнюю челюсть в переднем отделе по результатам клинического обследования.`);
+      lines.push(`• ${russianCount(range, RU_IMPLANTS)} на нижнюю челюсть в переднем отделе по результатам клинического обследования.`);
     }
-    if (crowns) lines.push(`• ${crowns} ${crownWord}.`);
+    if (crowns) lines.push(`• ${summary.crowns(crowns, true)}.`);
   } else if (language === 'French') {
     if (upperImplants) lines.push(`• ${upperImplants} implant${upperImplants > 1 ? 's' : ''} pour le maxillaire supérieur.`);
     if (lowerImplantsMin) {
       const range = lowerImplantsMax && lowerImplantsMax !== lowerImplantsMin ? `${lowerImplantsMin}–${lowerImplantsMax}` : `${lowerImplantsMin}`;
-      const plural = lowerImplantsMax && lowerImplantsMax !== lowerImplantsMin ? 's' : '';
-      lines.push(`• ${range} implant${plural} pour la mandibule, dans le secteur antérieur, selon l’examen clinique.`);
+      lines.push(`• ${range} implant${range === '1' ? '' : 's'} pour la mandibule, dans le secteur antérieur, selon l’examen clinique.`);
     }
-    if (crowns) lines.push(`• ${crowns} ${crownWord}.`);
+    if (crowns) lines.push(`• ${summary.crowns(crowns, true)}.`);
+  } else if (language === 'Italian') {
+    if (upperImplants) lines.push(`• ${upperImplants} impiant${upperImplants > 1 ? 'i' : 'o'} per l’arcata superiore.`);
+    if (lowerImplantsMin) {
+      const range = lowerImplantsMax && lowerImplantsMax !== lowerImplantsMin ? `${lowerImplantsMin}–${lowerImplantsMax}` : `${lowerImplantsMin}`;
+      lines.push(`• ${range} impiant${range === '1' ? 'o' : 'i'} per l’arcata inferiore, nel settore anteriore, secondo la visita clinica.`);
+    }
+    if (crowns) lines.push(`• ${summary.crowns(crowns, true)}.`);
   } else if (language === 'Spanish') {
     if (upperImplants) lines.push(`• ${upperImplants} implante${upperImplants > 1 ? 's' : ''} para el maxilar superior.`);
     if (lowerImplantsMin) {
       const range = lowerImplantsMax && lowerImplantsMax !== lowerImplantsMin ? `${lowerImplantsMin}–${lowerImplantsMax}` : `${lowerImplantsMin}`;
-      const plural = lowerImplantsMax && lowerImplantsMax !== lowerImplantsMin ? 's' : '';
-      lines.push(`• ${range} implante${plural} para la mandíbula, en el sector anterior, según el examen clínico.`);
+      lines.push(`• ${range} implante${range === '1' ? '' : 's'} para la mandíbula, en el sector anterior, según el examen clínico.`);
     }
-    if (crowns) lines.push(`• ${crowns} ${crownWord}.`);
+    if (crowns) lines.push(`• ${summary.crowns(crowns, true)}.`);
   }
 
   if (d.veneers) {
-    const veneerWord = { Russian: 'виниров', French: 'facettes', Spanish: 'carillas', English: 'veneers' }[language] || 'veneers';
-    lines.push(`• ${d.veneers} ${veneerWord}.`);
+    lines.push(`• ${summary.veneers(d.veneers)}.`);
   }
 
   return lines.join('\n') || data.patient.diagnosis || '';
@@ -192,13 +195,14 @@ function arTranslateTreatmentPlan(data: QuotationPdfData): string {
   if (!d) return esc(data.patient.diagnosis || '');
 
   const lines: string[] = [];
-  if (d.upperImplants) lines.push(`<li><bdi class="ltr-number">${d.upperImplants}</bdi> زرعة في الفك العلوي.</li>`);
+  const summary = getPremiumLabels('Arabic').summary;
+  if (d.upperImplants) lines.push(`<li>${esc(summary.upperImplants(d.upperImplants))}.</li>`);
   if (d.lowerImplantsMin) {
     const range = d.lowerImplantsMax && d.lowerImplantsMax !== d.lowerImplantsMin ? `${d.lowerImplantsMin}–${d.lowerImplantsMax}` : `${d.lowerImplantsMin}`;
-    lines.push(`<li><bdi class="ltr-number">${esc(range)}</bdi> زرعة في الفك السفلي في المنطقة الأمامية، وفقاً للفحص السريري.</li>`);
+    lines.push(`<li>${esc(arabicCount(range, AR_IMPLANTS))} في الفك السفلي في المنطقة الأمامية، وفقًا للفحص السريري.</li>`);
   }
-  if (d.crowns) lines.push(`<li><bdi class="ltr-number">${d.crowns}</bdi> تيجان الزركونيا.</li>`);
-  if (d.veneers) lines.push(`<li><bdi class="ltr-number">${d.veneers}</bdi> قشور (فينير).</li>`);
+  if (d.crowns) lines.push(`<li>${esc(summary.crowns(d.crowns, true))}.</li>`);
+  if (d.veneers) lines.push(`<li>${esc(summary.veneers(d.veneers))}.</li>`);
   return lines.join('');
 }
 
@@ -207,7 +211,7 @@ function activeServices(services: QuotationVisitServices): QuotationServiceItem[
 }
 
 // ---------------------------------------------------------------------------------------
-// Latin-script (Russian / English / French / Spanish) template
+// Latin-script (Russian / English / French / Italian / Spanish) template
 // ---------------------------------------------------------------------------------------
 
 function treatmentRowsHtml(option: QuotationOption, labels: SimpleLabels, language: SimpleLatinLanguage, display: QuotationDisplayOptions): string {
@@ -312,7 +316,7 @@ function optionHtml(option: QuotationOption, data: QuotationPdfData, labels: Sim
   ${installmentBlockHtml(data, labels, display)}</section>`;
 }
 
-function buildLatinHtml(data: QuotationPdfData, language: SimpleLatinLanguage): string {
+export function buildLatinHtml(data: QuotationPdfData, language: SimpleLatinLanguage): string {
   const display = resolveDisplay(data.display);
   const labels = getSimpleLabels(language);
   const patientName = transliteratePatientName(data.patient.name, language);
@@ -331,9 +335,16 @@ function buildLatinHtml(data: QuotationPdfData, language: SimpleLatinLanguage): 
     ? `.payment-section{break-before:page;page-break-before:always}.payment-section .section-kicker{margin-top:0}`
     : '';
 
-  const htmlLang = language === 'Russian' ? 'ru' : language === 'French' ? 'fr' : language === 'Spanish' ? 'es' : 'en';
+  const htmlLang = HTML_LANG[language];
   const optionsCount = data.options.length;
-  const printNote = language === 'Russian' ? 'В окне печати выберите «Сохранить как PDF».' : 'In the print dialog, choose “Save as PDF”.';
+  const printNotes: Partial<Record<SimpleLatinLanguage, string>> = {
+    Russian: 'В окне печати выберите «Сохранить как PDF».',
+    French: 'Dans la fenêtre d’impression, choisissez « Enregistrer au format PDF ».',
+    Italian: 'Nella finestra di stampa, scegliere «Salva come PDF».',
+  };
+  const printNote = printNotes[language] ?? 'In the print dialog, choose “Save as PDF”.';
+  // The same tagline the Premium Proposal prints, so the header isn't English in every language.
+  const tagline = getPremiumLabels(language).closingTagline;
 
   return `<!doctype html><html lang="${htmlLang}"><head><meta charset="utf-8"><title>Duty Clinic — ${esc(patientName)}</title><style>
   @page{size:A4;margin:10mm 12mm 12mm}*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#18202b;background:#fff;font-size:10pt;line-height:1.34}.page{max-width:190mm;margin:0 auto}.brand-bar{border-bottom:4px solid #e43b3b;padding:0 0 9px;margin-bottom:12px}.brand{font-size:26pt;font-weight:800;letter-spacing:-1px;color:#15283f}.brand-meta{margin-top:3px;font-size:8pt;color:#56616d}.brand-meta strong{color:#15283f}.title{margin:10px 0 4px;color:#15283f;font-size:18pt;letter-spacing:.2px}.subtitle{color:#596572;font-size:9pt}.patient-card{margin:12px 0 13px;padding:11px 14px;background:#f4f7fa;border-left:5px solid #1f5eff;border-radius:5px}.patient-name{font-size:15pt;font-weight:700;color:#15283f}.patient-meta{margin-top:3px;color:#596572}.intro{margin:11px 0 12px}.diagnosis{
@@ -347,7 +358,7 @@ function buildLatinHtml(data: QuotationPdfData, language: SimpleLatinLanguage): 
 ${pageBreakCss}
  @media print{.print-note{display:none}a{color:inherit;text-decoration:none}.page{max-width:none}body{font-size:9.5pt}}
 </style></head><body><div class="page"><div class="print-note">${printNote}</div>
-<header class="brand-bar"><div class="brand">Duty Clinic</div><div class="brand-meta"><strong>Istanbul • Türkiye</strong> | Professional Dental Care with International Standards.</div><div class="brand-meta">Duty Clinic Istanbul | +90 536 779 07 91 | dutyclinic.com | info@dutyclinic.com</div></header>
+<header class="brand-bar"><div class="brand">Duty Clinic</div><div class="brand-meta"><strong>Istanbul • Türkiye</strong> | ${esc(tagline)}</div><div class="brand-meta">Duty Clinic Istanbul | +90 536 779 07 91 | dutyclinic.com | info@dutyclinic.com</div></header>
 <h1 class="title">${esc(labels.proposal)}</h1><div class="subtitle">${esc(labels.date)}: ${esc(generatedDate)}</div>
 <div class="patient-card"><div class="patient-name">${esc(patientName)}</div><div class="patient-meta">
   <span>${esc(labels.preparedFor)}</span>
@@ -425,7 +436,7 @@ function arInstallmentHtml(data: QuotationPdfData, display: QuotationDisplayOpti
   return `<section class="installment-box"><div class="section-title">${ARABIC_LABELS.installment}</div><div class="installment-grid"><div><span>${ARABIC_LABELS.package}</span><strong>${arMoneyHtml(financing.financedPackage, display)}</strong></div><div><span>${ARABIC_LABELS.installmentAmount} (+${financing.markupPercent}%)</span><strong>${arMoneyHtml(financing.installmentAmount, display)}</strong></div><div><span>${ARABIC_LABELS.remainingCash}</span><strong>${arMoneyHtml(financing.cashRemaining, display)}</strong></div><div><span>${ARABIC_LABELS.cashPerVisit}</span><strong>${arMoneyHtml(financing.cashPerVisit, display)}</strong></div></div></section>`;
 }
 
-function buildArabicHtml(data: QuotationPdfData): string {
+export function buildArabicHtml(data: QuotationPdfData): string {
   const display = resolveDisplay(data.display);
   const patientName = transliterateArabicPatientName(data.patient.arabicName || data.patient.name);
   const translatedPlan = arTranslateTreatmentPlan(data);
@@ -526,9 +537,9 @@ function buildArabicHtml(data: QuotationPdfData): string {
     .print-note{margin:8px 0;padding:7px 9px;background:#fffbe8;border:1px solid #eadb91;font-size:8pt}
     @media print{.print-note{display:none}.page{max-width:none}body{font-size:9.5pt}}
   </style></head><body><div class="page"><div class="print-note">في نافذة الطباعة اختر «حفظ كملف PDF».</div>
-    <header class="brand-bar"><div class="brand">Duty Clinic</div><div class="brand-meta"><span class="ltr">Istanbul • Türkiye</span> | الرعاية السنية الاحترافية وفق المعايير الدولية.</div><div class="brand-meta">Duty Clinic Istanbul | <span class="ltr">+90 536 779 07 91</span> | <span class="ltr">dutyclinic.com</span> | <span class="ltr">info@dutyclinic.com</span></div></header>
+    <header class="brand-bar"><div class="brand">Duty Clinic</div><div class="brand-meta"><span class="ltr">Istanbul • Türkiye</span> | ${esc(getPremiumLabels('Arabic').closingTagline)}</div><div class="brand-meta">Duty Clinic Istanbul | <span class="ltr">+90 536 779 07 91</span> | <span class="ltr">dutyclinic.com</span> | <span class="ltr">info@dutyclinic.com</span></div></header>
     <h1 class="title">${ARABIC_LABELS.proposal}</h1><div class="subtitle">${ARABIC_LABELS.date}: <bdi class="ltr-number">${esc(formatArabicDate(data.generatedAt))}</bdi></div>
-    <div class="patient-card"><div class="patient-name">${esc(patientName)}</div><div class="patient-meta">${ARABIC_LABELS.preparedFor} <bdi class="ltr-number">${esc(patientName)}</bdi> · <bdi class="ltr-number">${optionCount}</bdi> خيار</div></div>
+    <div class="patient-card"><div class="patient-name">${esc(patientName)}</div><div class="patient-meta">${ARABIC_LABELS.preparedFor} <bdi class="ltr-number">${esc(patientName)}</bdi> · ${esc(arabicCount(optionCount, AR_OPTIONS))}</div></div>
     <div class="intro">${ARABIC_LABELS.intro}</div>
     ${translatedPlan ? `<div class="section-title">${ARABIC_LABELS.treatmentPlan}</div><div class="diagnosis"><ul class="treatment-plan-list">${translatedPlan}</ul></div><div class="subtitle">${ARABIC_LABELS.translationNotice}</div>` : ''}
     ${optionsHtml}

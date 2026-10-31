@@ -1,3 +1,5 @@
+import type { QuotationLanguage } from '../lib/pdf/types';
+
 /**
  * DutyAI clinical team.
  * Ported from the legacy `assets/doctors/doctors.js`, cross-checked against and enriched
@@ -59,12 +61,12 @@ export interface DoctorProfile {
   experienceHistory?: ExperienceEntry[];
   photoUrl: string;
   source: string;
-  /** Russian/French/Spanish/Arabic versions of what the Premium Proposal PDF prints for this
+  /** Russian/French/Italian/Spanish/Arabic versions of what the Premium Proposal PDF prints for this
    *  doctor — see `DoctorPdfTranslation`. English has no entry here; it's the existing
    *  `specialty`/`expertise`/`treatments` fields above, via `bioFor()`. A good-faith
    *  professional translation — recommend a native-speaker review pass before relying on it
    *  for a patient-facing medical document at scale. */
-  translations?: Partial<Record<'Russian' | 'French' | 'Spanish' | 'Arabic', DoctorPdfTranslation>>;
+  translations?: Partial<Record<Exclude<QuotationLanguage, 'English'>, DoctorPdfTranslation>>;
 }
 
 export const DOCTORS: DoctorProfile[] = [
@@ -95,6 +97,11 @@ export const DOCTORS: DoctorProfile[] = [
         bio: 'Dentisterie. Spécialisation : implants dentaires, prothèses, chirurgie des tissus mous.',
         expertise: ['Implants dentaires', 'Prothèses', 'Chirurgie des tissus mous', 'Restaurations esthétiques'],
       },
+      Italian: {
+        specialty: 'Odontoiatria',
+        bio: 'Odontoiatria. Specializzazione: impianti dentali, protesi, chirurgia dei tessuti molli.',
+        expertise: ['Impianti dentali', 'Protesi', 'Chirurgia dei tessuti molli', 'Restauri estetici'],
+      },
       Spanish: {
         specialty: 'Odontología',
         bio: 'Odontología. Especialización: implantes dentales, prótesis, cirugía de tejidos blandos.',
@@ -102,8 +109,8 @@ export const DOCTORS: DoctorProfile[] = [
       },
       Arabic: {
         specialty: 'طب الأسنان',
-        bio: 'طب الأسنان. التخصص: زراعة الأسنان، التركيبات، جراحة الأنسجة الرخوة.',
-        expertise: ['زراعة الأسنان', 'التركيبات', 'جراحة الأنسجة الرخوة', 'الحشوات التجميلية'],
+        bio: 'طب الأسنان. التخصص: زراعة الأسنان، تركيبات الأسنان، جراحة الأنسجة الرخوة.',
+        expertise: ['زراعة الأسنان', 'تركيبات الأسنان', 'جراحة الأنسجة الرخوة', 'الحشوات التجميلية'],
       },
     },
   },
@@ -140,14 +147,19 @@ export const DOCTORS: DoctorProfile[] = [
         bio: "Dentisterie prothétique. Spécialisation : traitements prothétiques dentaires, troubles de l'articulation temporo-mandibulaire, Digital Smile Design.",
         expertise: ["Traitements prothétiques dentaires", "Troubles de l'ATM", 'Digital Smile Design', 'Prothèses sur implants'],
       },
+      Italian: {
+        specialty: 'Odontoiatria protesica',
+        bio: "Odontoiatria protesica. Specializzazione: trattamenti protesici dentali, disturbi dell'articolazione temporo-mandibolare, Digital Smile Design.",
+        expertise: ['Trattamenti protesici dentali', "Disturbi dell'ATM", 'Digital Smile Design', 'Protesi su impianti'],
+      },
       Spanish: {
         specialty: 'Odontología protésica',
         bio: 'Odontología protésica. Especialización: tratamientos protésicos dentales, trastornos de la articulación temporomandibular, diseño digital de sonrisa.',
         expertise: ['Tratamientos protésicos dentales', 'Trastornos de la ATM', 'Diseño digital de sonrisa', 'Prótesis sobre implantes'],
       },
       Arabic: {
-        specialty: 'طب أسنان تعويضي',
-        bio: 'طب أسنان تعويضي. التخصص: العلاجات التعويضية للأسنان، اضطرابات مفصل الفك الصدغي، تصميم الابتسامة الرقمي.',
+        specialty: 'تعويضات الأسنان',
+        bio: 'تعويضات الأسنان. التخصص: العلاجات التعويضية للأسنان، اضطرابات مفصل الفك الصدغي، تصميم الابتسامة الرقمي.',
         expertise: ['العلاجات التعويضية للأسنان', 'اضطرابات مفصل الفك الصدغي', 'تصميم الابتسامة الرقمي', 'التعويضات على الزرعات'],
       },
     },
@@ -215,6 +227,11 @@ export const DOCTORS: DoctorProfile[] = [
         bio: 'Chirurgie orale, dentaire et maxillo-faciale. Spécialisation : extraction des dents incluses, traitement des fistules oro-antrales, kystes de la mâchoire.',
         expertise: ['Extraction des dents incluses', 'Traitement des fistules oro-antrales', 'Kystes de la mâchoire', 'Implants dentaires'],
       },
+      Italian: {
+        specialty: 'Chirurgia orale, dentale e maxillo-facciale',
+        bio: 'Chirurgia orale, dentale e maxillo-facciale. Specializzazione: estrazione di denti inclusi, trattamento delle fistole oro-antrali, cisti dei mascellari.',
+        expertise: ['Estrazione di denti inclusi', 'Trattamento delle fistole oro-antrali', 'Cisti dei mascellari', 'Impianti dentali'],
+      },
       Spanish: {
         specialty: 'Cirugía oral, dental y maxilofacial',
         bio: 'Cirugía oral, dental y maxilofacial. Especialización: extracción de dientes retenidos, tratamiento de fístulas oroantrales, quistes maxilares.',
@@ -222,8 +239,8 @@ export const DOCTORS: DoctorProfile[] = [
       },
       Arabic: {
         specialty: 'جراحة الفم والأسنان والفكين',
-        bio: 'جراحة الفم والأسنان والفكين. التخصص: خلع الأسنان المطمورة، علاج الناسور الفموي الجيبي، كيسات الفك.',
-        expertise: ['خلع الأسنان المطمورة', 'علاج الناسور الفموي الجيبي', 'كيسات الفك', 'زراعة الأسنان'],
+        bio: 'جراحة الفم والأسنان والفكين. التخصص: خلع الأسنان المطمورة، علاج الناسور الفموي الجيبي، أكياس الفك.',
+        expertise: ['خلع الأسنان المطمورة', 'علاج الناسور الفموي الجيبي', 'أكياس الفك', 'زراعة الأسنان'],
       },
     },
   },
@@ -268,15 +285,20 @@ export const DOCTORS: DoctorProfile[] = [
         bio: "Prothèses dentaires et chirurgie · 15 ans d'expérience. Spécialisation : restaurations complètes, facettes lamina, couronnes en zircone.",
         expertise: ['Restaurations complètes', 'Facettes lamina', 'Couronnes en zircone', 'Restaurations en porcelaine'],
       },
+      Italian: {
+        specialty: 'Protesi dentale e chirurgia',
+        bio: 'Protesi dentale e chirurgia · 15 anni di esperienza. Specializzazione: riabilitazioni complete, faccette lamina, corone in zirconia.',
+        expertise: ['Riabilitazioni complete', 'Faccette lamina', 'Corone in zirconia', 'Restauri in ceramica'],
+      },
       Spanish: {
         specialty: 'Prostodoncia y cirugía dental',
         bio: 'Prostodoncia y cirugía dental · 15 años de experiencia. Especialización: rehabilitación completa de boca, carillas lamina, coronas de zirconio.',
         expertise: ['Rehabilitación completa de boca', 'Carillas lamina', 'Coronas de zirconio', 'Restauraciones de porcelana'],
       },
       Arabic: {
-        specialty: 'طب التعويضات السنية والجراحة',
-        bio: 'طب التعويضات السنية والجراحة · خبرة 15 عامًا. التخصص: الترميم الكامل للفم، قشور لامينا، تيجان الزركونيا.',
-        expertise: ['الترميم الكامل للفم', 'قشور لامينا', 'تيجان الزركونيا', 'ترميمات البورسلين'],
+        specialty: 'تعويضات الأسنان والجراحة',
+        bio: 'تعويضات الأسنان والجراحة · خبرة 15 عامًا. التخصص: إعادة تأهيل الفم بالكامل، قشور اللامينيت، تيجان الزركونيا.',
+        expertise: ['إعادة تأهيل الفم بالكامل', 'قشور اللامينيت', 'تيجان الزركونيا', 'ترميمات البورسلين'],
       },
     },
   },
@@ -299,7 +321,7 @@ function bioFor(doctor: DoctorProfile): string {
  *  for the requested language yet (never a blank/missing card). `name` is never translated. */
 export function toPdfDoctor(
   doctor: DoctorProfile,
-  language: 'English' | 'Russian' | 'French' | 'Spanish' | 'Arabic' = 'English',
+  language: QuotationLanguage = 'English',
 ): { name: string; specialty: string; photoUrl: string; bio: string; expertise: string[] } {
   const t = language !== 'English' ? doctor.translations?.[language] : undefined;
   return {

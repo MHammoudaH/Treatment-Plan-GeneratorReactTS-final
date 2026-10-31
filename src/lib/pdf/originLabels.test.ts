@@ -5,6 +5,7 @@ describe('translateOrigin', () => {
   it('translates a known origin per language', () => {
     expect(translateOrigin('Swiss', 'English')).toBe('Switzerland');
     expect(translateOrigin('Swiss', 'French')).toBe('Suisse');
+    expect(translateOrigin('Swiss', 'Italian')).toBe('Svizzera');
     expect(translateOrigin('Swiss', 'Russian')).toBe('Швейцария');
     expect(translateOrigin('Swiss', 'Spanish')).toBe('Suiza');
     expect(translateOrigin('Swiss', 'Arabic')).toBe('سويسرا');
@@ -12,7 +13,7 @@ describe('translateOrigin', () => {
 
   it('every catalog origin value translates in every supported language', () => {
     const origins = ['German', 'American', 'Swiss', 'Korean', 'Turkish'] as const;
-    const languages = ['English', 'Russian', 'French', 'Spanish', 'Arabic'] as const;
+    const languages = ['English', 'Russian', 'French', 'Italian', 'Spanish', 'Arabic'] as const;
     for (const origin of origins) {
       for (const language of languages) {
         expect(translateOrigin(origin, language)).toBeTruthy();

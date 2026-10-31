@@ -1,7 +1,5 @@
-import type { QuotationLanguage } from '../../lib/pdf/types';
+import { QUOTATION_LANGUAGES, type QuotationLanguage } from '../../lib/pdf/types';
 import { useQuotation } from '../../context/QuotationContext';
-
-const LANGUAGES: QuotationLanguage[] = ['English', 'Russian', 'French', 'Spanish', 'Arabic'];
 
 const COUNTRIES = [
   'United States',
@@ -48,7 +46,7 @@ export function Step1Patient() {
         <div>
           <label>Quotation language</label>
           <select value={patient.language} onChange={(e) => dispatch({ type: 'SET_PATIENT', patient: { language: e.target.value as QuotationLanguage } })}>
-            {LANGUAGES.map((lang) => (
+            {QUOTATION_LANGUAGES.map((lang) => (
               <option key={lang} value={lang}>
                 {lang}
               </option>

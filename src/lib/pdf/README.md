@@ -8,13 +8,13 @@ DOM — see `types.ts` for the full input contract (`QuotationPdfData`).
 ```
 src/lib/pdf/
   types.ts                          shared input types (QuotationPdfData and friends)
-  contentTranslations.ts            option / crown & veneer / procedure / room-type names, all 5 languages
+  contentTranslations.ts            option / crown & veneer / procedure / room-type names, all 6 languages
   simple/
     labels.ts                       RU/EN/FR/ES label + translation dictionaries
     transliteration.ts              Cyrillic patient-name transliteration (Russian)
     arabicLabels.ts                 Arabic label dictionary
     arabicTransliteration.ts        Arabic patient-name lookup
-    generateSimpleQuotationPdf.ts   generateSimpleQuotationPdf(data) — all 5 languages
+    generateSimpleQuotationPdf.ts   generateSimpleQuotationPdf(data) — all 6 languages
   premium/
     labels.ts                       EN/RU/FR/ES label dictionary
     generatePremiumQuotationPdf.ts  Doctor type, generatePremiumQuotationHtml/Pdf(data, doctors)

@@ -15,7 +15,9 @@
  * Must run in a browser: calls `window.open`, `document.write`, `window.print()`.
  * Wire it to a button's `onClick`.
  */
-import type { QuotationLanguage } from '../types';
+import { HTML_LANG, type QuotationLanguage } from '../types';
+import { translatePlasticItem } from './plasticContentTranslations';
+import { formatStayCount, ltrRange } from '../plurals';
 import type { PlasticSurgeryItem } from '../../../data/plasticSurgery';
 import { PLASTIC_CURRENCIES, type PlasticCurrency } from '../../currencyRates';
 
@@ -93,7 +95,6 @@ interface Labels {
   beforeAfterIntro: string;
   galleryOnRequest: string;
   resultsVary: string;
-  nights: string;
   closing: string;
   closingTagline: string;
   important: string;
@@ -132,7 +133,6 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     beforeAfterIntro: 'A selection of results from our surgical team for procedures in this area.',
     galleryOnRequest: 'A tailored before-and-after selection is available from your coordinator on request.',
     resultsVary: 'Photographs are illustrative. Individual results vary and are discussed during your consultation.',
-    nights: 'nights',
     closing: 'We look forward to caring for you in Istanbul',
     closingTagline: 'Aesthetic & Plastic Surgery',
     important: 'IMPORTANT',
@@ -170,7 +170,6 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     beforeAfterIntro: 'Подборка результатов нашей хирургической команды по операциям в этой зоне.',
     galleryOnRequest: 'Индивидуальную подборку фото «до и после» можно запросить у координатора.',
     resultsVary: 'Фотографии приведены для примера. Результаты индивидуальны и обсуждаются на консультации.',
-    nights: 'ночей',
     closing: 'Будем рады позаботиться о вас в Стамбуле',
     closingTagline: 'Эстетическая и пластическая хирургия',
     important: 'ВАЖНО',
@@ -188,7 +187,7 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     preferredDate: 'Date souhaitée',
     doctor: 'Chirurgien',
     pending: 'À confirmer par votre coordinateur',
-    investment: 'Votre budget',
+    investment: 'Votre devis',
     surgery: 'Chirurgie',
     hotel: 'Hôtel',
     transfer: 'Transfert aéroport',
@@ -209,12 +208,48 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     galleryOnRequest: 'Une sélection avant/après personnalisée est disponible auprès de votre coordinateur.',
     resultsVary:
       'Les photographies sont illustratives. Les résultats varient selon les personnes et sont discutés lors de la consultation.',
-    nights: 'nuits',
     closing: 'Au plaisir de vous accueillir à Istanbul',
     closingTagline: 'Chirurgie esthétique et plastique',
     important: 'IMPORTANT',
     disclaimer:
       "Cette proposition est une estimation à des fins de coordination. L'indication, la technique et le prix définitifs sont confirmés par l'équipe médicale après consultation.",
+  },
+  Italian: {
+    proposal: 'Proposta di chirurgia estetica',
+    preparedFor: 'Preparato per',
+    procedure: 'Intervento',
+    overview: "Panoramica dell'intervento",
+    category: 'Zona',
+    stay: 'Soggiorno consigliato',
+    hospitalStay: 'Degenza ospedaliera',
+    preferredDate: 'Data preferita',
+    doctor: 'Chirurgo',
+    pending: 'Da confermare dal Suo coordinatore',
+    investment: 'Il Suo preventivo',
+    surgery: 'Chirurgia',
+    hotel: 'Hotel',
+    transfer: 'Transfer aeroportuale',
+    total: 'Totale',
+    included: 'Incluso',
+    packageTotal: 'Prezzo del pacchetto tutto incluso',
+    weightTitle: 'Peso e IMC',
+    currentWeight: 'Peso attuale',
+    currentBmi: 'IMC attuale',
+    expectedWeight: 'Peso previsto',
+    expectedBmi: 'IMC previsto',
+    timeframe: 'Tempi previsti',
+    months: 'mesi',
+    weightNote: "Il peso e l'IMC previsti sono stime basate su risultati medi. Saranno confermati dal Suo medico durante la visita individuale.",
+    notes: 'Note del coordinatore',
+    beforeAfter: 'Prima e Dopo',
+    beforeAfterIntro: 'Una selezione di risultati della nostra équipe chirurgica per gli interventi in questa zona.',
+    galleryOnRequest: 'Una selezione personalizzata di foto prima e dopo è disponibile su richiesta presso il Suo coordinatore.',
+    resultsVary: 'Le fotografie sono illustrative. I risultati variano da persona a persona e vengono discussi durante la visita.',
+    closing: 'Saremo lieti di prenderci cura di Lei a Istanbul',
+    closingTagline: 'Chirurgia estetica e plastica',
+    important: 'IMPORTANTE',
+    disclaimer:
+      "Questa proposta è una stima a fini di coordinamento. L'idoneità, la tecnica e il prezzo definitivi sono confermati dall'équipe medica dopo la visita.",
   },
   Spanish: {
     proposal: 'Propuesta de cirugía estética',
@@ -227,7 +262,7 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     preferredDate: 'Fecha preferida',
     doctor: 'Cirujano',
     pending: 'Su coordinador lo confirmará',
-    investment: 'Su inversión',
+    investment: 'Su presupuesto',
     surgery: 'Cirugía',
     hotel: 'Hotel',
     transfer: 'Traslado desde el aeropuerto',
@@ -248,7 +283,6 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     galleryOnRequest: 'Su coordinador puede facilitarle una selección de antes y después personalizada.',
     resultsVary:
       'Las fotografías son ilustrativas. Los resultados varían según la persona y se comentan en la consulta.',
-    nights: 'noches',
     closing: 'Esperamos cuidar de usted en Estambul',
     closingTagline: 'Cirugía estética y plástica',
     important: 'IMPORTANTE',
@@ -256,11 +290,11 @@ const LABELS: Record<QuotationLanguage, Labels> = {
       'Esta propuesta es una estimación con fines de coordinación. La idoneidad, la técnica y el precio finales los confirma el equipo médico tras la consulta.',
   },
   Arabic: {
-    proposal: 'عرض جراحة تجميل',
-    preparedFor: 'أُعدّ لأجل',
+    proposal: 'عرض جراحة التجميل',
+    preparedFor: 'أُعدّ خصيصًا لـ',
     procedure: 'العملية',
     overview: 'نظرة عامة على العملية',
-    category: 'المنطقة',
+    category: 'الفئة',
     stay: 'مدة الإقامة الموصى بها',
     hospitalStay: 'الإقامة في المستشفى',
     preferredDate: 'التاريخ المفضل',
@@ -269,7 +303,7 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     investment: 'التكلفة',
     surgery: 'الجراحة',
     hotel: 'الفندق',
-    transfer: 'التوصيل من المطار',
+    transfer: 'النقل من المطار',
     total: 'الإجمالي',
     included: 'مشمول',
     packageTotal: 'سعر الباقة الشاملة',
@@ -286,12 +320,11 @@ const LABELS: Record<QuotationLanguage, Labels> = {
     beforeAfterIntro: 'مجموعة مختارة من نتائج فريقنا الجراحي لعمليات هذه المنطقة.',
     galleryOnRequest: 'يمكن الحصول على مجموعة صور «قبل وبعد» مخصصة من المنسق عند الطلب.',
     resultsVary: 'الصور توضيحية. تختلف النتائج من شخص لآخر وتُناقَش أثناء الاستشارة.',
-    nights: 'ليالٍ',
     closing: 'نتطلع إلى العناية بك في إسطنبول',
-    closingTagline: 'الجراحة التجميلية والتقويمية',
-    important: 'هام',
+    closingTagline: 'جراحة التجميل والترميم',
+    important: 'مهم',
     disclaimer:
-      'هذا العرض تقدير لأغراض التنسيق. يؤكد الفريق الطبي مدى الملاءمة والتقنية والسعر النهائي بعد الاستشارة.',
+      'هذا العرض تقديري لأغراض التنسيق. ويؤكد الفريق الطبي مدى مناسبة الإجراء والأسلوب الجراحي والسعر النهائي بعد الاستشارة.',
   },
 };
 
@@ -334,7 +367,7 @@ export function generatePlasticPremiumHtml(input: PlasticPremiumInput): string {
   const labels = LABELS[language];
   const rtl = language === 'Arabic';
   const patientName = esc(input.patientName) || esc(labels.preparedFor);
-  const combinedTitle = esc(items.map((item) => item.name).join(' + '));
+  const combinedTitle = esc(items.map((item) => translatePlasticItem(item, language).name).join(' + '));
   const date = formatDate(input.travelDate);
   const generatedOn = new Date().toLocaleDateString('en-GB');
   const m = (amount: number) => money(amount, currency);
@@ -345,6 +378,7 @@ export function generatePlasticPremiumHtml(input: PlasticPremiumInput): string {
   // facts — followed by ONE shared fact-grid for the whole visit (date, doctor), since those
   // apply once regardless of how many procedures are combined into this quotation.
   const procedureCards = items
+    .map((item) => translatePlasticItem(item, language))
     .map(
       (item) => `
     <div class="procedure-card">
@@ -370,7 +404,7 @@ export function generatePlasticPremiumHtml(input: PlasticPremiumInput): string {
     if (w.expected !== null && w.expectedBmi !== null) {
       weightFacts.push([labels.expectedWeight, `${w.expected} ${w.unit}`], [labels.expectedBmi, w.expectedBmi.toFixed(1)]);
       if (w.months) {
-        const span = w.months.from === w.months.to ? `${w.months.from}` : `${w.months.from}–${w.months.to}`;
+        const span = w.months.from === w.months.to ? `${w.months.from}` : rtl ? ltrRange(`${w.months.from}-${w.months.to}`) : `${w.months.from}–${w.months.to}`;
         weightFacts.push([labels.timeframe, `${span} ${labels.months}`]);
       }
     }
@@ -386,12 +420,14 @@ export function generatePlasticPremiumHtml(input: PlasticPremiumInput): string {
 
   // One investment row per selected procedure, so a combined quote shows exactly what each
   // procedure costs rather than a single opaque "Surgery" figure.
-  const investmentRows: string[] = input.amounts.surgeryItems.map(
-    (surgery) => `<div class="line"><span>${esc(labels.surgery)} — ${esc(surgery.name)}</span><strong>${lineAmount(surgery.amount)}</strong></div>`,
-  );
+  const investmentRows: string[] = input.amounts.surgeryItems.map((surgery) => {
+    const item = items.find((candidate) => candidate.name === surgery.name);
+    const name = item ? translatePlasticItem(item, language).name : surgery.name;
+    return `<div class="line"><span>${esc(labels.surgery)} — ${esc(name)}</span><strong>${lineAmount(surgery.amount)}</strong></div>`;
+  });
   if (input.hotelName && input.hotelNights > 0) {
     investmentRows.push(
-      `<div class="line"><span>${esc(labels.hotel)} — ${esc(input.hotelName)} · ${input.hotelNights} ${esc(labels.nights)}</span><strong>${lineAmount(input.amounts.hotel)}</strong></div>`,
+      `<div class="line"><span>${esc(labels.hotel)} — ${esc(input.hotelName)} · ${esc(formatStayCount(input.hotelNights, 'night', language))}</span><strong>${lineAmount(input.amounts.hotel)}</strong></div>`,
     );
   }
   if (input.transferIncluded) {
@@ -422,8 +458,7 @@ export function generatePlasticPremiumHtml(input: PlasticPremiumInput): string {
     ? `<div class="fact-box"><strong>${esc(labels.notes)}</strong><p>${esc(input.coordinatorNote)}</p></div>`
     : '';
 
-  const htmlLang =
-    language === 'Russian' ? 'ru' : language === 'French' ? 'fr' : language === 'Spanish' ? 'es' : rtl ? 'ar' : 'en';
+  const htmlLang = HTML_LANG[language];
 
   return `<!DOCTYPE html>
 <html lang="${htmlLang}" dir="${rtl ? 'rtl' : 'ltr'}">

@@ -1,12 +1,13 @@
 /**
  * Label dictionary for the Premium Proposal PDF.
  *
- * Every user-visible string the Premium template prints lives here, in all five supported
- * languages (English / Russian / French / Spanish / Arabic). Nothing in
+ * Every user-visible string the Premium template prints lives here, in all six supported
+ * languages (English / Russian / French / Italian / Spanish / Arabic). Nothing in
  * `generatePremiumQuotationPdf.ts` is hardcoded English any more — Arabic additionally
  * drives the RTL layout (see `dir` handling in the generator).
  */
 import type { QuotationLanguage } from '../types';
+import { AR_CROWNS, AR_IMPLANTS, AR_VENEERS, RU_CROWNS, RU_IMPLANTS, RU_VENEERS, RU_ZIRCONIA_CROWNS, arabicCount, russianCount } from '../plurals';
 
 /** Every language the Premium Proposal supports (Arabic included, unlike the original port). */
 export type PremiumLanguage = QuotationLanguage;
@@ -152,8 +153,7 @@ const EN: PremiumLabels = {
   ],
   summary: {
     upperImplants: (n) => `${n} implant${n > 1 ? 's' : ''} for the upper jaw`,
-    lowerImplants: (range, isRange) =>
-      `${range} implant${isRange ? 's' : ''} for the lower jaw according to clinical examination`,
+    lowerImplants: (range) => `${range} implant${range === '1' ? '' : 's'} for the lower jaw according to clinical examination`,
     crowns: (n, z) => `${n} ${z ? 'zirconia ' : ''}crown${n > 1 ? 's' : ''}`,
     veneers: (n) => `${n} veneer${n > 1 ? 's' : ''}`,
   },
@@ -199,7 +199,7 @@ const RU: PremiumLabels = {
   selectedOption: 'Выбранный вариант',
   paymentTBD: 'График оплаты будет согласован с выбранным вариантом лечения.',
   packagePlus: 'Пакет +',
-  installmentAmount: 'Сумма платежа',
+  installmentAmount: 'Сумма рассрочки',
   remainingCash: 'Остаток наличными',
   cashPerVisit: 'Наличными за визит',
   teamFallback: 'Профиль команды будет добавлен, когда появятся данные о врачах.',
@@ -219,10 +219,10 @@ const RU: PremiumLabels = {
     { title: 'Решения принимает врач', body: 'Лечащий врач несёт ответственность за окончательный план и объём процедур.' },
   ],
   summary: {
-    upperImplants: (n) => `${n} имплантатов на верхнюю челюсть`,
-    lowerImplants: (range) => `${range} имплантатов на нижнюю челюсть по результатам клинического осмотра`,
-    crowns: (n, z) => `${n} ${z ? 'циркониевых ' : ''}коронок`,
-    veneers: (n) => `${n} виниров`,
+    upperImplants: (n) => `${russianCount(n, RU_IMPLANTS)} на верхнюю челюсть`,
+    lowerImplants: (range) => `${russianCount(range, RU_IMPLANTS)} на нижнюю челюсть по результатам клинического осмотра`,
+    crowns: (n, z) => russianCount(n, z ? RU_ZIRCONIA_CROWNS : RU_CROWNS),
+    veneers: (n) => russianCount(n, RU_VENEERS),
   },
 };
 
@@ -234,7 +234,7 @@ const FR: PremiumLabels = {
   options: 'Options de traitement',
   option: 'Option',
   accommodation: 'Hébergement et services',
-  investment: 'Votre investissement',
+  investment: 'Votre devis',
   team: 'Votre équipe dentaire',
   experience: 'Votre expérience à Istanbul',
   payment: 'Paiement par visite',
@@ -266,7 +266,7 @@ const FR: PremiumLabels = {
   selectedOption: 'Option sélectionnée',
   paymentTBD: 'Le calendrier de paiement sera confirmé avec l’option de traitement choisie.',
   packagePlus: 'Forfait +',
-  installmentAmount: 'Montant de l’acompte',
+  installmentAmount: 'Montant du financement',
   remainingCash: 'Solde en espèces',
   cashPerVisit: 'Espèces par visite',
   teamFallback: 'Le profil de l’équipe sera ajouté lorsque les données des médecins seront disponibles.',
@@ -277,7 +277,7 @@ const FR: PremiumLabels = {
   notes: 'Notes',
   important: 'IMPORTANT',
   disclaimer:
-    'Le plan de traitement final et le volume des procédures sont confirmés par le médecin après l’examen clinique et les examens diagnostiques nécessaires.',
+    'Le plan de traitement final et l’étendue des procédures sont confirmés par le médecin après l’examen clinique et les examens diagnostiques nécessaires.',
   generated: 'Document généré automatiquement à partir du devis approuvé.',
   features: [
     { title: 'Dentisterie moderne', body: 'Planification personnalisée du traitement à partir des informations cliniques confirmées.' },
@@ -287,10 +287,76 @@ const FR: PremiumLabels = {
   ],
   summary: {
     upperImplants: (n) => `${n} implant${n > 1 ? 's' : ''} pour la mâchoire supérieure`,
-    lowerImplants: (range, isRange) =>
-      `${range} implant${isRange ? 's' : ''} pour la mâchoire inférieure selon l’examen clinique`,
+    lowerImplants: (range) => `${range} implant${range === '1' ? '' : 's'} pour la mâchoire inférieure selon l’examen clinique`,
     crowns: (n, z) => `${n} couronne${n > 1 ? 's' : ''}${z ? ' en zircone' : ''}`,
     veneers: (n) => `${n} facette${n > 1 ? 's' : ''}`,
+  },
+};
+
+const IT: PremiumLabels = {
+  proposal: 'PIANO DI TRATTAMENTO DENTALE PERSONALIZZATO',
+  prepared: 'Preparato appositamente per',
+  treatment: 'Il Suo piano di trattamento',
+  confirmed: 'Informazioni confermate dal medico',
+  options: 'Opzioni di trattamento',
+  option: 'Opzione',
+  accommodation: 'Alloggio e servizi',
+  investment: 'Il Suo preventivo',
+  team: 'Il Suo team odontoiatrico',
+  experience: 'La Sua esperienza a Istanbul',
+  payment: 'Pagamento per visita',
+  implantMap: 'Mappa implantare',
+  implantMapIntro: 'Posizioni previste di impianti e corone per il Suo trattamento.',
+  photos: 'Foto',
+  photosIntro: 'Foto prima e dopo, radiografie, foto intraorali o scansioni fornite per il Suo trattamento.',
+  implant: 'Impianto',
+  crown: 'Corona',
+  bridge: 'Ponte',
+  procedure: 'Procedura',
+  qty: 'Q.tà',
+  total: 'Totale',
+  dentalImplants: 'Impianti dentali',
+  dentalCrowns: 'Corone dentali',
+  dentalVeneers: 'Faccette dentali',
+  dentalBridge: 'Ponte dentale su arcata completa',
+  included: 'Incluso',
+  priceTbd: 'Prezzo da confermare',
+  visit1: 'Prima visita',
+  visit2: 'Seconda visita',
+  flightTicket: 'Biglietto aereo',
+  oneVisit: '1 visita',
+  twoVisits: '2 visite',
+  nights: 'notti',
+  transfer: 'Transfer VIP',
+  prosthesis: 'Protesi dentale',
+  translator: 'Interprete',
+  selectedOption: 'Opzione selezionata',
+  paymentTBD: 'Il calendario dei pagamenti sarà confermato con l’opzione di trattamento scelta.',
+  packagePlus: 'Pacchetto +',
+  installmentAmount: 'Importo finanziato',
+  remainingCash: 'Saldo in contanti',
+  cashPerVisit: 'Contanti per visita',
+  teamFallback: 'Il profilo del team sarà aggiunto non appena saranno disponibili i dati dei medici.',
+  dentistry: 'Odontoiatria',
+  experienceIntro: 'Duty Clinic Istanbul — le nostre strutture e gli spazi dedicati ai pazienti.',
+  closing: 'Saremo lieti di accoglierLa presso Duty Clinic Istanbul.',
+  closingTagline: 'Cure dentali professionali secondo standard internazionali.',
+  notes: 'Note',
+  important: 'IMPORTANTE',
+  disclaimer:
+    'Il piano di trattamento definitivo e l’entità delle procedure sono confermati dal medico dopo la visita clinica e gli accertamenti diagnostici necessari.',
+  generated: 'Documento generato automaticamente dal preventivo approvato.',
+  features: [
+    { title: 'Odontoiatria moderna', body: 'Pianificazione personalizzata del trattamento sulla base delle informazioni cliniche confermate.' },
+    { title: 'Assistenza ai pazienti internazionali', body: 'Coordinamento di trattamento, alloggio e assistenza al paziente a Istanbul.' },
+    { title: 'Preventivo trasparente', body: 'L’importo indicato in questa proposta corrisponde all’opzione di preventivo selezionata.' },
+    { title: 'Decisioni del medico', body: 'Il medico curante resta responsabile del piano clinico definitivo e dell’entità delle procedure.' },
+  ],
+  summary: {
+    upperImplants: (n) => `${n} impiant${n > 1 ? 'i' : 'o'} per l’arcata superiore`,
+    lowerImplants: (range) => `${range} impiant${range === '1' ? 'o' : 'i'} per l’arcata inferiore secondo la visita clinica`,
+    crowns: (n, z) => `${n} coron${n > 1 ? 'e' : 'a'}${z ? ' in zirconia' : ''}`,
+    veneers: (n) => `${n} faccett${n > 1 ? 'e' : 'a'}`,
   },
 };
 
@@ -302,7 +368,7 @@ const ES: PremiumLabels = {
   options: 'Opciones de tratamiento',
   option: 'Opción',
   accommodation: 'Alojamiento y servicios',
-  investment: 'Su inversión',
+  investment: 'Su presupuesto',
   team: 'Su equipo dental',
   experience: 'Su experiencia en Estambul',
   payment: 'Pago por visita',
@@ -334,7 +400,7 @@ const ES: PremiumLabels = {
   selectedOption: 'Opción seleccionada',
   paymentTBD: 'El calendario de pagos se confirmará con la opción de tratamiento seleccionada.',
   packagePlus: 'Paquete +',
-  installmentAmount: 'Importe del pago',
+  installmentAmount: 'Importe financiado',
   remainingCash: 'Saldo en efectivo',
   cashPerVisit: 'Efectivo por visita',
   teamFallback: 'El perfil del equipo se añadirá cuando haya datos de los médicos disponibles.',
@@ -346,7 +412,7 @@ const ES: PremiumLabels = {
   important: 'IMPORTANTE',
   disclaimer:
     'El plan de tratamiento final y el alcance de los procedimientos serán confirmados por el médico después del examen clínico y las pruebas diagnósticas necesarias.',
-  generated: 'Documento generado automáticamente a partir de la cotización aprobada.',
+  generated: 'Documento generado automáticamente a partir del presupuesto aprobado.',
   features: [
     { title: 'Odontología moderna', body: 'Planificación personalizada del tratamiento a partir de la información clínica confirmada.' },
     { title: 'Atención al paciente internacional', body: 'Coordinación del tratamiento, el alojamiento y el apoyo al paciente en Estambul.' },
@@ -355,9 +421,8 @@ const ES: PremiumLabels = {
   ],
   summary: {
     upperImplants: (n) => `${n} implante${n > 1 ? 's' : ''} para el maxilar superior`,
-    lowerImplants: (range, isRange) =>
-      `${range} implante${isRange ? 's' : ''} para el maxilar inferior según el examen clínico`,
-    crowns: (n, z) => `${n} corona${n > 1 ? 's' : ''}${z ? ' de circonio' : ''}`,
+    lowerImplants: (range) => `${range} implante${range === '1' ? '' : 's'} para el maxilar inferior según el examen clínico`,
+    crowns: (n, z) => `${n} corona${n > 1 ? 's' : ''}${z ? ' de zirconio' : ''}`,
     veneers: (n) => `${n} carilla${n > 1 ? 's' : ''}`,
   },
 };
@@ -374,29 +439,29 @@ const AR: PremiumLabels = {
   team: 'فريق أطباء الأسنان',
   experience: 'تجربتك في إسطنبول',
   payment: 'الدفع حسب الزيارة',
-  implantMap: 'خريطة الزرع',
-  implantMapIntro: 'المواضع المخططة للزرعات والتيجان لعلاجك.',
+  implantMap: 'مخطط زراعة الأسنان',
+  implantMapIntro: 'المواضع المقررة للزرعات والتيجان في خطة علاجك.',
   photos: 'الصور',
-  photosIntro: 'صور ما قبل وبعد العلاج، وصور الأشعة، وصور داخل الفم المقدمة لعلاجك.',
+  photosIntro: 'صور ما قبل العلاج وبعده، وصور الأشعة، وصور الفم الداخلية المقدمة لعلاجك.',
   implant: 'زرعة',
   crown: 'تاج',
   bridge: 'جسر',
   procedure: 'الإجراء',
   qty: 'الكمية',
   total: 'الإجمالي',
-  dentalImplants: 'زرعات الأسنان',
+  dentalImplants: 'زراعة الأسنان',
   dentalCrowns: 'تيجان الأسنان',
-  dentalVeneers: 'قشور الأسنان (فينير)',
-  dentalBridge: 'الجسر التعويضي الكامل',
+  dentalVeneers: 'قشور الأسنان (الفينير)',
+  dentalBridge: 'جسر الأسنان الكامل',
   included: 'مشمول',
-  priceTbd: 'السعر يُحدَّد لاحقًا',
+  priceTbd: 'السعر قيد التأكيد',
   visit1: 'الزيارة الأولى',
   visit2: 'الزيارة الثانية',
   flightTicket: 'تذكرة الطيران',
   oneVisit: 'زيارة واحدة',
   twoVisits: 'زيارتان',
   nights: 'ليالٍ',
-  transfer: 'خدمة النقل VIP',
+  transfer: 'النقل الخاص (VIP)',
   prosthesis: 'التركيبة السنية',
   translator: 'مترجم',
   selectedOption: 'الخيار المختار',
@@ -408,10 +473,10 @@ const AR: PremiumLabels = {
   teamFallback: 'ستتم إضافة ملف الفريق عند توفر بيانات الأطباء.',
   dentistry: 'طب الأسنان',
   experienceIntro: 'Duty Clinic Istanbul — مرافقنا ومناطق المرضى.',
-  closing: 'نتطلع إلى الترحيب بكم في Duty Clinic Istanbul.',
+  closing: 'نتطلع إلى الترحيب بك في Duty Clinic Istanbul.',
   closingTagline: 'رعاية أسنان احترافية وفق المعايير الدولية.',
   notes: 'ملاحظات',
-  important: 'هام',
+  important: 'مهم',
   disclaimer:
     'يتم تأكيد خطة العلاج النهائية ونطاق الإجراءات من قبل الطبيب بعد الفحص السريري والتقييم التشخيصي اللازم.',
   generated: 'أُعدّ هذا المستند تلقائيًا من عرض السعر المعتمد من المنسق.',
@@ -422,18 +487,19 @@ const AR: PremiumLabels = {
     { title: 'قرارات بإشراف الطبيب', body: 'يبقى الطبيب المعالج مسؤولًا عن الخطة السريرية النهائية ونطاق الإجراءات.' },
   ],
   summary: {
-    upperImplants: (n) => `${n} زرعات في الفك العلوي`,
-    lowerImplants: (range) => `${range} زرعات في الفك السفلي حسب الفحص السريري`,
-    crowns: (n, z) => `${n} ${z ? 'تيجان من الزيركون' : 'تيجان'}`,
-    veneers: (n) => `${n} قشور (فينير)`,
+    upperImplants: (n) => `${arabicCount(n, AR_IMPLANTS)} في الفك العلوي`,
+    lowerImplants: (range) => `${arabicCount(range, AR_IMPLANTS)} في الفك السفلي حسب الفحص السريري`,
+    crowns: (n, z) => `${arabicCount(n, AR_CROWNS)}${z ? ' من الزركونيا' : ''}`,
+    veneers: (n) => arabicCount(n, AR_VENEERS),
   },
 };
 
-/** Legacy source: `premiumLabels()`'s `labels` object, extended to five languages. */
+/** Legacy source: `premiumLabels()`'s `labels` object, extended to six languages. */
 export const PREMIUM_LABELS: Record<PremiumLanguage, PremiumLabels> = {
   English: EN,
   Russian: RU,
   French: FR,
+  Italian: IT,
   Spanish: ES,
   Arabic: AR,
 };

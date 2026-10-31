@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DOCTORS, toPdfDoctor } from './doctors';
 
-const LANGUAGES = ['Russian', 'French', 'Spanish', 'Arabic'] as const;
+const LANGUAGES = ['Russian', 'French', 'Italian', 'Spanish', 'Arabic'] as const;
 
 describe('toPdfDoctor', () => {
   it('defaults to English and never translates the name', () => {

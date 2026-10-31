@@ -13,7 +13,7 @@
  *    `usdToCurrencyRate` render the correct amount the first time, and `showProductPrices` /
  *    `showHotelPrices` are checked while building each row.
  *
- * Every user-visible string comes from `PREMIUM_LABELS` (all five languages, no hardcoded
+ * Every user-visible string comes from `PREMIUM_LABELS` (all six languages, no hardcoded
  * English). Arabic additionally switches the document to a right-to-left layout.
  *
  * Must run in a browser context: it calls `window.open`, `document.write` and
@@ -21,6 +21,8 @@
  */
 import type { QuotationDisplayOptions, QuotationLanguage, QuotationOption, QuotationPdfData, QuotationVisit } from '../types';
 import { getPremiumLabels, type PremiumLabels } from './labels';
+import { HTML_LANG } from '../types';
+import { formatStayCount } from '../plurals';
 import { withOrigin } from '../originLabels';
 import { translateOptionName, translateProcedureName, translateProcedureUnit, translateProductName, translateRoomType } from '../contentTranslations';
 
@@ -241,7 +243,7 @@ function visitCardHtml(
         hotel
           ? `
         <div class="visit-line">
-          <span><strong>${esc(hotel.name)}</strong><br>${esc(translateRoomType(hotel.roomLabel || hotel.roomType, language))} • ${bidi(hotel.nights, rtl)} ${esc(labels.nights)}</span>
+          <span><strong>${esc(hotel.name)}</strong><br>${esc(translateRoomType(hotel.roomLabel || hotel.roomType, language))} • ${esc(formatStayCount(hotel.nights, 'night', language))}</span>
           <strong>${hotelTotalText}</strong>
         </div>
       `
@@ -452,8 +454,7 @@ export function generatePremiumQuotationHtml(data: QuotationPdfData, doctors: Do
     ? `<div class="section-label" style="margin-top: 10mm">${esc(labels.notes)}</div><div class="notes-block">${esc(data.notes.trim())}</div>`
     : '';
 
-  const htmlLang =
-    language === 'Russian' ? 'ru' : language === 'French' ? 'fr' : language === 'Spanish' ? 'es' : rtl ? 'ar' : 'en';
+  const htmlLang = HTML_LANG[language];
 
   return `
 <!DOCTYPE html>

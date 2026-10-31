@@ -35,6 +35,13 @@ const OPTION_NAMES: Table = {
     korean: 'Système coréen',
     turkish: 'Système turc',
   },
+  Italian: {
+    german: 'Sistema tedesco',
+    swiss: 'Sistema svizzero',
+    american: 'Sistema americano',
+    korean: 'Sistema coreano',
+    turkish: 'Sistema turco',
+  },
   Spanish: {
     german: 'Sistema alemán',
     swiss: 'Sistema suizo',
@@ -70,6 +77,14 @@ const PRODUCT_NAMES: Table = {
     'straumann zirconia': 'Couronnes en zircone Straumann',
     veneers: 'Facettes',
   },
+  Italian: {
+    'zirconium crowns ivoclar german': 'Corone in zirconia Ivoclar (tedesche)',
+    'zirconium crowns emax': 'Corone in zirconia Emax',
+    'zirconium crowns monolithic': 'Corone in zirconia monolitica',
+    'zirconium crowns multilayer': 'Corone in zirconia multistrato',
+    'straumann zirconia': 'Corone in zirconia Straumann',
+    veneers: 'Faccette',
+  },
   Spanish: {
     'zirconium crowns ivoclar german': 'Coronas de zirconio Ivoclar (alemanas)',
     'zirconium crowns emax': 'Coronas de zirconio Emax',
@@ -81,10 +96,10 @@ const PRODUCT_NAMES: Table = {
   Arabic: {
     'zirconium crowns ivoclar german': 'تيجان زركونيا Ivoclar (ألمانية)',
     'zirconium crowns emax': 'تيجان زركونيا Emax',
-    'zirconium crowns monolithic': 'تيجان زركونيا مونوليثيك',
+    'zirconium crowns monolithic': 'تيجان زركونيا أحادية الطبقة',
     'zirconium crowns multilayer': 'تيجان زركونيا متعددة الطبقات',
     'straumann zirconia': 'تيجان زركونيا Straumann',
-    veneers: 'قشور الأسنان (فينير)',
+    veneers: 'قشور الأسنان (الفينير)',
   },
 };
 
@@ -116,6 +131,19 @@ const PROCEDURE_NAMES: Table = {
     'hiv protocol for a patient with hiv': 'Protocole VIH pour un patient séropositif',
     'titanium bar (not a bridge) — full arch': 'Barre en titane (pas un bridge) — arcade complète',
   },
+  Italian: {
+    'bone grafting': 'Innesto osseo',
+    'sinus lifting with bone graft (1 side)': 'Rialzo del seno mascellare con innesto osseo (1 lato)',
+    'sinus lifting with bone graft (2 sides)': 'Rialzo del seno mascellare con innesto osseo (2 lati)',
+    'surgical extraction': 'Estrazione chirurgica',
+    'implants removal': 'Rimozione di impianti',
+    'root canal': 'Trattamento canalare',
+    gingivectomy: 'Gengivectomia',
+    fillings: 'Otturazioni',
+    'general anesthesia': 'Anestesia generale',
+    'hiv protocol for a patient with hiv': 'Protocollo HIV per paziente con HIV',
+    'titanium bar (not a bridge) — full arch': 'Barra in titanio (non un ponte) — arcata completa',
+  },
   Spanish: {
     'bone grafting': 'Injerto óseo',
     'sinus lifting with bone graft (1 side)': 'Elevación de seno con injerto óseo (1 lado)',
@@ -131,16 +159,16 @@ const PROCEDURE_NAMES: Table = {
   },
   Arabic: {
     'bone grafting': 'تطعيم العظم',
-    'sinus lifting with bone graft (1 side)': 'رفع الجيب الأنفي مع تطعيم العظم (جهة واحدة)',
-    'sinus lifting with bone graft (2 sides)': 'رفع الجيب الأنفي مع تطعيم العظم (جهتان)',
+    'sinus lifting with bone graft (1 side)': 'رفع الجيب الفكي مع تطعيم العظم (جهة واحدة)',
+    'sinus lifting with bone graft (2 sides)': 'رفع الجيب الفكي مع تطعيم العظم (جهتان)',
     'surgical extraction': 'خلع جراحي',
     'implants removal': 'إزالة الزرعات',
-    'root canal': 'علاج قناة الجذر',
-    gingivectomy: 'قص اللثة',
-    fillings: 'حشوات',
+    'root canal': 'علاج عصب السن',
+    gingivectomy: 'استئصال جزء من اللثة',
+    fillings: 'حشوات الأسنان',
     'general anesthesia': 'تخدير عام',
-    'hiv protocol for a patient with hiv': 'بروتوكول خاص لمريض فيروس نقص المناعة',
-    'titanium bar (not a bridge) — full arch': 'قضيب تيتانيوم (ليس جسرًا) — فك كامل',
+    'hiv protocol for a patient with hiv': 'بروتوكول خاص بمرضى فيروس نقص المناعة البشرية',
+    'titanium bar (not a bridge) — full arch': 'عارضة تيتانيوم (ليست جسرًا) — فك كامل',
   },
 };
 
@@ -148,6 +176,7 @@ const PROCEDURE_NAMES: Table = {
 const PROCEDURE_UNITS: Table = {
   Russian: { '1 cc': '1 куб. см', 'one side': 'одна сторона', 'two sides': 'две стороны', 'per arch': 'за челюсть', 'per jaw': 'за челюсть' },
   French: { '1 cc': '1 cc', 'one side': 'un côté', 'two sides': 'deux côtés', 'per arch': 'par arcade', 'per jaw': 'par mâchoire' },
+  Italian: { '1 cc': '1 cc', 'one side': 'un lato', 'two sides': 'due lati', 'per arch': 'per arcata', 'per jaw': 'per arcata' },
   Spanish: { '1 cc': '1 cc', 'one side': 'un lado', 'two sides': 'dos lados', 'per arch': 'por arcada', 'per jaw': 'por maxilar' },
   Arabic: { '1 cc': '1 سم³', 'one side': 'جهة واحدة', 'two sides': 'جهتان', 'per arch': 'لكل فك', 'per jaw': 'لكل فك' },
 };
@@ -156,6 +185,7 @@ const PROCEDURE_UNITS: Table = {
 const ROOM_TYPES: Table = {
   Russian: { single: 'Одноместный', double: 'Двухместный', triple: 'Трёхместный' },
   French: { single: 'Chambre simple', double: 'Chambre double', triple: 'Chambre triple' },
+  Italian: { single: 'Camera singola', double: 'Camera doppia', triple: 'Camera tripla' },
   Spanish: { single: 'Individual', double: 'Doble', triple: 'Triple' },
   Arabic: { single: 'غرفة مفردة', double: 'غرفة مزدوجة', triple: 'غرفة ثلاثية' },
 };
@@ -165,6 +195,7 @@ const OPTION_WORD: Record<QuotationLanguage, string> = {
   English: 'Option',
   Russian: 'Вариант',
   French: 'Option',
+  Italian: 'Opzione',
   Spanish: 'Opción',
   Arabic: 'الخيار',
 };
